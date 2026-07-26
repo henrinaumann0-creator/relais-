@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Relais</title>
+<meta name="description" content="Ein privater KI-Chat, der direkt auf deinem Gerät läuft.">
+
+<!-- PWA / Installierbarkeit -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#171614">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Relais">
+<meta name="mobile-web-app-capable" content="yes">
+
+<style>
+  :root{
+    --bg:        #171614;
+    --surface:   #201f1c;
+    --surface-2: #26241f;
+    --border:    #34322d;
+    --text:      #ede7dc;
+    --text-dim:  #948c7e;
+    --accent:    #be6a3d;
+    --accent-ink:#180e08;
+    --ok:        #7a8a6b;
+    --danger:    #b6553f;
+    --radius:    16px;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body{
+    height: 100%;
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overscroll-behavior-y: none;
+  }
+
+  body{
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: calc(14px + var(--safe-top)) 18px 14px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .wordmark{
+    font-family: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    font-size: 21px;
+    letter-spacing: 0.02em;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .icon-btn{
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+  }
+  .icon-btn:hover, .icon-btn:active{ background: var(--surface); color: var(--text); }
+  .icon-btn:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+  .icon-btn svg{ width: 20px; height: 20px; }
+
+  /* ---------- Model-Status-Pille (Signaturelement) ---------- */
+  .model-pill{
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    color: var(--text-dim);
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    margin: 2px 0 10px;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    animation: fade-in .3s ease;
+  }
+  .model-pill .dot{
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--ok);
+    flex-shrink: 0;
+  }
+  .model-pill.error .dot{ background: var(--danger); }
+
+  @keyframes fade-in{ from{ opacity: 0; transform: translateY(2px);} to{ opacity: 1; transform: none; } }
+
+  /* ---------- Chat-Verlauf ---------- */
+  main{
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 16px 8px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .thread{
+    max-width: 640px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .empty-state{
+    max-width: 460px;
+    margin: 15vh auto 0;
+    text-align: center;
+    color: var(--text-dim);
+    padding: 0 20px;
+  }
+  .empty-state .wordmark{ font-size: 30px; display:block; margin-bottom: 10px; color: var(--text); }
+  .empty-state p{ font-size: 14.5px; line-height: 1.6; margin: 0; }
+
+  .row{
+    display: flex;
+    margin: 6px 0;
+  }
+  .row.user{ justify-content: flex-end; }
+  .row.assistant{ justify-content: flex-start; flex-direction: column; align-items: flex-start; }
+
+  .bubble{
+    max-width: 82%;
+    padding: 11px 15px;
+    border-radius: var(--radius);
+    font-size: 15.5px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .row.user .bubble{
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-bottom-right-radius: 4px;
+  }
+  .row.assistant .bubble{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+  }
+  .row.assistant .bubble.streaming::after{
+    content: "▍";
+    animation: blink 1s step-end infinite;
+    color: var(--text-dim);
+  }
+  @keyframes blink{ 50%{ opacity: 0; } }
+
+  .row.assistant .bubble.error{
+    border-color: var(--danger);
+    color: var(--text);
+  }
+
+  /* ---------- Composer ---------- */
+  .composer-wrap{
+    flex-shrink: 0;
+    border-top: 1px solid var(--border);
+    padding: 12px 16px calc(12px + var(--safe-bottom));
+    background: var(--bg);
+  }
+  .composer{
+    max-width: 640px;
+    margin: 0 auto;
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    padding: 6px 6px 6px 16px;
+  }
+  .composer textarea{
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    resize: none;
+    color: var(--text);
+    font-size: 16px; /* 16px verhindert Auto-Zoom in iOS Safari */
+    font-family: inherit;
+    line-height: 1.4;
+    max-height: 120px;
+    padding: 8px 0;
+  }
+  .composer textarea::placeholder{ color: var(--text-dim); }
+
+  .send-btn{
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: opacity .15s, transform .1s;
+  }
+  .send-btn:disabled{ opacity: .35; }
+  .send-btn:active:not(:disabled){ transform: scale(0.92); }
+  .send-btn svg{ width: 17px; height: 17px; }
+
+  /* ---------- Einstellungen (Modal) ---------- */
+  .sheet-backdrop{
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.5);
+    display: none;
+    z-index: 20;
+  }
+  .sheet-backdrop.open{ display: block; }
+  .sheet{
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-radius: 20px 20px 0 0;
+    padding: 20px 20px calc(24px + var(--safe-bottom));
+    transform: translateY(100%);
+    transition: transform .25s ease;
+    z-index: 21;
+    max-height: 82vh;
+    overflow-y: auto;
+  }
+  .sheet-backdrop.open .sheet{ transform: translateY(0); }
+  .sheet h2{
+    font-family: ui-serif, Georgia, serif;
+    font-weight: 500;
+    font-size: 19px;
+    margin: 0 0 16px;
+  }
+  .field{ margin-bottom: 16px; }
+  .field label{
+    display: block;
+    font-size: 12.5px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+  .field input[type=password],
+  .field input[type=text],
+  .field select{
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 11px 12px;
+    color: var(--text);
+    font-size: 15px;
+    font-family: inherit;
+  }
+  .field input:focus, .field select:focus{ outline: 2px solid var(--accent); outline-offset: -1px; }
+  .field .hint{ font-size: 12px; color: var(--text-dim); margin-top: 6px; line-height: 1.5; }
+  .field .hint a{ color: var(--accent); }
+
+  .btn{
+    width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    border: none;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-primary{ background: var(--accent); color: var(--accent-ink); }
+  .btn-ghost{ background: none; color: var(--danger); border: 1px solid var(--border); margin-top: 8px; }
+
+  .toast{
+    position: fixed;
+    bottom: calc(90px + var(--safe-bottom));
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 13.5px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s;
+    z-index: 30;
+    max-width: 85%;
+    text-align: center;
+  }
+  .toast.show{ opacity: 1; }
+
+  ::-webkit-scrollbar{ width: 0; height: 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <button class="icon-btn" id="btn-clear" title="Verlauf löschen" aria-label="Verlauf löschen">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h10l1-13" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <span class="wordmark">Relais</span>
+  <button class="icon-btn" id="btn-settings" title="Einstellungen" aria-label="Einstellungen">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 0 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.1.36.32.68.63.92" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+</header>
+
+<main id="main">
+  <div class="thread" id="thread">
+    <div class="empty-state" id="empty-state">
+      <span class="wordmark">Relais</span>
+      <p id="empty-text">Schreib einfach los. Läuft komplett auf diesem Gerät, ohne eigenen Server.</p>
+    </div>
+  </div>
+</main>
+
+<div class="composer-wrap">
+  <form class="composer" id="composer">
+    <textarea id="input" rows="1" placeholder="Nachricht schreiben…" autocomplete="off" enterkeyhint="send"></textarea>
+    <button type="submit" class="send-btn" id="btn-send" aria-label="Senden">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 11.5 21 3l-6.5 18-3.5-7.5L3 11.5Z"/></svg>
+    </button>
+  </form>
+</div>
+
+<div class="sheet-backdrop" id="sheet-backdrop">
+  <div class="sheet">
+    <h2>Einstellungen</h2>
+    <div class="field">
+      <label for="api-key">OpenRouter-API-Schlüssel</label>
+      <input type="password" id="api-key" placeholder="sk-or-v1-…" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <div class="hint">
+        Kostenlos, ohne Kreditkarte. Erzeugen unter
+        <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a>.
+        Wird nur auf diesem Gerät gespeichert.
+      </div>
+    </div>
+    <div class="field">
+      <label for="model-select">Modell</label>
+      <select id="model-select">
+        <option value="openrouter/free">Automatisch (empfohlen)</option>
+      </select>
+      <div class="hint">„Automatisch" wählt selbst ein freies Modell und weicht bei Überlastung aus.</div>
+    </div>
+    <button type="button" class="btn btn-primary" id="btn-save">Speichern</button>
+    <button type="button" class="btn btn-ghost" id="btn-forget">Diesen Schlüssel von diesem Gerät entfernen</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  "use strict";
+
+  const STORAGE_KEY   = "relais.apiKey";
+  const STORAGE_MODEL = "relais.model";
+  const STORAGE_CHAT  = "relais.messages";
+  const MAX_CONTEXT_MESSAGES = 24; // an das Modell gesendeter Ausschnitt
+
+  const $ = (sel) => document.querySelector(sel);
+  const thread      = $("#thread");
+  const emptyState  = $("#empty-state");
+  const emptyText   = $("#empty-text");
+  const main        = $("#main");
+  const composer    = $("#composer");
+  const input       = $("#input");
+  const sendBtn     = $("#btn-send");
+  const sheetBackdrop = $("#sheet-backdrop");
+  const apiKeyField = $("#api-key");
+  const modelSelect = $("#model-select");
+  const toastEl     = $("#toast");
+
+  let messages = loadMessages();     // [{role, content}]
+  let apiKey   = localStorage.getItem(STORAGE_KEY) || "";
+  let model    = localStorage.getItem(STORAGE_MODEL) || "openrouter/free";
+  let sending  = false;
+
+  // ---------- Hilfsfunktionen ----------
+  function loadMessages(){
+    try{
+      const raw = localStorage.getItem(STORAGE_CHAT);
+      return raw ? JSON.parse(raw) : [];
+    }catch{ return []; }
+  }
+  function saveMessages(){
+    try{ localStorage.setItem(STORAGE_CHAT, JSON.stringify(messages)); }catch{}
+  }
+  function showToast(msg, ms = 3200){
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toastEl.classList.remove("show"), ms);
+  }
+  function scrollToBottom(){
+    requestAnimationFrame(() => { main.scrollTop = main.scrollHeight; });
+  }
+  function autoGrow(){
+    input.style.height = "auto";
+    input.style.height = Math.min(input.scrollHeight, 120) + "px";
+  }
+
+  // ---------- Rendering ----------
+  function render(){
+    thread.querySelectorAll(".row, .model-pill").forEach(el => el.remove());
+    emptyState.style.display = messages.length ? "none" : "block";
+    for(const m of messages){
+      thread.appendChild(renderRow(m));
+    }
+    scrollToBottom();
+  }
+
+  function renderRow(m){
+    const row = document.createElement("div");
+    row.className = "row " + m.role;
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+    bubble.textContent = m.content;
+    row.appendChild(bubble);
+    if(m.role === "assistant" && m.usedModel){
+      const pill = document.createElement("span");
+      pill.className = "model-pill";
+      pill.innerHTML = '<span class="dot"></span>' + escapeHtml(shortModelName(m.usedModel));
+      row.appendChild(pill);
+    }
+    return row;
+  }
+
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  }
+  function shortModelName(id){
+    // "meta-llama/llama-3.3-70b-instruct:free" -> "llama-3.3-70b-instruct"
+    const last = id.split("/").pop() || id;
+    return last.replace(/:free$/, "");
+  }
+
+  // ---------- Modell-Liste (frei, dynamisch) ----------
+  async function loadFreeModels(){
+    try{
+      const res = await fetch("https://openrouter.ai/api/v1/models");
+      if(!res.ok) return;
+      const json = await res.json();
+      const free = (json.data || [])
+        .filter(m => parseFloat(m.pricing?.prompt || "1") === 0 && parseFloat(m.pricing?.completion || "1") === 0)
+        .sort((a, b) => (b.context_length || 0) - (a.context_length || 0));
+
+      // "Automatisch" bleibt oben; freie Modelle folgen
+      for(const m of free){
+        const opt = document.createElement("option");
+        opt.value = m.id.endsWith(":free") ? m.id : m.id + ":free";
+        opt.textContent = m.name || m.id;
+        modelSelect.appendChild(opt);
+      }
+      if([...modelSelect.options].some(o => o.value === model)){
+        modelSelect.value = model;
+      }
+    }catch{
+      // Liste ist ein Komfortfeature -- "Automatisch" funktioniert auch ohne sie.
+    }
+  }
+
+  // ---------- Senden ----------
+  async function sendMessage(text){
+    if(!apiKey){
+      openSettings();
+      showToast("Erst einen kostenlosen API-Schlüssel eintragen.");
+      return;
+    }
+    messages.push({ role: "user", content: text });
+    saveMessages();
+    render();
+
+    const assistantMsg = { role: "assistant", content: "", usedModel: "" };
+    messages.push(assistantMsg);
+    render();
+    const rows = thread.querySelectorAll(".row.assistant");
+    const lastRow = rows[rows.length - 1];
+    const bubbleEl = lastRow.querySelector(".bubble");
+    bubbleEl.classList.add("streaming");
+
+    sending = true;
+    updateSendState();
+
+    const contextMsgs = messages
+      .filter(m => m.content) // leere (gerade laufende) Antwort nicht mitsenden
+      .slice(-MAX_CONTEXT_MESSAGES)
+      .map(m => ({ role: m.role, content: m.content }));
+    contextMsgs.push({ role: "user", content: text });
+    // (user-Nachricht ist oben bereits in messages, contextMsgs baut sie erneut ein
+    //  falls sie durch den Filter/slice knapp herausfiele -- Sicherheitsnetz)
+
+    try{
+      await streamCompletion(model, dedupeTrailingUser(contextMsgs, text), {
+        onToken: (chunk) => {
+          assistantMsg.content += chunk;
+          bubbleEl.textContent = assistantMsg.content;
+          scrollToBottom();
+        },
+        onModel: (usedModel) => {
+          assistantMsg.usedModel = usedModel;
+        }
+      });
+
+      if(!assistantMsg.content){
+        throw new Error("Leere Antwort erhalten.");
+      }
+    }catch(err){
+      assistantMsg.content = friendlyError(err);
+      assistantMsg.isError = true;
+      bubbleEl.textContent = assistantMsg.content;
+      bubbleEl.classList.add("error");
+      lastRow.querySelector(".model-pill")?.remove();
+      const pill = document.createElement("span");
+      pill.className = "model-pill error";
+      pill.innerHTML = '<span class="dot"></span>Fehler';
+      lastRow.appendChild(pill);
+    }finally{
+      bubbleEl.classList.remove("streaming");
+      sending = false;
+      updateSendState();
+      saveMessages();
+      render();
+    }
+  }
+
+  function dedupeTrailingUser(ctx, text){
+    // Stellt sicher, dass die eben getippte Nachricht genau einmal am Ende steht.
+    if(ctx.length >= 2 && ctx[ctx.length-1].content === text && ctx[ctx.length-2].content === text){
+      ctx.pop();
+    }
+    return ctx;
+  }
+
+  function friendlyError(err){
+    const msg = String(err?.message || err);
+    if(msg.includes("401")) return "Der API-Schlüssel wurde abgelehnt. Bitte in den Einstellungen prüfen.";
+    if(msg.includes("429")) return "Alle kostenlosen Modelle sind gerade ausgelastet. Kurz warten und noch einmal senden.";
+    if(msg.includes("Failed to fetch") || msg.includes("NetworkError")) return "Keine Internetverbindung.";
+    return "Etwas ist schiefgelaufen: " + msg;
+  }
+
+  async function streamCompletion(modelId, msgs, { onToken, onModel }){
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + apiKey,
+        "HTTP-Referer": location.href,
+        "X-Title": "Relais"
+      },
+      body: JSON.stringify({
+        model: modelId,
+        messages: msgs,
+        stream: true
+      })
+    });
+
+    if(!res.ok){
+      let detail = "";
+      try{ detail = (await res.json())?.error?.message || ""; }catch{}
+      throw new Error(res.status + (detail ? ": " + detail : ""));
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while(true){
+      const { done, value } = await reader.read();
+      if(done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const parts = buffer.split("\n\n");
+      buffer = parts.pop(); // letzter, evtl. unvollständiger Teil bleibt im Puffer
+
+      for(const part of parts){
+        const line = part.trim();
+        if(!line.startsWith("data:")) continue;
+        const data = line.slice(5).trim();
+        if(data === "[DONE]") continue;
+        try{
+          const json = JSON.parse(data);
+          const delta = json.choices?.[0]?.delta?.content;
+          if(delta) onToken(delta);
+          if(json.model) onModel(json.model);
+        }catch{
+          // unvollständiges JSON-Fragment -- kommt im nächsten Chunk vervollständigt
+        }
+      }
+    }
+  }
+
+  function updateSendState(){
+    sendBtn.disabled = sending || !input.value.trim();
+  }
+
+  // ---------- Einstellungen ----------
+  function openSettings(){
+    apiKeyField.value = apiKey;
+    sheetBackdrop.classList.add("open");
+  }
+  function closeSettings(){
+    sheetBackdrop.classList.remove("open");
+  }
+
+  $("#btn-settings").addEventListener("click", openSettings);
+  sheetBackdrop.addEventListener("click", (e) => { if(e.target === sheetBackdrop) closeSettings(); });
+
+  $("#btn-save").addEventListener("click", () => {
+    apiKey = apiKeyField.value.trim();
+    model = modelSelect.value;
+    localStorage.setItem(STORAGE_KEY, apiKey);
+    localStorage.setItem(STORAGE_MODEL, model);
+    closeSettings();
+    showToast("Gespeichert.");
+  });
+
+  $("#btn-forget").addEventListener("click", () => {
+    apiKey = "";
+    apiKeyField.value = "";
+    localStorage.removeItem(STORAGE_KEY);
+    showToast("Schlüssel entfernt.");
+  });
+
+  $("#btn-clear").addEventListener("click", () => {
+    if(!messages.length) return;
+    if(confirm("Verlauf auf diesem Gerät löschen?")){
+      messages = [];
+      saveMessages();
+      render();
+    }
+  });
+
+  // ---------- Composer ----------
+  input.addEventListener("input", () => { autoGrow(); updateSendState(); });
+  input.addEventListener("keydown", (e) => {
+    if(e.key === "Enter" && !e.shiftKey){
+      e.preventDefault();
+      composer.requestSubmit();
+    }
+  });
+
+  composer.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if(!text || sending) return;
+    input.value = "";
+    autoGrow();
+    updateSendState();
+    sendMessage(text);
+  });
+
+  // ---------- Start ----------
+  if(!apiKey){
+    emptyText.textContent = "Erst einen kostenlosen OpenRouter-Schlüssel eintragen — unten rechts, im Zahnrad.";
+  }
+  render();
+  loadFreeModels();
+  updateSendState();
+
+  if("serviceWorker" in navigator){
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
+})();
+</script>
+</body>
+</html>
