@@ -352,7 +352,7 @@
       </div>
     </div>
     <div class="field">
-      <label for="model-select">Modell</label>
+      <label for="model-select">Modell (OpenRouter)</label>
       <select id="model-select">
         <option value="openrouter/free">Automatisch (empfohlen)</option>
       </select>
@@ -360,6 +360,24 @@
     </div>
     <button type="button" class="btn btn-primary" id="btn-save">Speichern</button>
     <button type="button" class="btn btn-ghost" id="btn-forget">Diesen Schlüssel von diesem Gerät entfernen</button>
+
+    <h2 style="margin-top:28px">Zweiter Anbieter (optional)</h2>
+    <div class="field">
+      <label for="groq-key">Groq-API-Schlüssel</label>
+      <input type="password" id="groq-key" placeholder="gsk_…" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <div class="hint">
+        Deutlich größeres Freikontingent als OpenRouter (oft mehrere Tausend statt 50 Anfragen/Tag).
+        Kostenlos, ohne Kreditkarte, unter
+        <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>.
+        Wenn eingetragen, versucht die App zuerst Groq und weicht nur bei Bedarf auf OpenRouter aus.
+      </div>
+    </div>
+    <div class="field" id="groq-model-field" style="display:none">
+      <label for="groq-model-select">Modell (Groq)</label>
+      <select id="groq-model-select"></select>
+    </div>
+    <button type="button" class="btn btn-primary" id="btn-save-groq">Speichern</button>
+    <button type="button" class="btn btn-ghost" id="btn-forget-groq">Groq-Schlüssel entfernen</button>
   </div>
 </div>
 
@@ -369,9 +387,12 @@
 (() => {
   "use strict";
 
-  const STORAGE_KEY   = "relais.apiKey";
-  const STORAGE_MODEL = "relais.model";
-  const STORAGE_CHAT  = "relais.messages";
+  const STORAGE_KEY      = "relais.apiKey";
+  const STORAGE_MODEL    = "relais.model";
+  const STORAGE_CHAT     = "relais.messages";
+  const STORAGE_GROQ_KEY   = "relais.groqKey";
+  const STORAGE_GROQ_MODEL = "relais.groqModel";
+  const GROQ_MODEL_PREFERENCE = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
   const MAX_CONTEXT_MESSAGES = 24; // an das Modell gesendeter Ausschnitt
 
   const $ = (sel) => document.querySelector(sel);
@@ -387,10 +408,16 @@
   const modelSelect = $("#model-select");
   const toastEl     = $("#toast");
 
-  let messages = loadMessages();     // [{role, content}]
-  let apiKey   = localStorage.getItem(STORAGE_KEY) || "";
-  let model    = localStorage.getItem(STORAGE_MODEL) || "openrouter/free";
-  let sending  = false;
+  let messages  = loadMessages();     // [{role, content}]
+  let apiKey    = localStorage.getItem(STORAGE_KEY) || "";
+  let model     = localStorage.getItem(STORAGE_MODEL) || "openrouter/free";
+  let groqKey   = localStorage.getItem(STORAGE_GROQ_KEY) || "";
+  let groqModel = localStorage.getItem(STORAGE_GROQ_MODEL) || "";
+  let sending   = false;
+
+  const groqKeyField = $("#groq-key");
+  const groqModelField = $("#groq-model-field");
+  const groqModelSelect = $("#groq-model-select");
 
   // ---------- Hilfsfunktionen ----------
   function loadMessages(){
@@ -476,9 +503,79 @@
     }
   }
 
+  // ---------- Groq: Modell-Liste live laden und Dropdown befuellen ----------
+  async function loadGroqModels(){
+    if(!groqKey){
+      groqModelField.style.display = "none";
+      return;
+    }
+    groqModelSelect.innerHTML = "";
+    try{
+      const res = await fetch("https://api.groq.com/openai/v1/models", {
+        headers: { "Authorization": "Bearer " + groqKey }
+      });
+      if(!res.ok) throw new Error(String(res.status));
+      const json = await res.json();
+      // Audio/Moderation-Spezialmodelle ausblenden -- keine Chat-Modelle
+      const chatModels = (json.data || [])
+        .filter(m => !/whisper|guard|tts|moderation/i.test(m.id))
+        .sort((a, b) => a.id.localeCompare(b.id));
+
+      for(const m of chatModels){
+        const opt = document.createElement("option");
+        opt.value = m.id;
+        opt.textContent = m.id;
+        groqModelSelect.appendChild(opt);
+      }
+
+      // Vorauswahl: gespeichertes Modell, sonst bevorzugtes, sonst erstes verfuegbares
+      const ids = chatModels.map(m => m.id);
+      const preferred = GROQ_MODEL_PREFERENCE.find(p => ids.includes(p));
+      const pick = (groqModel && ids.includes(groqModel)) ? groqModel : (preferred || ids[0] || "");
+      if(pick){
+        groqModelSelect.value = pick;
+        groqModel = pick;
+      }
+      groqModelField.style.display = ids.length ? "block" : "none";
+    }catch{
+      // Modell-Liste ist ein Komfortfeature -- ohne sie greift die feste Vorauswahl.
+      groqModelSelect.innerHTML = "";
+      const opt = document.createElement("option");
+      opt.value = groqModel || GROQ_MODEL_PREFERENCE[0];
+      opt.textContent = opt.value + " (nicht bestaetigt -- Schluessel pruefen)";
+      groqModelSelect.appendChild(opt);
+      groqModelField.style.display = "block";
+    }
+  }
+
+  // ---------- Sende-Ziele in Reihenfolge (mit Fallback) ----------
+  function buildTargets(){
+    const targets = [];
+    if(groqKey){
+      targets.push({
+        provider: "Groq",
+        url: "https://api.groq.com/openai/v1/chat/completions",
+        key: groqKey,
+        model: groqModel || GROQ_MODEL_PREFERENCE[0],
+        extraHeaders: {}
+      });
+    }
+    if(apiKey){
+      targets.push({
+        provider: "OpenRouter",
+        url: "https://openrouter.ai/api/v1/chat/completions",
+        key: apiKey,
+        model: model,
+        extraHeaders: { "HTTP-Referer": location.href, "X-Title": "Relais" }
+      });
+    }
+    return targets;
+  }
+
   // ---------- Senden ----------
   async function sendMessage(text){
-    if(!apiKey){
+    const targets = buildTargets();
+    if(!targets.length){
       openSettings();
       showToast("Erst einen kostenlosen API-Schlüssel eintragen.");
       return;
@@ -506,23 +603,37 @@
     // (user-Nachricht ist oben bereits in messages, contextMsgs baut sie erneut ein
     //  falls sie durch den Filter/slice knapp herausfiele -- Sicherheitsnetz)
 
-    try{
-      await streamCompletion(model, dedupeTrailingUser(contextMsgs, text), {
-        onToken: (chunk) => {
-          assistantMsg.content += chunk;
-          bubbleEl.textContent = assistantMsg.content;
-          scrollToBottom();
-        },
-        onModel: (usedModel) => {
-          assistantMsg.usedModel = usedModel;
-        }
-      });
+    const finalMsgs = dedupeTrailingUser(contextMsgs, text);
+    const errors = [];
+    let succeeded = false;
 
-      if(!assistantMsg.content){
-        throw new Error("Leere Antwort erhalten.");
+    for(const target of targets){
+      assistantMsg.content = "";
+      bubbleEl.textContent = "";
+      try{
+        await streamCompletion(target, finalMsgs, {
+          onToken: (chunk) => {
+            assistantMsg.content += chunk;
+            bubbleEl.textContent = assistantMsg.content;
+            scrollToBottom();
+          },
+          onModel: (usedModel) => {
+            assistantMsg.usedModel = target.provider + " · " + shortModelName(usedModel || target.model);
+          }
+        });
+        if(!assistantMsg.content){
+          throw new Error("Leere Antwort erhalten.");
+        }
+        succeeded = true;
+        break; // dieses Ziel hat geklappt -- nicht auch noch das naechste versuchen
+      }catch(err){
+        errors.push({ provider: target.provider, err });
+        // naechstes Ziel in der Liste versuchen (falls vorhanden)
       }
-    }catch(err){
-      assistantMsg.content = friendlyError(err);
+    }
+
+    if(!succeeded){
+      assistantMsg.content = friendlyError(errors);
       assistantMsg.isError = true;
       bubbleEl.textContent = assistantMsg.content;
       bubbleEl.classList.add("error");
@@ -531,7 +642,9 @@
       pill.className = "model-pill error";
       pill.innerHTML = '<span class="dot"></span>Fehler';
       lastRow.appendChild(pill);
-    }finally{
+    }
+
+    {
       bubbleEl.classList.remove("streaming");
       sending = false;
       updateSendState();
@@ -548,25 +661,36 @@
     return ctx;
   }
 
-  function friendlyError(err){
-    const msg = String(err?.message || err);
-    if(msg.includes("401")) return "Der API-Schlüssel wurde abgelehnt. Bitte in den Einstellungen prüfen.";
-    if(msg.includes("429")) return "Alle kostenlosen Modelle sind gerade ausgelastet. Kurz warten und noch einmal senden.";
-    if(msg.includes("Failed to fetch") || msg.includes("NetworkError")) return "Keine Internetverbindung.";
-    return "Etwas ist schiefgelaufen: " + msg;
+  function friendlyError(errorList){
+    // errorList: [{ provider, err }, ...] -- einer pro versuchtem Ziel
+    if(!errorList || !errorList.length) return "Etwas ist schiefgelaufen.";
+
+    if(errorList.length === 1){
+      const { provider, err } = errorList[0];
+      const msg = String(err?.message || err);
+      if(msg.includes("401")) return provider + ": Der API-Schlüssel wurde abgelehnt. Bitte in den Einstellungen prüfen.";
+      if(msg.includes("429")) return provider + ": Gerade ausgelastet. Kurz warten und noch einmal senden.";
+      if(msg.includes("Failed to fetch") || msg.includes("NetworkError")) return "Keine Internetverbindung.";
+      return provider + ": " + msg;
+    }
+
+    // Mehrere Ziele configuriert und ALLE sind fehlgeschlagen
+    const allNetwork = errorList.every(({err}) => String(err?.message||err).match(/Failed to fetch|NetworkError/));
+    if(allNetwork) return "Keine Internetverbindung.";
+    const summary = errorList.map(({provider, err}) => provider + " (" + String(err?.message||err).slice(0,40) + ")").join(", ");
+    return "Alle konfigurierten Dienste sind gerade nicht erreichbar: " + summary;
   }
 
-  async function streamCompletion(modelId, msgs, { onToken, onModel }){
-    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+  async function streamCompletion(target, msgs, { onToken, onModel }){
+    const res = await fetch(target.url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": "Bearer " + apiKey,
-        "HTTP-Referer": location.href,
-        "X-Title": "Relais"
+        "Authorization": "Bearer " + target.key,
+        ...target.extraHeaders
       },
       body: JSON.stringify({
-        model: modelId,
+        model: target.model,
         messages: msgs,
         stream: true
       })
@@ -614,6 +738,8 @@
   // ---------- Einstellungen ----------
   function openSettings(){
     apiKeyField.value = apiKey;
+    groqKeyField.value = groqKey;
+    loadGroqModels();
     sheetBackdrop.classList.add("open");
   }
   function closeSettings(){
@@ -637,6 +763,40 @@
     apiKeyField.value = "";
     localStorage.removeItem(STORAGE_KEY);
     showToast("Schlüssel entfernt.");
+  });
+
+  $("#btn-save-groq").addEventListener("click", async () => {
+    const newKey = groqKeyField.value.trim();
+    const keyChanged = newKey !== groqKey;
+    groqKey = newKey;
+    if(groqKey){
+      if(keyChanged){
+        showToast("Lade Groq-Modelle …");
+        await loadGroqModels(); // neuer Schluessel -> Liste neu laden, bevor gespeichert wird
+      }
+      groqModel = groqModelSelect.value || groqModel;
+      localStorage.setItem(STORAGE_GROQ_MODEL, groqModel);
+    }else{
+      groqModel = "";
+      localStorage.removeItem(STORAGE_GROQ_MODEL);
+    }
+    localStorage.setItem(STORAGE_GROQ_KEY, groqKey);
+    showToast(groqKey ? "Groq gespeichert." : "Groq entfernt.");
+  });
+
+  groqModelSelect.addEventListener("change", () => {
+    groqModel = groqModelSelect.value;
+    localStorage.setItem(STORAGE_GROQ_MODEL, groqModel);
+  });
+
+  $("#btn-forget-groq").addEventListener("click", () => {
+    groqKey = "";
+    groqModel = "";
+    groqKeyField.value = "";
+    groqModelField.style.display = "none";
+    localStorage.removeItem(STORAGE_GROQ_KEY);
+    localStorage.removeItem(STORAGE_GROQ_MODEL);
+    showToast("Groq-Schlüssel entfernt.");
   });
 
   $("#btn-clear").addEventListener("click", () => {
