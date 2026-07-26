@@ -33,6 +33,32 @@
     --safe-bottom: env(safe-area-inset-bottom, 0px);
   }
 
+  html[data-theme="mitternacht"]{
+    --bg:        #0d1117;
+    --surface:   #161b22;
+    --surface-2: #1c232c;
+    --border:    #2d333b;
+    --text:      #e6edf3;
+    --text-dim:  #8b949e;
+    --accent:    #5b8dd6;
+    --accent-ink:#0a1420;
+    --ok:        #3fb950;
+    --danger:    #f85149;
+  }
+
+  html[data-theme="hell"]{
+    --bg:        #f7f3ec;
+    --surface:   #ffffff;
+    --surface-2: #efe9df;
+    --border:    #ddd4c5;
+    --text:      #2a2620;
+    --text-dim:  #6d6558;
+    --accent:    #a8492a;
+    --accent-ink:#fdf6ef;
+    --ok:        #2f7a3d;
+    --danger:    #b3261e;
+  }
+
   *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
   html, body{
@@ -490,6 +516,7 @@
   }
   .field input[type=password],
   .field input[type=text],
+  .field textarea,
   .field select{
     width: 100%;
     background: var(--surface-2);
@@ -500,6 +527,7 @@
     font-size: 15px;
     font-family: inherit;
   }
+  .field textarea{ resize: vertical; min-height: 60px; line-height: 1.4; }
   .field input:focus, .field select:focus{ outline: 2px solid var(--accent); outline-offset: -1px; }
   .field .hint{ font-size: 12px; color: var(--text-dim); margin-top: 6px; line-height: 1.5; }
   .field .hint a{ color: var(--accent); }
@@ -650,6 +678,9 @@
   </button>
   <span class="wordmark">Relais</span>
   <div style="display:flex; gap:4px">
+    <button class="icon-btn" id="btn-new-chat-header" title="Neuer Chat" aria-label="Neuer Chat">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
+    </button>
     <button class="icon-btn" id="btn-usage" title="Nutzung" aria-label="Nutzung">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V10M12 20V4M20 20v-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
@@ -690,6 +721,31 @@
 <div class="sheet-backdrop" id="sheet-backdrop">
   <div class="sheet">
     <h2>Einstellungen</h2>
+
+    <details class="provider-section" id="section-profile" open>
+      <summary><span class="status-dot" id="status-profile"></span>Profil</summary>
+      <div class="field">
+        <label for="profile-name">Wie soll die KI dich nennen?</label>
+        <input type="text" id="profile-name" placeholder="z. B. Henri" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="profile-about">Was sollte die KI über dich wissen?</label>
+        <textarea id="profile-about" rows="3" placeholder="z. B. Interessen, Beruf, Kontext, der bei Antworten helfen könnte"></textarea>
+      </div>
+      <div class="field">
+        <label for="profile-style">Wie soll die KI antworten?</label>
+        <textarea id="profile-style" rows="3" placeholder="z. B. kurz und direkt, mit Beispielen, ohne Emojis"></textarea>
+      </div>
+      <div class="field">
+        <label for="theme-select">Erscheinungsbild</label>
+        <select id="theme-select">
+          <option value="graphit">Graphit (Standard)</option>
+          <option value="mitternacht">Mitternacht</option>
+          <option value="hell">Hell</option>
+        </select>
+      </div>
+      <button type="button" class="btn btn-primary" id="btn-save-profile">Speichern</button>
+    </details>
 
     <details class="provider-section" id="section-openrouter">
       <summary><span class="status-dot" id="status-openrouter"></span>OpenRouter</summary>
@@ -798,6 +854,59 @@
       <button type="button" class="btn btn-ghost" id="btn-forget-mistral">Schlüssel entfernen</button>
     </details>
 
+    <details class="provider-section" id="section-ghmodels">
+      <summary><span class="status-dot" id="status-ghmodels"></span>GitHub Models</summary>
+      <div class="field">
+        <label for="ghmodels-key">Personal Access Token</label>
+        <div class="key-field">
+          <input type="password" id="ghmodels-key" placeholder="github_pat_…" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <button type="button" class="key-btn key-toggle" data-target="ghmodels-key" aria-label="Anzeigen/Verbergen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke-linejoin="round"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+          <button type="button" class="key-btn key-copy" data-target="ghmodels-key" aria-label="Kopieren">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V5a1 1 0 0 1 1-1h11" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div class="hint">
+          Kostenlos für jedes GitHub-Konto, riesige Modell-Auswahl (u. a. GPT-4.1, Llama 4, DeepSeek, Mistral).
+          Fine-grained Token unter <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com/settings/personal-access-tokens/new</a>
+          mit Berechtigung <strong>Models: Read-only</strong> erzeugen.
+        </div>
+      </div>
+      <div class="field" id="ghmodels-model-field" style="display:none">
+        <label for="ghmodels-model-select">Modell</label>
+        <select id="ghmodels-model-select"></select>
+      </div>
+      <button type="button" class="btn btn-primary" id="btn-save-ghmodels">Speichern</button>
+      <button type="button" class="btn btn-ghost" id="btn-forget-ghmodels">Schlüssel entfernen</button>
+    </details>
+
+    <details class="provider-section" id="section-cohere">
+      <summary><span class="status-dot" id="status-cohere"></span>Cohere</summary>
+      <div class="field">
+        <label for="cohere-key">API-Schlüssel</label>
+        <div class="key-field">
+          <input type="password" id="cohere-key" placeholder="…" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <button type="button" class="key-btn key-toggle" data-target="cohere-key" aria-label="Anzeigen/Verbergen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke-linejoin="round"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+          <button type="button" class="key-btn key-copy" data-target="cohere-key" aria-label="Kopieren">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V5a1 1 0 0 1 1-1h11" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div class="hint">
+          Kostenloser Trial-Schlüssel, ohne Kreditkarte, 1.000 Anfragen/Monat. Erzeugen unter
+          <a href="https://dashboard.cohere.com/api-keys" target="_blank" rel="noopener">dashboard.cohere.com/api-keys</a>.
+        </div>
+      </div>
+      <div class="field" id="cohere-model-field" style="display:none">
+        <label for="cohere-model-select">Modell</label>
+        <select id="cohere-model-select"></select>
+      </div>
+      <button type="button" class="btn btn-primary" id="btn-save-cohere">Speichern</button>
+      <button type="button" class="btn btn-ghost" id="btn-forget-cohere">Schlüssel entfernen</button>
+    </details>
+
     <details class="provider-section" id="section-custom">
       <summary><span class="status-dot" id="status-custom"></span>Eigene Anbieter</summary>
       <div class="field">
@@ -886,7 +995,17 @@
   const STORAGE_MISTRAL_KEY   = "relais.mistralKey";
   const STORAGE_MISTRAL_MODEL = "relais.mistralModel";
   const STORAGE_CUSTOM_PROVIDERS = "relais.customProviders";
+  const STORAGE_PROFILE_NAME  = "relais.profileName";
+  const STORAGE_PROFILE_ABOUT = "relais.profileAbout";
+  const STORAGE_PROFILE_STYLE = "relais.profileStyle";
+  const STORAGE_THEME = "relais.theme";
   const MISTRAL_MODEL_PREFERENCE = ["mistral-small-latest", "open-mistral-nemo", "ministral-8b-latest"];
+  const STORAGE_GHMODELS_KEY   = "relais.ghmodelsKey";
+  const STORAGE_GHMODELS_MODEL = "relais.ghmodelsModel";
+  const GHMODELS_MODEL_PREFERENCE = ["openai/gpt-4o-mini", "meta/meta-llama-3.1-8b-instruct", "mistral-ai/mistral-small-2503"];
+  const STORAGE_COHERE_KEY   = "relais.cohereKey";
+  const STORAGE_COHERE_MODEL = "relais.cohereModel";
+  const COHERE_MODEL_PREFERENCE = ["command-r-plus", "command-r", "command-a-03-2025"];
   const MAX_CONTEXT_MESSAGES = 24; // an das Modell gesendeter Ausschnitt
 
   const $ = (sel) => document.querySelector(sel);
@@ -914,9 +1033,17 @@
   let geminiModel = localStorage.getItem(STORAGE_GEMINI_MODEL) || "";
   let mistralKey   = localStorage.getItem(STORAGE_MISTRAL_KEY) || "";
   let mistralModel = localStorage.getItem(STORAGE_MISTRAL_MODEL) || "";
+  let ghmodelsKey   = localStorage.getItem(STORAGE_GHMODELS_KEY) || "";
+  let ghmodelsModel = localStorage.getItem(STORAGE_GHMODELS_MODEL) || "";
+  let cohereKey   = localStorage.getItem(STORAGE_COHERE_KEY) || "";
+  let cohereModel = localStorage.getItem(STORAGE_COHERE_MODEL) || "";
   let customProviders = [];
   try{ customProviders = JSON.parse(localStorage.getItem(STORAGE_CUSTOM_PROVIDERS) || "[]"); }catch{ customProviders = []; }
   let editingCustomIndex = -1;
+  let profileName  = localStorage.getItem(STORAGE_PROFILE_NAME) || "";
+  let profileAbout = localStorage.getItem(STORAGE_PROFILE_ABOUT) || "";
+  let profileStyle = localStorage.getItem(STORAGE_PROFILE_STYLE) || "";
+  let currentTheme = localStorage.getItem(STORAGE_THEME) || "graphit";
   let sending   = false;
   let editingIndex = -1;
 
@@ -929,6 +1056,16 @@
   const mistralKeyField = $("#mistral-key");
   const mistralModelField = $("#mistral-model-field");
   const mistralModelSelect = $("#mistral-model-select");
+  const ghmodelsKeyField = $("#ghmodels-key");
+  const ghmodelsModelField = $("#ghmodels-model-field");
+  const ghmodelsModelSelect = $("#ghmodels-model-select");
+  const cohereKeyField = $("#cohere-key");
+  const cohereModelField = $("#cohere-model-field");
+  const cohereModelSelect = $("#cohere-model-select");
+  const profileNameField = $("#profile-name");
+  const profileAboutField = $("#profile-about");
+  const profileStyleField = $("#profile-style");
+  const themeSelect = $("#theme-select");
   const sidebarBackdrop = $("#sidebar-backdrop");
   const conversationList = $("#conversation-list");
   const usageBackdrop = $("#usage-backdrop");
@@ -986,7 +1123,9 @@
   function saveMessages(){
     conversations[activeId].messages = messages;
     conversations[activeId].updatedAt = Date.now();
-    if(messages.length) conversations[activeId].title = titleFromMessages(messages);
+    if(messages.length && !conversations[activeId].titleIsCustom){
+      conversations[activeId].title = titleFromMessages(messages);
+    }
     saveConversationsRaw(conversations);
   }
 
@@ -1163,6 +1302,14 @@
       .catch(() => showToast("Kopieren nicht möglich."));
   }
 
+  const THEME_BG = { graphit: "#171614", mitternacht: "#0d1117", hell: "#f7f3ec" };
+  function applyTheme(name){
+    document.documentElement.dataset.theme = name === "graphit" ? "" : name;
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if(meta) meta.setAttribute("content", THEME_BG[name] || THEME_BG.graphit);
+  }
+  applyTheme(currentTheme);
+
   function saveEditedUser(index, newText){
     newText = newText.trim();
     if(!newText) return;
@@ -1282,7 +1429,7 @@
 
     const commit = () => {
       const v = inp.value.trim();
-      if(v) conversations[id].title = v;
+      if(v){ conversations[id].title = v; conversations[id].titleIsCustom = true; }
       saveConversationsRaw(conversations);
       renderSidebar();
     };
@@ -1399,6 +1546,49 @@
     });
   }
 
+  function loadCohereModels(){
+    return loadProviderModels({
+      key: cohereKey,
+      modelsUrl: "https://api.cohere.ai/v1/models",
+      selectEl: cohereModelSelect,
+      fieldEl: cohereModelField,
+      preference: COHERE_MODEL_PREFERENCE,
+      currentModel: cohereModel,
+      excludePattern: /embed|rerank|classify/i
+    });
+  }
+
+  // GitHub Models hat einen oeffentlichen Katalog mit eigenem Schema (Array statt {data:[...]}, kein Auth noetig).
+  // Der GitHub-Models-Katalog-Endpunkt selbst hat kein CORS fuer Browser-Anfragen
+  // (der Chat-Endpunkt schon) -- deshalb hier eine kuratierte, feste Auswahl statt
+  // eines Live-Abrufs, der ohnehin immer scheitern wuerde.
+  const GHMODELS_STATIC_LIST = [
+    "openai/gpt-4.1", "openai/gpt-4.1-mini", "openai/gpt-4o", "openai/gpt-4o-mini",
+    "meta/llama-3.3-70b-instruct", "meta/meta-llama-3.1-8b-instruct", "meta/llama-4-scout-17b-16e-instruct",
+    "deepseek/deepseek-r1", "deepseek/deepseek-v3-0324",
+    "mistral-ai/mistral-medium-2505", "mistral-ai/mistral-small-2503", "mistral-ai/codestral-2501",
+    "cohere/cohere-command-a",
+    "microsoft/phi-4", "microsoft/phi-4-reasoning"
+  ];
+
+  function loadGithubModels(){
+    if(!ghmodelsKey){
+      ghmodelsModelField.style.display = "none";
+      return ghmodelsModel;
+    }
+    ghmodelsModelSelect.innerHTML = "";
+    for(const id of GHMODELS_STATIC_LIST){
+      const opt = document.createElement("option");
+      opt.value = id;
+      opt.textContent = id;
+      ghmodelsModelSelect.appendChild(opt);
+    }
+    const pick = (ghmodelsModel && GHMODELS_STATIC_LIST.includes(ghmodelsModel)) ? ghmodelsModel : GHMODELS_MODEL_PREFERENCE[0];
+    ghmodelsModelSelect.value = pick;
+    ghmodelsModelField.style.display = "block";
+    return pick;
+  }
+
   // ---------- Sende-Ziele in Reihenfolge (mit Fallback) ----------
   // Reihenfolge nach Grosszuegigkeit des jeweiligen Gratis-Kontingents.
   function buildTargets(){
@@ -1427,6 +1617,24 @@
         url: "https://api.mistral.ai/v1/chat/completions",
         key: mistralKey,
         model: mistralModel || MISTRAL_MODEL_PREFERENCE[0],
+        extraHeaders: {}
+      });
+    }
+    if(ghmodelsKey){
+      targets.push({
+        provider: "GitHub Models",
+        url: "https://models.github.ai/inference/chat/completions",
+        key: ghmodelsKey,
+        model: ghmodelsModel || GHMODELS_MODEL_PREFERENCE[0],
+        extraHeaders: {}
+      });
+    }
+    if(cohereKey){
+      targets.push({
+        provider: "Cohere",
+        url: "https://api.cohere.ai/compatibility/v1/chat/completions",
+        key: cohereKey,
+        model: cohereModel || COHERE_MODEL_PREFERENCE[0],
         extraHeaders: {}
       });
     }
@@ -1520,6 +1728,13 @@
     contextMsgs.push({ role: "user", content: text });
 
     const finalMsgs = dedupeTrailingUser(contextMsgs, text);
+
+    const profileParts = [];
+    if(profileName) profileParts.push("Der Nutzer möchte " + profileName + " genannt werden.");
+    if(profileAbout) profileParts.push("Über den Nutzer: " + profileAbout);
+    if(profileStyle) profileParts.push("Gewünschter Antwortstil: " + profileStyle);
+    if(profileParts.length) finalMsgs.unshift({ role: "system", content: profileParts.join(" ") });
+
     const errors = [];
     let succeeded = false;
     let aborted = false;
@@ -1598,6 +1813,42 @@
       updateSendState();
       saveMessages();
       render();
+      if(succeeded && !aborted && messages.length === 2 && !conversations[activeId].titleIsCustom){
+        generateSmartTitle(activeId, text, assistantMsg.content, targets);
+      }
+    }
+  }
+
+  // Erzeugt im Hintergrund einen kurzen, treffenden Titel (statt der reinen
+  // Anfangs-Zeichen-Abschneidung) -- scheitert es, bleibt der einfache Titel stehen.
+  async function generateSmartTitle(convId, userText, assistantText, targets){
+    if(!targets.length || !conversations[convId]) return;
+    const instruction = "Fasse das folgende Gespräch in einem sehr kurzen Titel zusammen " +
+      "(maximal 5 Wörter, keine Anführungszeichen, keine Satzzeichen am Ende, keine Präambel, nur der Titel selbst).\n\n" +
+      "Nutzer: " + userText.slice(0, 500) + "\nAntwort: " + assistantText.slice(0, 500);
+
+    for(const target of targets){
+      try{
+        const res = await fetch(target.url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + target.key, ...target.extraHeaders },
+          body: JSON.stringify({ model: target.model, messages: [{ role: "user", content: instruction }], stream: false })
+        });
+        if(!res.ok) continue;
+        const json = await res.json();
+        let title = json.choices?.[0]?.message?.content?.trim();
+        if(title){
+          title = title.replace(/^["'„«]+|["'"»]+$/g, "").replace(/[.!?]+$/, "").trim();
+          if(title && conversations[convId] && !conversations[convId].titleIsCustom){
+            conversations[convId].title = title.length > 60 ? title.slice(0, 60) + "…" : title;
+            saveConversationsRaw(conversations);
+            if(convId === activeId) renderSidebar();
+          }
+          return;
+        }
+      }catch{
+        // naechstes Ziel versuchen -- scheitert alles, bleibt der einfache Titel
+      }
     }
   }
 
@@ -1759,9 +2010,17 @@
     groqKeyField.value = groqKey;
     geminiKeyField.value = geminiKey;
     mistralKeyField.value = mistralKey;
+    ghmodelsKeyField.value = ghmodelsKey;
+    cohereKeyField.value = cohereKey;
+    profileNameField.value = profileName;
+    profileAboutField.value = profileAbout;
+    profileStyleField.value = profileStyle;
+    themeSelect.value = currentTheme;
     loadGroqModels();
     loadGeminiModels();
     loadMistralModels();
+    loadGithubModels();
+    loadCohereModels();
     renderCustomProviderList();
     refreshProviderStatuses();
     sheetBackdrop.classList.add("open");
@@ -1772,10 +2031,13 @@
 
   function refreshProviderStatuses(){
     const set = (id, active) => document.getElementById(id)?.classList.toggle("ok", !!active);
+    set("status-profile", profileName || profileAbout || profileStyle);
     set("status-openrouter", apiKey);
     set("status-groq", groqKey);
     set("status-gemini", geminiKey);
     set("status-mistral", mistralKey);
+    set("status-ghmodels", ghmodelsKey);
+    set("status-cohere", cohereKey);
     set("status-custom", customProviders.length);
   }
 
@@ -1893,6 +2155,20 @@
   $("#btn-settings").addEventListener("click", openSettings);
   sheetBackdrop.addEventListener("click", (e) => { if(e.target === sheetBackdrop) closeSettings(); });
 
+  $("#btn-save-profile").addEventListener("click", () => {
+    profileName = profileNameField.value.trim();
+    profileAbout = profileAboutField.value.trim();
+    profileStyle = profileStyleField.value.trim();
+    currentTheme = themeSelect.value;
+    localStorage.setItem(STORAGE_PROFILE_NAME, profileName);
+    localStorage.setItem(STORAGE_PROFILE_ABOUT, profileAbout);
+    localStorage.setItem(STORAGE_PROFILE_STYLE, profileStyle);
+    localStorage.setItem(STORAGE_THEME, currentTheme);
+    applyTheme(currentTheme);
+    refreshProviderStatuses();
+    showToast("Gespeichert.");
+  });
+
   $("#btn-save").addEventListener("click", () => {
     apiKey = apiKeyField.value.trim();
     model = modelSelect.value;
@@ -2009,9 +2285,76 @@
     showToast("Mistral-Schlüssel entfernt.");
   });
 
+  $("#btn-save-ghmodels").addEventListener("click", async () => {
+    const newKey = ghmodelsKeyField.value.trim();
+    const keyChanged = newKey !== ghmodelsKey;
+    ghmodelsKey = newKey;
+    if(ghmodelsKey){
+      if(keyChanged){ ghmodelsModel = loadGithubModels(); }
+      else ghmodelsModel = ghmodelsModelSelect.value || ghmodelsModel;
+      localStorage.setItem(STORAGE_GHMODELS_MODEL, ghmodelsModel);
+    }else{
+      ghmodelsModel = "";
+      localStorage.removeItem(STORAGE_GHMODELS_MODEL);
+    }
+    localStorage.setItem(STORAGE_GHMODELS_KEY, ghmodelsKey);
+    refreshProviderStatuses();
+    showToast(ghmodelsKey ? "GitHub Models gespeichert." : "GitHub Models entfernt.");
+  });
+
+  ghmodelsModelSelect.addEventListener("change", () => {
+    ghmodelsModel = ghmodelsModelSelect.value;
+    localStorage.setItem(STORAGE_GHMODELS_MODEL, ghmodelsModel);
+  });
+
+  $("#btn-forget-ghmodels").addEventListener("click", () => {
+    ghmodelsKey = "";
+    ghmodelsModel = "";
+    ghmodelsKeyField.value = "";
+    ghmodelsModelField.style.display = "none";
+    localStorage.removeItem(STORAGE_GHMODELS_KEY);
+    localStorage.removeItem(STORAGE_GHMODELS_MODEL);
+    refreshProviderStatuses();
+    showToast("GitHub-Models-Schlüssel entfernt.");
+  });
+
+  $("#btn-save-cohere").addEventListener("click", async () => {
+    const newKey = cohereKeyField.value.trim();
+    const keyChanged = newKey !== cohereKey;
+    cohereKey = newKey;
+    if(cohereKey){
+      if(keyChanged){ showToast("Lade Cohere-Modelle …"); await loadCohereModels(); }
+      cohereModel = cohereModelSelect.value || cohereModel;
+      localStorage.setItem(STORAGE_COHERE_MODEL, cohereModel);
+    }else{
+      cohereModel = "";
+      localStorage.removeItem(STORAGE_COHERE_MODEL);
+    }
+    localStorage.setItem(STORAGE_COHERE_KEY, cohereKey);
+    refreshProviderStatuses();
+    showToast(cohereKey ? "Cohere gespeichert." : "Cohere entfernt.");
+  });
+
+  cohereModelSelect.addEventListener("change", () => {
+    cohereModel = cohereModelSelect.value;
+    localStorage.setItem(STORAGE_COHERE_MODEL, cohereModel);
+  });
+
+  $("#btn-forget-cohere").addEventListener("click", () => {
+    cohereKey = "";
+    cohereModel = "";
+    cohereKeyField.value = "";
+    cohereModelField.style.display = "none";
+    localStorage.removeItem(STORAGE_COHERE_KEY);
+    localStorage.removeItem(STORAGE_COHERE_MODEL);
+    refreshProviderStatuses();
+    showToast("Cohere-Schlüssel entfernt.");
+  });
+
   $("#btn-chats").addEventListener("click", openSidebar);
   sidebarBackdrop.addEventListener("click", (e) => { if(e.target === sidebarBackdrop) closeSidebar(); });
   $("#btn-new-chat").addEventListener("click", createConversation);
+  $("#btn-new-chat-header").addEventListener("click", createConversation);
 
   $("#btn-usage").addEventListener("click", openUsage);
   usageBackdrop.addEventListener("click", (e) => { if(e.target === usageBackdrop) closeUsage(); });
@@ -2029,7 +2372,10 @@
     STORAGE_GROQ_KEY, STORAGE_GROQ_MODEL,
     STORAGE_GEMINI_KEY, STORAGE_GEMINI_MODEL,
     STORAGE_MISTRAL_KEY, STORAGE_MISTRAL_MODEL,
+    STORAGE_GHMODELS_KEY, STORAGE_GHMODELS_MODEL,
+    STORAGE_COHERE_KEY, STORAGE_COHERE_MODEL,
     STORAGE_CUSTOM_PROVIDERS,
+    STORAGE_PROFILE_NAME, STORAGE_PROFILE_ABOUT, STORAGE_PROFILE_STYLE, STORAGE_THEME,
     STORAGE_CONVERSATIONS, STORAGE_ACTIVE_ID, STORAGE_USAGE
   ];
 
