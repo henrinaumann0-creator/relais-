@@ -378,6 +378,39 @@
     </div>
     <button type="button" class="btn btn-primary" id="btn-save-groq">Speichern</button>
     <button type="button" class="btn btn-ghost" id="btn-forget-groq">Groq-Schlüssel entfernen</button>
+
+    <h2 style="margin-top:28px">Google Gemini (optional)</h2>
+    <div class="field">
+      <label for="gemini-key">Gemini-API-Schlüssel</label>
+      <input type="password" id="gemini-key" placeholder="AIza…" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <div class="hint">
+        Kostenlos, ohne Kreditkarte, unter
+        <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>.
+        Hinweis: Google darf Anfragen im Gratis-Kontingent zur Modell-Verbesserung mitverwenden.
+      </div>
+    </div>
+    <div class="field" id="gemini-model-field" style="display:none">
+      <label for="gemini-model-select">Modell (Gemini)</label>
+      <select id="gemini-model-select"></select>
+    </div>
+    <button type="button" class="btn btn-primary" id="btn-save-gemini">Speichern</button>
+    <button type="button" class="btn btn-ghost" id="btn-forget-gemini">Gemini-Schlüssel entfernen</button>
+
+    <h2 style="margin-top:28px">Mistral (optional)</h2>
+    <div class="field">
+      <label for="mistral-key">Mistral-API-Schlüssel</label>
+      <input type="password" id="mistral-key" placeholder="…" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <div class="hint">
+        Kostenlos, ohne Kreditkarte, unter
+        <a href="https://console.mistral.ai/api-keys" target="_blank" rel="noopener">console.mistral.ai/api-keys</a>.
+      </div>
+    </div>
+    <div class="field" id="mistral-model-field" style="display:none">
+      <label for="mistral-model-select">Modell (Mistral)</label>
+      <select id="mistral-model-select"></select>
+    </div>
+    <button type="button" class="btn btn-primary" id="btn-save-mistral">Speichern</button>
+    <button type="button" class="btn btn-ghost" id="btn-forget-mistral">Mistral-Schlüssel entfernen</button>
   </div>
 </div>
 
@@ -393,6 +426,12 @@
   const STORAGE_GROQ_KEY   = "relais.groqKey";
   const STORAGE_GROQ_MODEL = "relais.groqModel";
   const GROQ_MODEL_PREFERENCE = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
+  const STORAGE_GEMINI_KEY   = "relais.geminiKey";
+  const STORAGE_GEMINI_MODEL = "relais.geminiModel";
+  const GEMINI_MODEL_PREFERENCE = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-flash-lite"];
+  const STORAGE_MISTRAL_KEY   = "relais.mistralKey";
+  const STORAGE_MISTRAL_MODEL = "relais.mistralModel";
+  const MISTRAL_MODEL_PREFERENCE = ["mistral-small-latest", "open-mistral-nemo", "ministral-8b-latest"];
   const MAX_CONTEXT_MESSAGES = 24; // an das Modell gesendeter Ausschnitt
 
   const $ = (sel) => document.querySelector(sel);
@@ -413,11 +452,21 @@
   let model     = localStorage.getItem(STORAGE_MODEL) || "openrouter/free";
   let groqKey   = localStorage.getItem(STORAGE_GROQ_KEY) || "";
   let groqModel = localStorage.getItem(STORAGE_GROQ_MODEL) || "";
+  let geminiKey   = localStorage.getItem(STORAGE_GEMINI_KEY) || "";
+  let geminiModel = localStorage.getItem(STORAGE_GEMINI_MODEL) || "";
+  let mistralKey   = localStorage.getItem(STORAGE_MISTRAL_KEY) || "";
+  let mistralModel = localStorage.getItem(STORAGE_MISTRAL_MODEL) || "";
   let sending   = false;
 
   const groqKeyField = $("#groq-key");
   const groqModelField = $("#groq-model-field");
   const groqModelSelect = $("#groq-model-select");
+  const geminiKeyField = $("#gemini-key");
+  const geminiModelField = $("#gemini-model-field");
+  const geminiModelSelect = $("#gemini-model-select");
+  const mistralKeyField = $("#mistral-key");
+  const mistralModelField = $("#mistral-model-field");
+  const mistralModelSelect = $("#mistral-model-select");
 
   // ---------- Hilfsfunktionen ----------
   function loadMessages(){
@@ -503,52 +552,85 @@
     }
   }
 
-  // ---------- Groq: Modell-Liste live laden und Dropdown befuellen ----------
-  async function loadGroqModels(){
-    if(!groqKey){
-      groqModelField.style.display = "none";
-      return;
+  // ---------- Modell-Liste eines OpenAI-kompatiblen Anbieters live laden ----------
+  // Wird fuer Groq, Gemini und Mistral gleichermassen verwendet -- alle drei
+  // sprechen das gleiche /models-Format (data: [{id: ...}]).
+  async function loadProviderModels({ key, modelsUrl, selectEl, fieldEl, preference, currentModel, excludePattern }){
+    if(!key){
+      fieldEl.style.display = "none";
+      return currentModel;
     }
-    groqModelSelect.innerHTML = "";
+    selectEl.innerHTML = "";
     try{
-      const res = await fetch("https://api.groq.com/openai/v1/models", {
-        headers: { "Authorization": "Bearer " + groqKey }
-      });
+      const res = await fetch(modelsUrl, { headers: { "Authorization": "Bearer " + key } });
       if(!res.ok) throw new Error(String(res.status));
       const json = await res.json();
-      // Audio/Moderation-Spezialmodelle ausblenden -- keine Chat-Modelle
       const chatModels = (json.data || [])
-        .filter(m => !/whisper|guard|tts|moderation/i.test(m.id))
+        .filter(m => !excludePattern || !excludePattern.test(m.id))
         .sort((a, b) => a.id.localeCompare(b.id));
 
       for(const m of chatModels){
         const opt = document.createElement("option");
         opt.value = m.id;
         opt.textContent = m.id;
-        groqModelSelect.appendChild(opt);
+        selectEl.appendChild(opt);
       }
 
-      // Vorauswahl: gespeichertes Modell, sonst bevorzugtes, sonst erstes verfuegbares
       const ids = chatModels.map(m => m.id);
-      const preferred = GROQ_MODEL_PREFERENCE.find(p => ids.includes(p));
-      const pick = (groqModel && ids.includes(groqModel)) ? groqModel : (preferred || ids[0] || "");
-      if(pick){
-        groqModelSelect.value = pick;
-        groqModel = pick;
-      }
-      groqModelField.style.display = ids.length ? "block" : "none";
+      const preferred = preference.find(p => ids.includes(p));
+      const pick = (currentModel && ids.includes(currentModel)) ? currentModel : (preferred || ids[0] || "");
+      if(pick) selectEl.value = pick;
+      fieldEl.style.display = ids.length ? "block" : "none";
+      return pick;
     }catch{
-      // Modell-Liste ist ein Komfortfeature -- ohne sie greift die feste Vorauswahl.
-      groqModelSelect.innerHTML = "";
+      selectEl.innerHTML = "";
       const opt = document.createElement("option");
-      opt.value = groqModel || GROQ_MODEL_PREFERENCE[0];
+      opt.value = currentModel || preference[0];
       opt.textContent = opt.value + " (nicht bestaetigt -- Schluessel pruefen)";
-      groqModelSelect.appendChild(opt);
-      groqModelField.style.display = "block";
+      selectEl.appendChild(opt);
+      fieldEl.style.display = "block";
+      return currentModel || preference[0];
     }
   }
 
+  function loadGroqModels(){
+    return loadProviderModels({
+      key: groqKey,
+      modelsUrl: "https://api.groq.com/openai/v1/models",
+      selectEl: groqModelSelect,
+      fieldEl: groqModelField,
+      preference: GROQ_MODEL_PREFERENCE,
+      currentModel: groqModel,
+      excludePattern: /whisper|guard|tts|moderation/i
+    });
+  }
+
+  function loadGeminiModels(){
+    return loadProviderModels({
+      key: geminiKey,
+      modelsUrl: "https://generativelanguage.googleapis.com/v1beta/openai/models",
+      selectEl: geminiModelSelect,
+      fieldEl: geminiModelField,
+      preference: GEMINI_MODEL_PREFERENCE,
+      currentModel: geminiModel,
+      excludePattern: /embedding|aqa|vision-only|imagen|veo|tts/i
+    });
+  }
+
+  function loadMistralModels(){
+    return loadProviderModels({
+      key: mistralKey,
+      modelsUrl: "https://api.mistral.ai/v1/models",
+      selectEl: mistralModelSelect,
+      fieldEl: mistralModelField,
+      preference: MISTRAL_MODEL_PREFERENCE,
+      currentModel: mistralModel,
+      excludePattern: /embed|moderation|ocr/i
+    });
+  }
+
   // ---------- Sende-Ziele in Reihenfolge (mit Fallback) ----------
+  // Reihenfolge nach Grosszuegigkeit des jeweiligen Gratis-Kontingents.
   function buildTargets(){
     const targets = [];
     if(groqKey){
@@ -557,6 +639,24 @@
         url: "https://api.groq.com/openai/v1/chat/completions",
         key: groqKey,
         model: groqModel || GROQ_MODEL_PREFERENCE[0],
+        extraHeaders: {}
+      });
+    }
+    if(geminiKey){
+      targets.push({
+        provider: "Gemini",
+        url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        key: geminiKey,
+        model: geminiModel || GEMINI_MODEL_PREFERENCE[0],
+        extraHeaders: {}
+      });
+    }
+    if(mistralKey){
+      targets.push({
+        provider: "Mistral",
+        url: "https://api.mistral.ai/v1/chat/completions",
+        key: mistralKey,
+        model: mistralModel || MISTRAL_MODEL_PREFERENCE[0],
         extraHeaders: {}
       });
     }
@@ -739,7 +839,11 @@
   function openSettings(){
     apiKeyField.value = apiKey;
     groqKeyField.value = groqKey;
+    geminiKeyField.value = geminiKey;
+    mistralKeyField.value = mistralKey;
     loadGroqModels();
+    loadGeminiModels();
+    loadMistralModels();
     sheetBackdrop.classList.add("open");
   }
   function closeSettings(){
@@ -770,10 +874,7 @@
     const keyChanged = newKey !== groqKey;
     groqKey = newKey;
     if(groqKey){
-      if(keyChanged){
-        showToast("Lade Groq-Modelle …");
-        await loadGroqModels(); // neuer Schluessel -> Liste neu laden, bevor gespeichert wird
-      }
+      if(keyChanged){ showToast("Lade Groq-Modelle …"); await loadGroqModels(); }
       groqModel = groqModelSelect.value || groqModel;
       localStorage.setItem(STORAGE_GROQ_MODEL, groqModel);
     }else{
@@ -797,6 +898,68 @@
     localStorage.removeItem(STORAGE_GROQ_KEY);
     localStorage.removeItem(STORAGE_GROQ_MODEL);
     showToast("Groq-Schlüssel entfernt.");
+  });
+
+  $("#btn-save-gemini").addEventListener("click", async () => {
+    const newKey = geminiKeyField.value.trim();
+    const keyChanged = newKey !== geminiKey;
+    geminiKey = newKey;
+    if(geminiKey){
+      if(keyChanged){ showToast("Lade Gemini-Modelle …"); await loadGeminiModels(); }
+      geminiModel = geminiModelSelect.value || geminiModel;
+      localStorage.setItem(STORAGE_GEMINI_MODEL, geminiModel);
+    }else{
+      geminiModel = "";
+      localStorage.removeItem(STORAGE_GEMINI_MODEL);
+    }
+    localStorage.setItem(STORAGE_GEMINI_KEY, geminiKey);
+    showToast(geminiKey ? "Gemini gespeichert." : "Gemini entfernt.");
+  });
+
+  geminiModelSelect.addEventListener("change", () => {
+    geminiModel = geminiModelSelect.value;
+    localStorage.setItem(STORAGE_GEMINI_MODEL, geminiModel);
+  });
+
+  $("#btn-forget-gemini").addEventListener("click", () => {
+    geminiKey = "";
+    geminiModel = "";
+    geminiKeyField.value = "";
+    geminiModelField.style.display = "none";
+    localStorage.removeItem(STORAGE_GEMINI_KEY);
+    localStorage.removeItem(STORAGE_GEMINI_MODEL);
+    showToast("Gemini-Schlüssel entfernt.");
+  });
+
+  $("#btn-save-mistral").addEventListener("click", async () => {
+    const newKey = mistralKeyField.value.trim();
+    const keyChanged = newKey !== mistralKey;
+    mistralKey = newKey;
+    if(mistralKey){
+      if(keyChanged){ showToast("Lade Mistral-Modelle …"); await loadMistralModels(); }
+      mistralModel = mistralModelSelect.value || mistralModel;
+      localStorage.setItem(STORAGE_MISTRAL_MODEL, mistralModel);
+    }else{
+      mistralModel = "";
+      localStorage.removeItem(STORAGE_MISTRAL_MODEL);
+    }
+    localStorage.setItem(STORAGE_MISTRAL_KEY, mistralKey);
+    showToast(mistralKey ? "Mistral gespeichert." : "Mistral entfernt.");
+  });
+
+  mistralModelSelect.addEventListener("change", () => {
+    mistralModel = mistralModelSelect.value;
+    localStorage.setItem(STORAGE_MISTRAL_MODEL, mistralModel);
+  });
+
+  $("#btn-forget-mistral").addEventListener("click", () => {
+    mistralKey = "";
+    mistralModel = "";
+    mistralKeyField.value = "";
+    mistralModelField.style.display = "none";
+    localStorage.removeItem(STORAGE_MISTRAL_KEY);
+    localStorage.removeItem(STORAGE_MISTRAL_MODEL);
+    showToast("Mistral-Schlüssel entfernt.");
   });
 
   $("#btn-clear").addEventListener("click", () => {
