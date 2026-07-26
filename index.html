@@ -307,19 +307,109 @@
   .toast.show{ opacity: 1; }
 
   ::-webkit-scrollbar{ width: 0; height: 0; }
+
+  /* ---------- Sidebar (Chats) ---------- */
+  .sidebar-backdrop{
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.5);
+    display: none;
+    z-index: 25;
+  }
+  .sidebar-backdrop.open{ display: block; }
+  .sidebar-panel{
+    position: fixed;
+    top: 0; bottom: 0; left: 0;
+    width: min(82vw, 320px);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: calc(16px + var(--safe-top)) 12px calc(16px + var(--safe-bottom));
+    transform: translateX(-100%);
+    transition: transform .25s ease;
+    display: flex;
+    flex-direction: column;
+  }
+  .sidebar-backdrop.open .sidebar-panel{ transform: translateX(0); }
+  .sidebar-header{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 8px 14px;
+  }
+  .conv-item{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-dim);
+  }
+  .conv-item:hover{ background: var(--surface-2); }
+  .conv-item.active{ background: var(--surface-2); color: var(--text); }
+  .conv-item .conv-title{ flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .conv-item .conv-del{
+    opacity: .5;
+    padding: 4px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .conv-item .conv-del:hover{ opacity: 1; background: var(--border); }
+  .conv-item .conv-del svg{ width: 14px; height: 14px; display: block; }
+
+  /* ---------- Markdown-Inhalte in Sprechblasen ---------- */
+  .bubble pre{
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    overflow-x: auto;
+    margin: 8px 0;
+    font-size: 13.5px;
+  }
+  .bubble code{
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.9em;
+  }
+  .bubble :not(pre) > code{
+    background: var(--surface-2);
+    padding: 1px 5px;
+    border-radius: 5px;
+  }
+  .bubble ul{ margin: 6px 0; padding-left: 20px; }
+  .bubble li{ margin: 2px 0; }
+  .bubble a{ color: var(--accent); }
+
+  /* ---------- Nutzungs-Uebersicht ---------- */
+  .usage-row{
+    display: flex;
+    justify-content: space-between;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13.5px;
+  }
+  .usage-row:last-child{ border-bottom: none; }
+  .usage-row .usage-name{ color: var(--text); }
+  .usage-row .usage-count{ color: var(--text-dim); }
 </style>
 </head>
 <body>
 
 <header>
-  <button class="icon-btn" id="btn-clear" title="Verlauf löschen" aria-label="Verlauf löschen">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h10l1-13" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <button class="icon-btn" id="btn-chats" title="Chats" aria-label="Chats">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h10" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </button>
   <span class="wordmark">Relais</span>
-  <button class="icon-btn" id="btn-settings" title="Einstellungen" aria-label="Einstellungen">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 0 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.1.36.32.68.63.92" stroke-linecap="round" stroke-linejoin="round"/></svg>
-  </button>
+  <div style="display:flex; gap:4px">
+    <button class="icon-btn" id="btn-usage" title="Nutzung" aria-label="Nutzung">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V10M12 20V4M20 20v-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button class="icon-btn" id="btn-settings" title="Einstellungen" aria-label="Einstellungen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 0 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.1.36.32.68.63.92" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
 </header>
+
 
 <main id="main">
   <div class="thread" id="thread">
@@ -414,6 +504,26 @@
   </div>
 </div>
 
+<div class="sidebar-backdrop" id="sidebar-backdrop">
+  <div class="sidebar-panel">
+    <div class="sidebar-header">
+      <span class="wordmark" style="font-size:19px">Chats</span>
+      <button class="icon-btn" id="btn-new-chat" title="Neuer Chat" aria-label="Neuer Chat">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div id="conversation-list" style="overflow-y:auto; flex:1"></div>
+  </div>
+</div>
+
+<div class="sheet-backdrop" id="usage-backdrop">
+  <div class="sheet">
+    <h2>Nutzung</h2>
+    <div id="usage-body"></div>
+    <button type="button" class="btn btn-ghost" id="btn-reset-usage" style="margin-top:16px">Nutzungszähler zurücksetzen</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -422,7 +532,10 @@
 
   const STORAGE_KEY      = "relais.apiKey";
   const STORAGE_MODEL    = "relais.model";
-  const STORAGE_CHAT     = "relais.messages";
+  const STORAGE_CHAT     = "relais.messages"; // alt -- nur noch fuer Migration gelesen
+  const STORAGE_CONVERSATIONS = "relais.conversations";
+  const STORAGE_ACTIVE_ID     = "relais.activeId";
+  const STORAGE_USAGE          = "relais.usage";
   const STORAGE_GROQ_KEY   = "relais.groqKey";
   const STORAGE_GROQ_MODEL = "relais.groqModel";
   const GROQ_MODEL_PREFERENCE = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
@@ -447,7 +560,6 @@
   const modelSelect = $("#model-select");
   const toastEl     = $("#toast");
 
-  let messages  = loadMessages();     // [{role, content}]
   let apiKey    = localStorage.getItem(STORAGE_KEY) || "";
   let model     = localStorage.getItem(STORAGE_MODEL) || "openrouter/free";
   let groqKey   = localStorage.getItem(STORAGE_GROQ_KEY) || "";
@@ -467,16 +579,98 @@
   const mistralKeyField = $("#mistral-key");
   const mistralModelField = $("#mistral-model-field");
   const mistralModelSelect = $("#mistral-model-select");
+  const sidebarBackdrop = $("#sidebar-backdrop");
+  const conversationList = $("#conversation-list");
+  const usageBackdrop = $("#usage-backdrop");
+  const usageBody = $("#usage-body");
 
-  // ---------- Hilfsfunktionen ----------
-  function loadMessages(){
+  // ---------- Konversationen: laden, migrieren, verwalten ----------
+  function loadConversations(){
     try{
-      const raw = localStorage.getItem(STORAGE_CHAT);
-      return raw ? JSON.parse(raw) : [];
-    }catch{ return []; }
+      const raw = localStorage.getItem(STORAGE_CONVERSATIONS);
+      return raw ? JSON.parse(raw) : {};
+    }catch{ return {}; }
   }
+  function saveConversationsRaw(convs){
+    try{ localStorage.setItem(STORAGE_CONVERSATIONS, JSON.stringify(convs)); }catch{}
+  }
+  function titleFromMessages(msgs){
+    const firstUser = msgs.find(m => m.role === "user");
+    if(!firstUser || !firstUser.content) return "Neuer Chat";
+    const t = firstUser.content.trim().replace(/\s+/g, " ");
+    return t.length > 42 ? t.slice(0, 42) + "…" : t;
+  }
+  function newConversationId(){
+    return "c" + Date.now() + Math.random().toString(36).slice(2, 7);
+  }
+
+  let conversations = loadConversations();
+  let activeId = localStorage.getItem(STORAGE_ACTIVE_ID) || "";
+
+  // Migration: alte Einzel-Chat-Ablage (vor der Mehr-Chat-Funktion) einmalig uebernehmen.
+  (function migrateOldSingleThread(){
+    if(Object.keys(conversations).length) return; // schon migriert / neu genug
+    let old = [];
+    try{ old = JSON.parse(localStorage.getItem(STORAGE_CHAT) || "[]"); }catch{}
+    if(old.length){
+      const id = newConversationId();
+      conversations[id] = { id, title: titleFromMessages(old), messages: old, updatedAt: Date.now() };
+      activeId = id;
+      saveConversationsRaw(conversations);
+      localStorage.setItem(STORAGE_ACTIVE_ID, activeId);
+    }
+    localStorage.removeItem(STORAGE_CHAT);
+  })();
+
+  if(!activeId || !conversations[activeId]){
+    const id = newConversationId();
+    conversations[id] = { id, title: "Neuer Chat", messages: [], updatedAt: Date.now() };
+    activeId = id;
+    saveConversationsRaw(conversations);
+    localStorage.setItem(STORAGE_ACTIVE_ID, activeId);
+  }
+
+  let messages = conversations[activeId].messages; // Referenz auf den aktiven Chat
+
+  function loadMessages(){ return conversations[activeId].messages; }
   function saveMessages(){
-    try{ localStorage.setItem(STORAGE_CHAT, JSON.stringify(messages)); }catch{}
+    conversations[activeId].messages = messages;
+    conversations[activeId].updatedAt = Date.now();
+    if(messages.length) conversations[activeId].title = titleFromMessages(messages);
+    saveConversationsRaw(conversations);
+  }
+
+  function switchConversation(id){
+    if(!conversations[id]) return;
+    activeId = id;
+    localStorage.setItem(STORAGE_ACTIVE_ID, activeId);
+    messages = conversations[id].messages;
+    closeSidebar();
+    render();
+  }
+
+  function createConversation(){
+    const id = newConversationId();
+    conversations[id] = { id, title: "Neuer Chat", messages: [], updatedAt: Date.now() };
+    saveConversationsRaw(conversations);
+    activeId = id;
+    localStorage.setItem(STORAGE_ACTIVE_ID, activeId);
+    messages = conversations[id].messages;
+    closeSidebar();
+    render();
+  }
+
+  function deleteConversation(id){
+    delete conversations[id];
+    if(id === activeId){
+      const remaining = Object.keys(conversations).sort((a, b) => conversations[b].updatedAt - conversations[a].updatedAt);
+      saveConversationsRaw(conversations);
+      if(remaining.length) switchConversation(remaining[0]);
+      else createConversation();
+    }else{
+      saveConversationsRaw(conversations);
+    }
+    renderSidebar();
   }
   function showToast(msg, ms = 3200){
     toastEl.textContent = msg;
@@ -500,6 +694,7 @@
       thread.appendChild(renderRow(m));
     }
     scrollToBottom();
+    renderSidebar();
   }
 
   function renderRow(m){
@@ -507,7 +702,12 @@
     row.className = "row " + m.role;
     const bubble = document.createElement("div");
     bubble.className = "bubble";
-    bubble.textContent = m.content;
+    if(m.role === "assistant" && !m.isError){
+      bubble.innerHTML = renderMarkdown(m.content);
+    }else{
+      bubble.textContent = m.content;
+    }
+    if(m.isError) bubble.classList.add("error");
     row.appendChild(bubble);
     if(m.role === "assistant" && m.usedModel){
       const pill = document.createElement("span");
@@ -526,6 +726,69 @@
     const last = id.split("/").pop() || id;
     return last.replace(/:free$/, "");
   }
+
+  // ---------- Leichtgewichtiges, sicheres Markdown fuer Assistenten-Antworten ----------
+  // Escaped zuerst komplett zu HTML-Entities, ersetzt dann nur eigene, feste Tags --
+  // es kann also kein Markdown-Text beliebiges HTML einschleusen.
+  function renderMarkdown(raw){
+    let s = escapeHtml(raw);
+
+    const codeBlocks = [];
+    s = s.replace(/```[a-zA-Z0-9]*\n?([\s\S]*?)```/g, (m, code) => {
+      codeBlocks.push("<pre><code>" + code + "</code></pre>");
+      return "\u0000" + (codeBlocks.length - 1) + "\u0000";
+    });
+
+    const inlineCode = [];
+    s = s.replace(/`([^`\n]+)`/g, (m, code) => {
+      inlineCode.push("<code>" + code + "</code>");
+      return "\u0001" + (inlineCode.length - 1) + "\u0001";
+    });
+
+    s = s.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
+    s = s.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, "<em>$1</em>");
+    // nur http(s)-Links zulassen -- kein javascript:-Schema o.ae.
+    s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+
+    s = s.replace(/(?:^|\n)- (.+)/g, "\n<li>$1</li>");
+    s = s.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, (m) => "<ul>" + m.replace(/\n/g, "") + "</ul>");
+
+    s = s.replace(/\n/g, "<br>");
+    s = s.replace(/\u0001(\d+)\u0001/g, (m, i) => inlineCode[+i]);
+    s = s.replace(/\u0000(\d+)\u0000/g, (m, i) => codeBlocks[+i]);
+    return s;
+  }
+
+  // ---------- Sidebar (Chats) ----------
+  function renderSidebar(){
+    conversationList.innerHTML = "";
+    const ids = Object.keys(conversations).sort((a, b) => conversations[b].updatedAt - conversations[a].updatedAt);
+    for(const id of ids){
+      const conv = conversations[id];
+      const item = document.createElement("div");
+      item.className = "conv-item" + (id === activeId ? " active" : "");
+      const title = document.createElement("span");
+      title.className = "conv-title";
+      title.textContent = conv.title || "Neuer Chat";
+      item.appendChild(title);
+
+      const del = document.createElement("button");
+      del.className = "conv-del";
+      del.setAttribute("aria-label", "Chat löschen");
+      del.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18" stroke-linecap="round"/></svg>';
+      del.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if(confirm("Diesen Chat löschen?")) deleteConversation(id);
+      });
+      item.appendChild(del);
+
+      item.addEventListener("click", () => switchConversation(id));
+      conversationList.appendChild(item);
+    }
+  }
+
+  function openSidebar(){ renderSidebar(); sidebarBackdrop.classList.add("open"); }
+  function closeSidebar(){ sidebarBackdrop.classList.remove("open"); }
 
   // ---------- Modell-Liste (frei, dynamisch) ----------
   async function loadFreeModels(){
@@ -709,22 +972,27 @@
 
     for(const target of targets){
       assistantMsg.content = "";
-      bubbleEl.textContent = "";
+      bubbleEl.innerHTML = "";
+      let resolvedModelId = target.model;
+      let usageInfo = null;
       try{
         await streamCompletion(target, finalMsgs, {
           onToken: (chunk) => {
             assistantMsg.content += chunk;
-            bubbleEl.textContent = assistantMsg.content;
+            bubbleEl.innerHTML = renderMarkdown(assistantMsg.content);
             scrollToBottom();
           },
           onModel: (usedModel) => {
-            assistantMsg.usedModel = target.provider + " · " + shortModelName(usedModel || target.model);
-          }
+            resolvedModelId = usedModel || target.model;
+            assistantMsg.usedModel = target.provider + " · " + shortModelName(resolvedModelId);
+          },
+          onUsage: (u) => { usageInfo = u; }
         });
         if(!assistantMsg.content){
           throw new Error("Leere Antwort erhalten.");
         }
         succeeded = true;
+        recordUsage(target.provider, resolvedModelId, usageInfo);
         break; // dieses Ziel hat geklappt -- nicht auch noch das naechste versuchen
       }catch(err){
         errors.push({ provider: target.provider, err });
@@ -781,7 +1049,7 @@
     return "Alle konfigurierten Dienste sind gerade nicht erreichbar: " + summary;
   }
 
-  async function streamCompletion(target, msgs, { onToken, onModel }){
+  async function streamCompletion(target, msgs, { onToken, onModel, onUsage }){
     const res = await fetch(target.url, {
       method: "POST",
       headers: {
@@ -792,7 +1060,9 @@
       body: JSON.stringify({
         model: target.model,
         messages: msgs,
-        stream: true
+        stream: true,
+        // Best-effort: nicht alle Anbieter liefern das, wird sonst einfach ignoriert.
+        stream_options: { include_usage: true }
       })
     });
 
@@ -824,6 +1094,7 @@
           const delta = json.choices?.[0]?.delta?.content;
           if(delta) onToken(delta);
           if(json.model) onModel(json.model);
+          if(json.usage && onUsage) onUsage(json.usage);
         }catch{
           // unvollständiges JSON-Fragment -- kommt im nächsten Chunk vervollständigt
         }
@@ -834,6 +1105,57 @@
   function updateSendState(){
     sendBtn.disabled = sending || !input.value.trim();
   }
+
+  // ---------- Nutzung ----------
+  function loadUsage(){
+    try{
+      const raw = localStorage.getItem(STORAGE_USAGE);
+      return raw ? JSON.parse(raw) : { since: new Date().toISOString(), byKey: {} };
+    }catch{ return { since: new Date().toISOString(), byKey: {} }; }
+  }
+  function saveUsage(u){
+    try{ localStorage.setItem(STORAGE_USAGE, JSON.stringify(u)); }catch{}
+  }
+  function recordUsage(provider, modelId, usageInfo){
+    const usage = loadUsage();
+    const key = provider + "::" + (modelId || "unbekannt");
+    if(!usage.byKey[key]){
+      usage.byKey[key] = { provider, model: modelId, requests: 0, promptTokens: 0, completionTokens: 0, hasTokenData: false };
+    }
+    const entry = usage.byKey[key];
+    entry.requests += 1;
+    if(usageInfo){
+      entry.promptTokens += usageInfo.prompt_tokens || 0;
+      entry.completionTokens += usageInfo.completion_tokens || 0;
+      entry.hasTokenData = true;
+    }
+    saveUsage(usage);
+  }
+  function renderUsage(){
+    const usage = loadUsage();
+    const keys = Object.keys(usage.byKey).sort((a, b) => usage.byKey[b].requests - usage.byKey[a].requests);
+    const totalRequests = keys.reduce((sum, k) => sum + usage.byKey[k].requests, 0);
+    const sinceDate = new Date(usage.since);
+    const sinceStr = sinceDate.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+    if(!keys.length){
+      usageBody.innerHTML = '<p style="color:var(--text-dim); font-size:13.5px">Noch keine Anfragen aufgezeichnet.</p>';
+      return;
+    }
+
+    let html = `<div class="usage-row"><span class="usage-name"><strong>Insgesamt</strong></span><span class="usage-count"><strong>${totalRequests} Anfragen</strong></span></div>`;
+    html += `<div class="usage-row"><span class="usage-name" style="color:var(--text-dim); font-size:12px">seit ${escapeHtml(sinceStr)}</span><span></span></div>`;
+    for(const k of keys){
+      const e = usage.byKey[k];
+      const tokenPart = e.hasTokenData
+        ? `${e.requests} Anfragen · ${(e.promptTokens + e.completionTokens).toLocaleString("de-DE")} Tokens`
+        : `${e.requests} Anfragen`;
+      html += `<div class="usage-row"><span class="usage-name">${escapeHtml(e.provider)} · ${escapeHtml(shortModelName(e.model || ""))}</span><span class="usage-count">${tokenPart}</span></div>`;
+    }
+    usageBody.innerHTML = html;
+  }
+  function openUsage(){ renderUsage(); usageBackdrop.classList.add("open"); }
+  function closeUsage(){ usageBackdrop.classList.remove("open"); }
 
   // ---------- Einstellungen ----------
   function openSettings(){
@@ -962,12 +1284,17 @@
     showToast("Mistral-Schlüssel entfernt.");
   });
 
-  $("#btn-clear").addEventListener("click", () => {
-    if(!messages.length) return;
-    if(confirm("Verlauf auf diesem Gerät löschen?")){
-      messages = [];
-      saveMessages();
-      render();
+  $("#btn-chats").addEventListener("click", openSidebar);
+  sidebarBackdrop.addEventListener("click", (e) => { if(e.target === sidebarBackdrop) closeSidebar(); });
+  $("#btn-new-chat").addEventListener("click", createConversation);
+
+  $("#btn-usage").addEventListener("click", openUsage);
+  usageBackdrop.addEventListener("click", (e) => { if(e.target === usageBackdrop) closeUsage(); });
+  $("#btn-reset-usage").addEventListener("click", () => {
+    if(confirm("Nutzungszähler wirklich zurücksetzen?")){
+      localStorage.removeItem(STORAGE_USAGE);
+      renderUsage();
+      showToast("Zurückgesetzt.");
     }
   });
 
