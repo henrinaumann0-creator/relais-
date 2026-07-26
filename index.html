@@ -115,6 +115,7 @@
     overflow-y: auto;
     padding: 20px 16px 8px;
     -webkit-overflow-scrolling: touch;
+    position: relative;
   }
   .thread{
     max-width: 640px;
@@ -133,12 +134,43 @@
   .empty-state .wordmark{ font-size: 30px; display:block; margin-bottom: 10px; color: var(--text); }
   .empty-state p{ font-size: 14.5px; line-height: 1.6; margin: 0; }
 
+  .starter-chips{
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 22px;
+  }
+  .chip{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 11px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+    transition: border-color .15s, background .15s;
+  }
+  .chip:hover, .chip:active{ border-color: var(--accent); background: var(--surface-2); }
+
   .row{
     display: flex;
     margin: 6px 0;
+    animation: row-in .25s ease;
   }
+  @keyframes row-in{ from{ opacity: 0; transform: translateY(6px);} to{ opacity: 1; transform: none; } }
   .row.user{ justify-content: flex-end; }
   .row.assistant{ justify-content: flex-start; flex-direction: column; align-items: flex-start; }
+
+  .assistant-head{
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 4px;
+    padding-left: 2px;
+  }
+  .assistant-avatar{ width: 16px; height: 16px; flex-shrink: 0; opacity: .85; }
 
   .bubble{
     max-width: 82%;
@@ -170,6 +202,57 @@
     border-color: var(--danger);
     color: var(--text);
   }
+
+  .thinking-dots{ display: inline-flex; gap: 4px; padding: 4px 0; }
+  .thinking-dots span{
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--text-dim);
+    animation: think-bounce 1.2s ease-in-out infinite;
+  }
+  .thinking-dots span:nth-child(2){ animation-delay: .15s; }
+  .thinking-dots span:nth-child(3){ animation-delay: .3s; }
+  @keyframes think-bounce{ 0%, 60%, 100%{ opacity: .3; transform: translateY(0); } 30%{ opacity: 1; transform: translateY(-3px); } }
+
+  .msg-actions{
+    display: flex;
+    gap: 4px;
+    margin-top: 4px;
+    opacity: .7;
+  }
+  .msg-actions button{
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    padding: 5px 7px;
+    border-radius: 7px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11.5px;
+    font-family: inherit;
+  }
+  .msg-actions button:hover{ background: var(--surface-2); color: var(--text); }
+  .msg-actions svg{ width: 13px; height: 13px; }
+
+  .scroll-bottom-btn{
+    position: absolute;
+    right: 18px;
+    bottom: 92px;
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(0,0,0,.3);
+    z-index: 5;
+  }
+  .scroll-bottom-btn.show{ display: flex; }
+  .scroll-bottom-btn svg{ width: 17px; height: 17px; }
 
   /* ---------- Composer ---------- */
   .composer-wrap{
@@ -221,6 +304,7 @@
   .send-btn:disabled{ opacity: .35; }
   .send-btn:active:not(:disabled){ transform: scale(0.92); }
   .send-btn svg{ width: 17px; height: 17px; }
+  .send-btn.stopping{ background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
 
   /* ---------- Einstellungen (Modal) ---------- */
   .sheet-backdrop{
@@ -416,15 +500,24 @@
     <div class="empty-state" id="empty-state">
       <span class="wordmark">Relais</span>
       <p id="empty-text">Schreib einfach los. Läuft komplett auf diesem Gerät, ohne eigenen Server.</p>
+      <div class="starter-chips" id="starter-chips">
+        <button type="button" class="chip">Erklär mir ein Thema einfach</button>
+        <button type="button" class="chip">Hilf mir eine Nachricht zu formulieren</button>
+        <button type="button" class="chip">Fass mir einen Text zusammen</button>
+      </div>
     </div>
   </div>
+  <button class="scroll-bottom-btn" id="btn-scroll-bottom" aria-label="Zum Ende scrollen">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
 </main>
 
 <div class="composer-wrap">
   <form class="composer" id="composer">
     <textarea id="input" rows="1" placeholder="Nachricht schreiben…" autocomplete="off" enterkeyhint="send"></textarea>
     <button type="submit" class="send-btn" id="btn-send" aria-label="Senden">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 11.5 21 3l-6.5 18-3.5-7.5L3 11.5Z"/></svg>
+      <svg class="icon-send" viewBox="0 0 24 24" fill="currentColor"><path d="M3 11.5 21 3l-6.5 18-3.5-7.5L3 11.5Z"/></svg>
+      <svg class="icon-stop" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
     </button>
   </form>
 </div>
@@ -555,6 +648,10 @@
   const composer    = $("#composer");
   const input       = $("#input");
   const sendBtn     = $("#btn-send");
+  const iconSend    = sendBtn.querySelector(".icon-send");
+  const iconStop    = sendBtn.querySelector(".icon-stop");
+  const scrollBottomBtn = $("#btn-scroll-bottom");
+  const starterChips = $("#starter-chips");
   const sheetBackdrop = $("#sheet-backdrop");
   const apiKeyField = $("#api-key");
   const modelSelect = $("#model-select");
@@ -679,27 +776,48 @@
     showToast._t = setTimeout(() => toastEl.classList.remove("show"), ms);
   }
   function scrollToBottom(){
-    requestAnimationFrame(() => { main.scrollTop = main.scrollHeight; });
+    requestAnimationFrame(() => { main.scrollTop = main.scrollHeight; updateScrollBtn(); });
+  }
+  function isNearBottom(){
+    return main.scrollHeight - main.scrollTop - main.clientHeight < 80;
+  }
+  function maybeAutoScroll(){
+    if(isNearBottom()) scrollToBottom();
+    else updateScrollBtn();
+  }
+  function updateScrollBtn(){
+    scrollBottomBtn.classList.toggle("show", !isNearBottom() && messages.length > 0);
   }
   function autoGrow(){
     input.style.height = "auto";
     input.style.height = Math.min(input.scrollHeight, 120) + "px";
   }
 
+  const AVATAR_SVG = '<svg class="assistant-avatar" viewBox="0 0 24 24" fill="none"><path d="M12 4a8 8 0 1 1-6.2 2.9" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="12" r="2.3" fill="var(--text)"/></svg>';
+
   // ---------- Rendering ----------
   function render(){
-    thread.querySelectorAll(".row, .model-pill").forEach(el => el.remove());
+    thread.querySelectorAll(".row, .model-pill, .assistant-head").forEach(el => el.remove());
     emptyState.style.display = messages.length ? "none" : "block";
-    for(const m of messages){
-      thread.appendChild(renderRow(m));
-    }
+    const lastAssistantIdx = messages.map(m => m.role).lastIndexOf("assistant");
+    messages.forEach((m, i) => {
+      thread.appendChild(renderRow(m, i === lastAssistantIdx));
+    });
     scrollToBottom();
     renderSidebar();
   }
 
-  function renderRow(m){
+  function renderRow(m, isLastAssistant){
     const row = document.createElement("div");
     row.className = "row " + m.role;
+
+    if(m.role === "assistant"){
+      const head = document.createElement("div");
+      head.className = "assistant-head";
+      head.innerHTML = AVATAR_SVG;
+      row.appendChild(head);
+    }
+
     const bubble = document.createElement("div");
     bubble.className = "bubble";
     if(m.role === "assistant" && !m.isError){
@@ -709,13 +827,41 @@
     }
     if(m.isError) bubble.classList.add("error");
     row.appendChild(bubble);
+
     if(m.role === "assistant" && m.usedModel){
       const pill = document.createElement("span");
       pill.className = "model-pill";
       pill.innerHTML = '<span class="dot"></span>' + escapeHtml(shortModelName(m.usedModel));
       row.appendChild(pill);
     }
+
+    if(m.role === "assistant" && (m.content || isLastAssistant)){
+      const actions = document.createElement("div");
+      actions.className = "msg-actions";
+
+      if(m.content && !m.isError){
+        const copyBtn = document.createElement("button");
+        copyBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V5a1 1 0 0 1 1-1h11" stroke-linecap="round"/></svg><span>Kopieren</span>';
+        copyBtn.addEventListener("click", () => copyToClipboard(m.content));
+        actions.appendChild(copyBtn);
+      }
+
+      if(isLastAssistant && !sending){
+        const regenBtn = document.createElement("button");
+        regenBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v5h5M20 20v-5h-5" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 9a7 7 0 0 1 12.3-3.2M19 15a7 7 0 0 1-12.3 3.2" stroke-linecap="round"/></svg><span>Neu generieren</span>';
+        regenBtn.addEventListener("click", regenerateLast);
+        actions.appendChild(regenBtn);
+      }
+      if(actions.children.length) row.appendChild(actions);
+    }
+
     return row;
+  }
+
+  function copyToClipboard(text){
+    navigator.clipboard?.writeText(text)
+      .then(() => showToast("Kopiert."))
+      .catch(() => showToast("Kopieren nicht möglich."));
   }
 
   function escapeHtml(s){
@@ -936,6 +1082,8 @@
   }
 
   // ---------- Senden ----------
+  let currentController = null;
+
   async function sendMessage(text){
     const targets = buildTargets();
     if(!targets.length){
@@ -949,38 +1097,58 @@
 
     const assistantMsg = { role: "assistant", content: "", usedModel: "" };
     messages.push(assistantMsg);
+    await runCompletion(text, assistantMsg, targets);
+  }
+
+  async function regenerateLast(){
+    if(sending) return;
+    const lastIdx = messages.length - 1;
+    if(lastIdx < 0 || messages[lastIdx].role !== "assistant") return;
+    const userMsg = messages[lastIdx - 1];
+    if(!userMsg || userMsg.role !== "user") return;
+
+    const assistantMsg = messages[lastIdx];
+    assistantMsg.content = "";
+    assistantMsg.usedModel = "";
+    delete assistantMsg.isError;
+    await runCompletion(userMsg.content, assistantMsg, buildTargets());
+  }
+
+  async function runCompletion(text, assistantMsg, targets){
     render();
     const rows = thread.querySelectorAll(".row.assistant");
     const lastRow = rows[rows.length - 1];
     const bubbleEl = lastRow.querySelector(".bubble");
     bubbleEl.classList.add("streaming");
+    bubbleEl.innerHTML = '<span class="thinking-dots"><span></span><span></span><span></span></span>';
 
     sending = true;
+    currentController = new AbortController();
     updateSendState();
 
     const contextMsgs = messages
-      .filter(m => m.content) // leere (gerade laufende) Antwort nicht mitsenden
+      .filter(m => m.content && m !== assistantMsg)
       .slice(-MAX_CONTEXT_MESSAGES)
       .map(m => ({ role: m.role, content: m.content }));
     contextMsgs.push({ role: "user", content: text });
-    // (user-Nachricht ist oben bereits in messages, contextMsgs baut sie erneut ein
-    //  falls sie durch den Filter/slice knapp herausfiele -- Sicherheitsnetz)
 
     const finalMsgs = dedupeTrailingUser(contextMsgs, text);
     const errors = [];
     let succeeded = false;
+    let aborted = false;
 
     for(const target of targets){
       assistantMsg.content = "";
-      bubbleEl.innerHTML = "";
       let resolvedModelId = target.model;
       let usageInfo = null;
+      let firstToken = true;
       try{
-        await streamCompletion(target, finalMsgs, {
+        await streamCompletion(target, finalMsgs, currentController.signal, {
           onToken: (chunk) => {
+            if(firstToken){ bubbleEl.innerHTML = ""; firstToken = false; }
             assistantMsg.content += chunk;
             bubbleEl.innerHTML = renderMarkdown(assistantMsg.content);
-            scrollToBottom();
+            maybeAutoScroll();
           },
           onModel: (usedModel) => {
             resolvedModelId = usedModel || target.model;
@@ -995,12 +1163,17 @@
         recordUsage(target.provider, resolvedModelId, usageInfo);
         break; // dieses Ziel hat geklappt -- nicht auch noch das naechste versuchen
       }catch(err){
+        if(err?.name === "AbortError"){
+          aborted = true;
+          succeeded = !!assistantMsg.content; // was schon da ist, bleibt stehen
+          break;
+        }
         errors.push({ provider: target.provider, err });
         // naechstes Ziel in der Liste versuchen (falls vorhanden)
       }
     }
 
-    if(!succeeded){
+    if(!succeeded && !aborted){
       assistantMsg.content = friendlyError(errors);
       assistantMsg.isError = true;
       bubbleEl.textContent = assistantMsg.content;
@@ -1010,11 +1183,16 @@
       pill.className = "model-pill error";
       pill.innerHTML = '<span class="dot"></span>Fehler';
       lastRow.appendChild(pill);
+    }else if(aborted && !assistantMsg.content){
+      // Abgebrochen, bevor ueberhaupt ein Token ankam
+      assistantMsg.content = "(Abgebrochen.)";
+      bubbleEl.textContent = assistantMsg.content;
     }
 
     {
       bubbleEl.classList.remove("streaming");
       sending = false;
+      currentController = null;
       updateSendState();
       saveMessages();
       render();
@@ -1049,9 +1227,10 @@
     return "Alle konfigurierten Dienste sind gerade nicht erreichbar: " + summary;
   }
 
-  async function streamCompletion(target, msgs, { onToken, onModel, onUsage }){
+  async function streamCompletion(target, msgs, signal, { onToken, onModel, onUsage }){
     const res = await fetch(target.url, {
       method: "POST",
+      signal,
       headers: {
         "Content-Type": "application/json",
         "Authorization": "Bearer " + target.key,
@@ -1103,7 +1282,17 @@
   }
 
   function updateSendState(){
-    sendBtn.disabled = sending || !input.value.trim();
+    if(sending){
+      sendBtn.disabled = false;
+      sendBtn.classList.add("stopping");
+      iconSend.style.display = "none";
+      iconStop.style.display = "";
+    }else{
+      sendBtn.disabled = !input.value.trim();
+      sendBtn.classList.remove("stopping");
+      iconSend.style.display = "";
+      iconStop.style.display = "none";
+    }
   }
 
   // ---------- Nutzung ----------
@@ -1309,12 +1498,28 @@
 
   composer.addEventListener("submit", (e) => {
     e.preventDefault();
+    if(sending){
+      currentController?.abort();
+      return;
+    }
     const text = input.value.trim();
-    if(!text || sending) return;
+    if(!text) return;
     input.value = "";
     autoGrow();
     updateSendState();
     sendMessage(text);
+  });
+
+  scrollBottomBtn.addEventListener("click", () => scrollToBottom());
+  main.addEventListener("scroll", updateScrollBtn);
+
+  starterChips.addEventListener("click", (e) => {
+    const chip = e.target.closest(".chip");
+    if(!chip) return;
+    input.value = chip.textContent;
+    autoGrow();
+    updateSendState();
+    composer.requestSubmit();
   });
 
   // ---------- Start ----------
