@@ -1055,6 +1055,12 @@
     <details class="provider-section" id="section-openrouter">
       <summary><span class="status-dot" id="status-openrouter"></span>OpenRouter</summary>
       <div class="field">
+        <div class="toggle-row">
+          <span>Anbieter nutzen</span>
+          <button type="button" class="toggle-switch" id="openrouter-enable-toggle" role="switch" aria-checked="true"></button>
+        </div>
+      </div>
+      <div class="field">
         <label for="api-key">API-Schlüssel</label>
         <div class="key-field">
           <input type="password" id="api-key" placeholder="sk-or-v1-…" autocomplete="off" autocapitalize="off" spellcheck="false">
@@ -1084,6 +1090,12 @@
     <details class="provider-section" id="section-groq">
       <summary><span class="status-dot" id="status-groq"></span>Groq</summary>
       <div class="field">
+        <div class="toggle-row">
+          <span>Anbieter nutzen</span>
+          <button type="button" class="toggle-switch" id="groq-enable-toggle" role="switch" aria-checked="true"></button>
+        </div>
+      </div>
+      <div class="field">
         <label for="groq-key">API-Schlüssel</label>
         <div class="key-field">
           <input type="password" id="groq-key" placeholder="gsk_…" autocomplete="off" autocapitalize="off" spellcheck="false">
@@ -1109,6 +1121,12 @@
 
     <details class="provider-section" id="section-gemini">
       <summary><span class="status-dot" id="status-gemini"></span>Google Gemini</summary>
+      <div class="field">
+        <div class="toggle-row">
+          <span>Anbieter nutzen</span>
+          <button type="button" class="toggle-switch" id="gemini-enable-toggle" role="switch" aria-checked="true"></button>
+        </div>
+      </div>
       <div class="field">
         <label for="gemini-key">API-Schlüssel</label>
         <div class="key-field">
@@ -1136,6 +1154,12 @@
     <details class="provider-section" id="section-mistral">
       <summary><span class="status-dot" id="status-mistral"></span>Mistral</summary>
       <div class="field">
+        <div class="toggle-row">
+          <span>Anbieter nutzen</span>
+          <button type="button" class="toggle-switch" id="mistral-enable-toggle" role="switch" aria-checked="true"></button>
+        </div>
+      </div>
+      <div class="field">
         <label for="mistral-key">API-Schlüssel</label>
         <div class="key-field">
           <input type="password" id="mistral-key" placeholder="…" autocomplete="off" autocapitalize="off" spellcheck="false">
@@ -1161,6 +1185,12 @@
 
     <details class="provider-section" id="section-ghmodels">
       <summary><span class="status-dot" id="status-ghmodels"></span>GitHub Models</summary>
+      <div class="field">
+        <div class="toggle-row">
+          <span>Anbieter nutzen</span>
+          <button type="button" class="toggle-switch" id="ghmodels-enable-toggle" role="switch" aria-checked="true"></button>
+        </div>
+      </div>
       <div class="field">
         <label for="ghmodels-key">Personal Access Token</label>
         <div class="key-field">
@@ -1188,6 +1218,12 @@
 
     <details class="provider-section" id="section-cohere">
       <summary><span class="status-dot" id="status-cohere"></span>Cohere</summary>
+      <div class="field">
+        <div class="toggle-row">
+          <span>Anbieter nutzen</span>
+          <button type="button" class="toggle-switch" id="cohere-enable-toggle" role="switch" aria-checked="true"></button>
+        </div>
+      </div>
       <div class="field">
         <label for="cohere-key">API-Schlüssel</label>
         <div class="key-field">
@@ -1352,6 +1388,12 @@
   const STORAGE_CLAUDE_KEY     = "relais.claudeKey";
   const STORAGE_CLAUDE_MODEL   = "relais.claudeModel";
   const STORAGE_CLAUDE_ENABLED = "relais.claudeEnabled";
+  const STORAGE_OPENROUTER_ENABLED = "relais.openrouterEnabled";
+  const STORAGE_GROQ_ENABLED = "relais.groqEnabled";
+  const STORAGE_GEMINI_ENABLED = "relais.geminiEnabled";
+  const STORAGE_MISTRAL_ENABLED = "relais.mistralEnabled";
+  const STORAGE_GHMODELS_ENABLED = "relais.ghmodelsEnabled";
+  const STORAGE_COHERE_ENABLED = "relais.cohereEnabled";
   const MISTRAL_MODEL_PREFERENCE = ["mistral-small-latest", "open-mistral-nemo", "ministral-8b-latest"];
   const STORAGE_GHMODELS_KEY   = "relais.ghmodelsKey";
   const STORAGE_GHMODELS_MODEL = "relais.ghmodelsModel";
@@ -1412,6 +1454,14 @@
   let claudeKey     = localStorage.getItem(STORAGE_CLAUDE_KEY) || "";
   let claudeModel   = localStorage.getItem(STORAGE_CLAUDE_MODEL) || "claude-haiku-4-5-20251001";
   let claudeEnabled = localStorage.getItem(STORAGE_CLAUDE_ENABLED) === "1";
+  // Bei den Gratis-Anbietern ist "an" der Normalfall (auch fuer bestehende Nutzer
+  // ohne gespeicherte Praeferenz) -- nur ein explizites "0" schaltet sie aus.
+  let openrouterEnabled = localStorage.getItem(STORAGE_OPENROUTER_ENABLED) !== "0";
+  let groqEnabled = localStorage.getItem(STORAGE_GROQ_ENABLED) !== "0";
+  let geminiEnabled = localStorage.getItem(STORAGE_GEMINI_ENABLED) !== "0";
+  let mistralEnabled = localStorage.getItem(STORAGE_MISTRAL_ENABLED) !== "0";
+  let ghmodelsEnabled = localStorage.getItem(STORAGE_GHMODELS_ENABLED) !== "0";
+  let cohereEnabled = localStorage.getItem(STORAGE_COHERE_ENABLED) !== "0";
   let sending   = false;
   let editingIndex = -1;
 
@@ -1437,6 +1487,12 @@
   const claudeKeyField = $("#claude-key");
   const claudeModelSelect = $("#claude-model-select");
   const claudeEnableToggle = $("#claude-enable-toggle");
+  const openrouterEnableToggle = $("#openrouter-enable-toggle");
+  const groqEnableToggle = $("#groq-enable-toggle");
+  const geminiEnableToggle = $("#gemini-enable-toggle");
+  const mistralEnableToggle = $("#mistral-enable-toggle");
+  const ghmodelsEnableToggle = $("#ghmodels-enable-toggle");
+  const cohereEnableToggle = $("#cohere-enable-toggle");
   const sidebarBackdrop = $("#sidebar-backdrop");
   const conversationList = $("#conversation-list");
   const chatSearchInput = $("#chat-search");
@@ -2147,7 +2203,7 @@
   // Reihenfolge nach Grosszuegigkeit des jeweiligen Gratis-Kontingents.
   function buildTargets(){
     const targets = [];
-    if(groqKey){
+    if(groqEnabled && groqKey){
       targets.push({
         provider: "Groq",
         url: "https://api.groq.com/openai/v1/chat/completions",
@@ -2156,7 +2212,7 @@
         extraHeaders: {}
       });
     }
-    if(geminiKey){
+    if(geminiEnabled && geminiKey){
       targets.push({
         provider: "Gemini",
         url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
@@ -2166,7 +2222,7 @@
         extraHeaders: {}
       });
     }
-    if(mistralKey){
+    if(mistralEnabled && mistralKey){
       targets.push({
         provider: "Mistral",
         url: "https://api.mistral.ai/v1/chat/completions",
@@ -2175,7 +2231,7 @@
         extraHeaders: {}
       });
     }
-    if(ghmodelsKey){
+    if(ghmodelsEnabled && ghmodelsKey){
       targets.push({
         provider: "GitHub Models",
         url: "https://models.github.ai/inference/chat/completions",
@@ -2184,7 +2240,7 @@
         extraHeaders: {}
       });
     }
-    if(cohereKey){
+    if(cohereEnabled && cohereKey){
       targets.push({
         provider: "Cohere",
         url: "https://api.cohere.ai/compatibility/v1/chat/completions",
@@ -2193,7 +2249,7 @@
         extraHeaders: {}
       });
     }
-    if(apiKey){
+    if(openrouterEnabled && apiKey){
       targets.push({
         provider: "OpenRouter",
         url: "https://openrouter.ai/api/v1/chat/completions",
@@ -2935,6 +2991,12 @@
     claudeKeyField.value = claudeKey;
     claudeModelSelect.value = claudeModel;
     claudeEnableToggle.setAttribute("aria-checked", String(claudeEnabled));
+    openrouterEnableToggle.setAttribute("aria-checked", String(openrouterEnabled));
+    groqEnableToggle.setAttribute("aria-checked", String(groqEnabled));
+    geminiEnableToggle.setAttribute("aria-checked", String(geminiEnabled));
+    mistralEnableToggle.setAttribute("aria-checked", String(mistralEnabled));
+    ghmodelsEnableToggle.setAttribute("aria-checked", String(ghmodelsEnabled));
+    cohereEnableToggle.setAttribute("aria-checked", String(cohereEnabled));
     profileNameField.value = profileName;
     profileAboutField.value = profileAbout;
     profileStyleField.value = profileStyle;
@@ -2956,12 +3018,12 @@
   function refreshProviderStatuses(){
     const set = (id, active) => document.getElementById(id)?.classList.toggle("ok", !!active);
     set("status-profile", profileName || profileAbout || profileStyle);
-    set("status-openrouter", apiKey);
-    set("status-groq", groqKey);
-    set("status-gemini", geminiKey);
-    set("status-mistral", mistralKey);
-    set("status-ghmodels", ghmodelsKey);
-    set("status-cohere", cohereKey);
+    set("status-openrouter", openrouterEnabled && apiKey);
+    set("status-groq", groqEnabled && groqKey);
+    set("status-gemini", geminiEnabled && geminiKey);
+    set("status-mistral", mistralEnabled && mistralKey);
+    set("status-ghmodels", ghmodelsEnabled && ghmodelsKey);
+    set("status-cohere", cohereEnabled && cohereKey);
     set("status-claude", claudeEnabled && claudeKey);
     set("status-custom", customProviders.length);
   }
@@ -3097,8 +3159,10 @@
   $("#btn-save").addEventListener("click", () => {
     apiKey = apiKeyField.value.trim();
     model = modelSelect.value;
+    openrouterEnabled = openrouterEnableToggle.getAttribute("aria-checked") === "true";
     localStorage.setItem(STORAGE_KEY, apiKey);
     localStorage.setItem(STORAGE_MODEL, model);
+    localStorage.setItem(STORAGE_OPENROUTER_ENABLED, openrouterEnabled ? "1" : "0");
     refreshProviderStatuses();
     showToast("Gespeichert.");
   });
@@ -3115,6 +3179,8 @@
     const newKey = groqKeyField.value.trim();
     const keyChanged = newKey !== groqKey;
     groqKey = newKey;
+    groqEnabled = groqEnableToggle.getAttribute("aria-checked") === "true";
+    localStorage.setItem(STORAGE_GROQ_ENABLED, groqEnabled ? "1" : "0");
     if(groqKey){
       if(keyChanged){ showToast("Lade Groq-Modelle …"); await loadGroqModels(); }
       groqModel = groqModelSelect.value || groqModel;
@@ -3148,6 +3214,8 @@
     const newKey = geminiKeyField.value.trim();
     const keyChanged = newKey !== geminiKey;
     geminiKey = newKey;
+    geminiEnabled = geminiEnableToggle.getAttribute("aria-checked") === "true";
+    localStorage.setItem(STORAGE_GEMINI_ENABLED, geminiEnabled ? "1" : "0");
     if(geminiKey){
       if(keyChanged){ showToast("Lade Gemini-Modelle …"); await loadGeminiModels(); }
       geminiModel = geminiModelSelect.value || geminiModel;
@@ -3181,6 +3249,8 @@
     const newKey = mistralKeyField.value.trim();
     const keyChanged = newKey !== mistralKey;
     mistralKey = newKey;
+    mistralEnabled = mistralEnableToggle.getAttribute("aria-checked") === "true";
+    localStorage.setItem(STORAGE_MISTRAL_ENABLED, mistralEnabled ? "1" : "0");
     if(mistralKey){
       if(keyChanged){ showToast("Lade Mistral-Modelle …"); await loadMistralModels(); }
       mistralModel = mistralModelSelect.value || mistralModel;
@@ -3214,6 +3284,8 @@
     const newKey = ghmodelsKeyField.value.trim();
     const keyChanged = newKey !== ghmodelsKey;
     ghmodelsKey = newKey;
+    ghmodelsEnabled = ghmodelsEnableToggle.getAttribute("aria-checked") === "true";
+    localStorage.setItem(STORAGE_GHMODELS_ENABLED, ghmodelsEnabled ? "1" : "0");
     if(ghmodelsKey){
       if(keyChanged){ ghmodelsModel = loadGithubModels(); }
       else ghmodelsModel = ghmodelsModelSelect.value || ghmodelsModel;
@@ -3247,6 +3319,8 @@
     const newKey = cohereKeyField.value.trim();
     const keyChanged = newKey !== cohereKey;
     cohereKey = newKey;
+    cohereEnabled = cohereEnableToggle.getAttribute("aria-checked") === "true";
+    localStorage.setItem(STORAGE_COHERE_ENABLED, cohereEnabled ? "1" : "0");
     if(cohereKey){
       if(keyChanged){ showToast("Lade Cohere-Modelle …"); await loadCohereModels(); }
       cohereModel = cohereModelSelect.value || cohereModel;
@@ -3284,6 +3358,13 @@
     }
     claudeEnableToggle.setAttribute("aria-checked", String(next));
   });
+
+  for(const toggle of [openrouterEnableToggle, groqEnableToggle, geminiEnableToggle, mistralEnableToggle, ghmodelsEnableToggle, cohereEnableToggle]){
+    toggle.addEventListener("click", () => {
+      const next = toggle.getAttribute("aria-checked") !== "true";
+      toggle.setAttribute("aria-checked", String(next));
+    });
+  }
 
   $("#btn-save-claude").addEventListener("click", () => {
     claudeKey = claudeKeyField.value.trim();
@@ -3326,12 +3407,12 @@
 
   // ---------- Sicherung ----------
   const BACKUP_KEYS = [
-    STORAGE_KEY, STORAGE_MODEL,
-    STORAGE_GROQ_KEY, STORAGE_GROQ_MODEL,
-    STORAGE_GEMINI_KEY, STORAGE_GEMINI_MODEL,
-    STORAGE_MISTRAL_KEY, STORAGE_MISTRAL_MODEL,
-    STORAGE_GHMODELS_KEY, STORAGE_GHMODELS_MODEL,
-    STORAGE_COHERE_KEY, STORAGE_COHERE_MODEL,
+    STORAGE_KEY, STORAGE_MODEL, STORAGE_OPENROUTER_ENABLED,
+    STORAGE_GROQ_KEY, STORAGE_GROQ_MODEL, STORAGE_GROQ_ENABLED,
+    STORAGE_GEMINI_KEY, STORAGE_GEMINI_MODEL, STORAGE_GEMINI_ENABLED,
+    STORAGE_MISTRAL_KEY, STORAGE_MISTRAL_MODEL, STORAGE_MISTRAL_ENABLED,
+    STORAGE_GHMODELS_KEY, STORAGE_GHMODELS_MODEL, STORAGE_GHMODELS_ENABLED,
+    STORAGE_COHERE_KEY, STORAGE_COHERE_MODEL, STORAGE_COHERE_ENABLED,
     STORAGE_CLAUDE_KEY, STORAGE_CLAUDE_MODEL, STORAGE_CLAUDE_ENABLED,
     STORAGE_CUSTOM_PROVIDERS,
     STORAGE_PROFILE_NAME, STORAGE_PROFILE_ABOUT, STORAGE_PROFILE_STYLE, STORAGE_THEME,
