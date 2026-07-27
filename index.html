@@ -277,6 +277,7 @@
   }
   .msg-actions button:hover{ background: var(--surface-2); color: var(--text); }
   .msg-actions svg{ width: 13px; height: 13px; }
+  .speak-btn.speaking{ color: var(--accent); }
 
   .scroll-bottom-btn{
     position: absolute;
@@ -372,6 +373,31 @@
   .improve-btn svg{ width: 17px; height: 17px; }
   .improve-btn .icon-spinner{ animation: spin .8s linear infinite; }
   @keyframes spin{ to{ transform: rotate(360deg); } }
+
+  .mic-btn{
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: color .15s, background .15s;
+  }
+  .mic-btn:hover{ color: var(--accent); background: var(--surface-2); }
+  .mic-btn svg{ width: 17px; height: 17px; }
+  .mic-btn.listening{
+    color: var(--accent-ink);
+    background: var(--accent);
+    animation: mic-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes mic-pulse{
+    0%, 100%{ box-shadow: 0 0 0 0 rgba(190,106,61,.5); }
+    50%{ box-shadow: 0 0 0 7px rgba(190,106,61,0); }
+  }
 
   /* ---------- Denkprozess ---------- */
   .team-toggle{
@@ -823,71 +849,6 @@
   .usage-row:last-child{ border-bottom: none; }
   .usage-row .usage-name{ color: var(--text); }
   .usage-row .usage-count{ color: var(--text-dim); }
-
-  /* ---------- Kontext-Chips (Agent & Projekt) ---------- */
-  .context-row{
-    display: flex;
-    gap: 8px;
-    padding: 0 4px 8px;
-    overflow-x: auto;
-  }
-  .context-chip{
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12.5px;
-    color: var(--text-dim);
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 6px 13px;
-    white-space: nowrap;
-    flex-shrink: 0;
-    cursor: pointer;
-    font-family: inherit;
-    transition: border-color .15s, color .15s;
-  }
-  .context-chip:active{ background: var(--surface-2); }
-  .context-chip.set{ color: var(--text); border-color: var(--accent); }
-
-  /* ---------- Projekt-Filterzeile (Sidebar) ---------- */
-  .project-filter-row{
-    display: flex;
-    gap: 6px;
-    padding: 0 8px 12px;
-    overflow-x: auto;
-  }
-  .project-chip{
-    font-size: 12px;
-    color: var(--text-dim);
-    background: none;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 5px 11px;
-    white-space: nowrap;
-    flex-shrink: 0;
-    cursor: pointer;
-    font-family: inherit;
-  }
-  .project-chip.active{ color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
-
-  /* ---------- ToDos (Projekt-Dashboard & Gedächtnis) ---------- */
-  .todo-row{
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    padding: 8px 2px;
-    border-bottom: 1px solid var(--border);
-    font-size: 14px;
-  }
-  .todo-row:last-child{ border-bottom: none; }
-  .todo-row input[type=checkbox]{ width: 18px; height: 18px; accent-color: var(--accent); flex-shrink: 0; }
-  .todo-row .todo-text{ flex: 1; }
-  .todo-row.done .todo-text{ color: var(--text-dim); text-decoration: line-through; }
-  .todo-row .todo-del{ color: var(--text-dim); opacity: .6; flex-shrink: 0; }
-  .todo-row .todo-del:hover{ opacity: 1; }
-  .todo-add-row{ display: flex; gap: 8px; margin-top: 10px; }
-  .todo-add-row input{ flex: 1; }
 </style>
 </head>
 <body>
@@ -929,20 +890,16 @@
 </main>
 
 <div class="composer-wrap">
-  <div class="context-row" id="context-row">
-    <button type="button" class="context-chip" id="chip-project">
-      <span id="chip-project-label">Kein Projekt</span>
-    </button>
-    <button type="button" class="context-chip" id="chip-agent">
-      <span id="chip-agent-icon">🤖</span><span id="chip-agent-label">Kein Agent</span>
-    </button>
-  </div>
   <button type="button" class="team-toggle" id="btn-team-toggle" aria-pressed="false">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2.5 20a5.5 5.5 0 0 1 11 0M10.5 20a5.5 5.5 0 0 1 11 0" stroke-linecap="round"/></svg>
     <span>Team-Modus</span>
   </button>
   <form class="composer" id="composer">
     <textarea id="input" rows="1" placeholder="Nachricht schreiben…" autocomplete="off" enterkeyhint="send"></textarea>
+    <button type="button" class="mic-btn" id="btn-mic" aria-label="Spracheingabe" title="Spracheingabe" style="display:none">
+      <svg class="icon-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z"/><path d="M19 11a7 7 0 0 1-14 0M12 18v3" stroke-linecap="round"/></svg>
+      <svg class="icon-mic-stop" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+    </button>
     <button type="button" class="improve-btn" id="btn-improve" aria-label="Prompt verbessern" title="Prompt verbessern">
       <svg class="icon-sparkle" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l1.6 4.9L18.5 9.5l-4.9 1.6L12 16l-1.6-4.9L5.5 9.5l4.9-1.6L12 3ZM19 14l.9 2.6L22.5 17.5l-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9L19 14Z"/></svg>
       <svg class="icon-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M12 3a9 9 0 1 0 9 9" stroke-linecap="round"/></svg>
@@ -981,20 +938,6 @@
         </select>
       </div>
       <button type="button" class="btn btn-primary" id="btn-save-profile">Speichern</button>
-    </details>
-
-    <details class="provider-section" id="section-memory">
-      <summary><span class="status-dot" id="status-memory"></span>Gedächtnis</summary>
-      <div class="field">
-        <div class="hint">Gilt in jedem Chat, unabhängig von Modell, Agent oder Projekt. Die KI kann Einträge selbst hinzufügen, wenn du es im Chat bittest ("merk dir …") -- hier verwaltest du sie manuell.</div>
-      </div>
-      <div id="memory-list"></div>
-      <div class="todo-add-row">
-        <input type="text" id="memory-input" placeholder="z. B. Ich bevorzuge kurze Antworten" autocomplete="off">
-        <button type="button" class="key-btn" id="btn-add-memory" aria-label="Eintrag hinzufügen">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
-        </button>
-      </div>
     </details>
 
     <details class="provider-section" id="section-openrouter">
@@ -1253,7 +1196,6 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
       </button>
     </div>
-    <div class="project-filter-row" id="project-filter-row"></div>
     <div id="conversation-list" style="overflow-y:auto; flex:1"></div>
   </div>
 </div>
@@ -1263,76 +1205,6 @@
     <h2>Nutzung</h2>
     <div id="usage-body"></div>
     <button type="button" class="btn btn-ghost" id="btn-reset-usage" style="margin-top:16px">Nutzungszähler zurücksetzen</button>
-  </div>
-</div>
-
-<div class="sheet-backdrop" id="agents-backdrop">
-  <div class="sheet">
-    <h2>Agenten</h2>
-    <div class="field">
-      <div class="hint">Ein Agent gibt dem Modell einen festen System-Prompt und optional einen bevorzugten Anbieter mit. Tippen wählt ihn für diesen Chat aus.</div>
-    </div>
-    <div id="agents-list"></div>
-
-    <div class="field" id="agent-form" style="display:none; margin-top:14px">
-      <label for="agent-name">Name</label>
-      <input type="text" id="agent-name" placeholder="z. B. Übersetzer" autocomplete="off">
-      <label for="agent-icon" style="margin-top:10px">Symbol (ein Emoji)</label>
-      <input type="text" id="agent-icon" placeholder="🧭" maxlength="4" autocomplete="off">
-      <label for="agent-prompt" style="margin-top:10px">System-Prompt</label>
-      <textarea id="agent-prompt" rows="4" placeholder="Wie soll sich dieser Agent verhalten?"></textarea>
-      <label for="agent-provider" style="margin-top:10px">Bevorzugter Anbieter</label>
-      <select id="agent-provider"><option value="">Automatisch (Router entscheidet)</option></select>
-      <div class="hint">Wird zuerst versucht, bei Fehler oder Limit greift trotzdem die normale Fallback-Kette.</div>
-      <div class="edit-actions" style="margin-top:10px">
-        <button type="button" id="btn-cancel-agent">Abbrechen</button>
-        <button type="button" class="primary" id="btn-save-agent">Speichern</button>
-      </div>
-    </div>
-    <button type="button" class="btn btn-ghost" id="btn-add-agent" style="color:var(--text); border-color:var(--border); margin-top:10px">+ Neuer Agent</button>
-  </div>
-</div>
-
-<div class="sheet-backdrop" id="project-backdrop">
-  <div class="sheet">
-    <div id="project-list-view">
-      <h2>Projekte</h2>
-      <div class="field">
-        <div class="hint">Ein Projekt bündelt Chats mit gemeinsamem Gedächtnis, ToDos und Standard-Agent. Tippen weist dieses Projekt dem aktuellen Chat zu.</div>
-      </div>
-      <div id="projects-list"></div>
-      <button type="button" class="btn btn-ghost" id="btn-add-project" style="color:var(--text); border-color:var(--border); margin-top:10px">+ Neues Projekt</button>
-    </div>
-
-    <div id="project-form-view" style="display:none">
-      <h2 id="project-form-title">Projekt</h2>
-      <div class="field">
-        <label for="project-name">Name</label>
-        <input type="text" id="project-name" placeholder="z. B. Netherite AFK Miner" autocomplete="off">
-      </div>
-      <div class="field">
-        <label for="project-memory">Gedächtnis</label>
-        <textarea id="project-memory" rows="5" placeholder="Was soll die KI in jedem Chat dieses Projekts wissen? (Ziele, Stand, Entscheidungen, Rahmenbedingungen …)"></textarea>
-        <div class="hint">Wird bei jeder Nachricht in diesem Projekt automatisch als Kontext mitgeschickt.</div>
-      </div>
-      <div class="field">
-        <label for="project-default-agent">Standard-Agent für neue Chats</label>
-        <select id="project-default-agent"><option value="">Kein Agent</option></select>
-      </div>
-      <div class="field">
-        <label>ToDos</label>
-        <div id="project-todos"></div>
-        <div class="todo-add-row">
-          <input type="text" id="todo-input" placeholder="Neues ToDo…" autocomplete="off">
-          <button type="button" class="key-btn" id="btn-add-todo" aria-label="ToDo hinzufügen">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
-          </button>
-        </div>
-      </div>
-      <button type="button" class="btn btn-primary" id="btn-save-project">Speichern</button>
-      <button type="button" class="btn btn-ghost" id="btn-delete-project">Projekt löschen</button>
-      <button type="button" class="btn btn-ghost" id="btn-cancel-project" style="color:var(--text); border-color:var(--border)">Abbrechen</button>
-    </div>
   </div>
 </div>
 
@@ -1373,61 +1245,6 @@
   const COHERE_MODEL_PREFERENCE = ["command-r-plus", "command-r", "command-a-03-2025"];
   const MAX_CONTEXT_MESSAGES = 24; // an das Modell gesendeter Ausschnitt
 
-  const STORAGE_AGENTS   = "relais.agents";
-  const STORAGE_PROJECTS = "relais.projects";
-  const STORAGE_MEMORY   = "relais.memory";
-  // Bewusst nur 3 Standard-Agenten -- lieber wenige, klar unterscheidbare als
-  // ein leeres Plugin-Regal. Weitere legt man bei Bedarf selbst an.
-  const DEFAULT_AGENTS = [
-    {
-      name: "Programmierer",
-      icon: "💻",
-      systemPrompt: "Du bist ein präziser, erfahrener Programmierer. Antworte technisch genau, zeige Code in Codebloecken, erklaere kurz warum eine Loesung so gewaehlt ist, und weise auf Probleme oder bessere Alternativen hin statt nur die Anfrage zu erfuellen.",
-      preferredProvider: ""
-    },
-    {
-      name: "GitHub-Analyst",
-      icon: "🔍",
-      systemPrompt: "Du analysierst Code und Repositories. Erklaere Architektur, Datenfluesse und Abhaengigkeiten klar strukturiert, finde potenzielle Bugs und Verbesserungen, und sei konkret statt allgemein.",
-      preferredProvider: ""
-    },
-    {
-      name: "Recherche",
-      icon: "📚",
-      systemPrompt: "Du recherchierst und fasst Informationen sachlich und quellenkritisch zusammen. Trenne klar zwischen gesichertem Wissen und Unsicherheit, und nenne wo sinnvoll worauf sich eine Aussage stuetzt.",
-      preferredProvider: ""
-    }
-  ];
-
-  // ---------- Werkzeuge, die das Modell wirklich ausloesen kann (Function Calling) ----------
-  // Bewusst nur 2 Funktionen -- echte Wirkung in der App statt bloss vorgetaeuschter
-  // Textantworten, aber kein aufgeblasenes Werkzeug-Regal. Gilt nur fuer OpenAI-kompatible
-  // Anbieter -- Claude/Anthropic hat ein eigenes Tool-Schema und wird hier bewusst ausgenommen.
-  const TOOL_DEFINITIONS = [
-    {
-      type: "function",
-      function: {
-        name: "delete_current_chat",
-        description: "Löscht den aktuell geöffneten Chatverlauf unwiderruflich. Nur aufrufen, wenn der Nutzer ausdrücklich darum bittet, diesen Chat / dieses Gespräch / den Verlauf zu löschen.",
-        parameters: { type: "object", properties: {}, required: [] }
-      }
-    },
-    {
-      type: "function",
-      function: {
-        name: "remember",
-        description: "Speichert eine kurze Information dauerhaft und modellübergreifend, sodass sie automatisch in jedem zukünftigen Gespräch bekannt ist -- auch mit anderen Modellen oder in anderen Chats. Nur aufrufen, wenn der Nutzer ausdrücklich möchte, dass sich die KI dauerhaft etwas merkt (z. B. \"merk dir...\", \"erinnere dich an...\").",
-        parameters: {
-          type: "object",
-          properties: {
-            fact: { type: "string", description: "Die zu merkende Information, kurz und in einem Satz formuliert." }
-          },
-          required: ["fact"]
-        }
-      }
-    }
-  ];
-
   const $ = (sel) => document.querySelector(sel);
   const thread      = $("#thread");
   const emptyState  = $("#empty-state");
@@ -1439,6 +1256,7 @@
   const iconSend    = sendBtn.querySelector(".icon-send");
   const iconStop    = sendBtn.querySelector(".icon-stop");
   const improveBtn  = $("#btn-improve");
+  const micBtn = $("#btn-mic");
   const iconSparkle = improveBtn.querySelector(".icon-sparkle");
   const iconSpinner = improveBtn.querySelector(".icon-spinner");
   const scrollBottomBtn = $("#btn-scroll-bottom");
@@ -1498,76 +1316,9 @@
   const claudeModelSelect = $("#claude-model-select");
   const claudeEnableToggle = $("#claude-enable-toggle");
   const sidebarBackdrop = $("#sidebar-backdrop");
-  const agentsBackdrop = $("#agents-backdrop");
-  const projectBackdrop = $("#project-backdrop");
   const conversationList = $("#conversation-list");
   const usageBackdrop = $("#usage-backdrop");
   const usageBody = $("#usage-body");
-
-  // ---------- Agenten: laden, seeden, verwalten ----------
-  function newAgentId(){ return "ag" + Date.now() + Math.random().toString(36).slice(2, 7); }
-  function loadAgentsRaw(){
-    try{
-      const raw = localStorage.getItem(STORAGE_AGENTS);
-      return raw ? JSON.parse(raw) : null; // null = noch nie gespeichert -> seeden
-    }catch{ return null; }
-  }
-  function saveAgentsRaw(a){
-    try{ localStorage.setItem(STORAGE_AGENTS, JSON.stringify(a)); }catch{}
-  }
-
-  let agents = loadAgentsRaw();
-  if(!agents){
-    agents = {};
-    for(const seed of DEFAULT_AGENTS){
-      const id = newAgentId();
-      agents[id] = { id, ...seed, createdAt: Date.now() };
-    }
-    saveAgentsRaw(agents);
-  }
-  let editingAgentId = null; // Sheet zeigt entweder Liste (null) oder Formular (Agent-Id / "new")
-
-  // ---------- Projekte: laden, verwalten ----------
-  function newProjectId(){ return "p" + Date.now() + Math.random().toString(36).slice(2, 7); }
-  function loadProjectsRaw(){
-    try{ return JSON.parse(localStorage.getItem(STORAGE_PROJECTS) || "{}"); }catch{ return {}; }
-  }
-  function saveProjectsRaw(p){
-    try{ localStorage.setItem(STORAGE_PROJECTS, JSON.stringify(p)); }catch{}
-  }
-
-  let projects = loadProjectsRaw();
-  let editingProjectId = null; // Sheet zeigt entweder Liste (null) oder Dashboard (Projekt-Id)
-  let sidebarProjectFilter = ""; // "" = alle Chats, "none" = ohne Projekt, sonst Projekt-Id
-
-  // ---------- Gedächtnis: dauerhaft, modell- und projektübergreifend ----------
-  function loadMemoryRaw(){
-    try{ return JSON.parse(localStorage.getItem(STORAGE_MEMORY) || "[]"); }catch{ return []; }
-  }
-  function saveMemoryRaw(m){
-    try{ localStorage.setItem(STORAGE_MEMORY, JSON.stringify(m)); }catch{}
-  }
-  let memory = loadMemoryRaw();
-
-  function executeToolCall(name, args){
-    if(name === "delete_current_chat"){
-      const title = conversations[activeId]?.title || "Dieser Chat";
-      if(!confirm(`"${title}" wirklich löschen?`)){
-        return { ok: false, message: "Abgebrochen -- der Chat wurde nicht gelöscht." };
-      }
-      deleteConversation(activeId);
-      return { terminal: true, ok: true, message: `"${title}" wurde gelöscht.` };
-    }
-    if(name === "remember"){
-      const fact = (args?.fact || "").trim();
-      if(!fact) return { ok: false, message: "Kein Inhalt zum Merken erhalten." };
-      memory.push({ id: "m" + Date.now() + Math.random().toString(36).slice(2, 6), text: fact, createdAt: Date.now() });
-      saveMemoryRaw(memory);
-      renderMemoryList();
-      return { ok: true, message: "Gemerkt: " + fact };
-    }
-    return { ok: false, message: "Unbekannte Funktion: " + name };
-  }
 
   // ---------- Konversationen: laden, migrieren, verwalten ----------
   function loadConversations(){
@@ -1636,11 +1387,9 @@
     render();
   }
 
-  function createConversation(projectId){
+  function createConversation(){
     const id = newConversationId();
-    const pid = projectId || (projects[sidebarProjectFilter] ? sidebarProjectFilter : "");
-    const agentId = (pid && projects[pid]?.defaultAgentId) || "";
-    conversations[id] = { id, title: "Neuer Chat", messages: [], updatedAt: Date.now(), projectId: pid, agentId };
+    conversations[id] = { id, title: "Neuer Chat", messages: [], updatedAt: Date.now() };
     saveConversationsRaw(conversations);
     activeId = id;
     localStorage.setItem(STORAGE_ACTIVE_ID, activeId);
@@ -1697,7 +1446,6 @@
     });
     scrollToBottom();
     renderSidebar();
-    renderContextChips();
   }
 
   function renderRow(m, isLastAssistant, index){
@@ -1784,6 +1532,14 @@
         copyBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V5a1 1 0 0 1 1-1h11" stroke-linecap="round"/></svg><span>Kopieren</span>';
         copyBtn.addEventListener("click", () => copyToClipboard(m.content));
         actions.appendChild(copyBtn);
+
+        if("speechSynthesis" in window){
+          const speakBtn = document.createElement("button");
+          speakBtn.className = "speak-btn";
+          speakBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9v6h4l5 5V4L8 9H4Z" stroke-linejoin="round"/><path d="M17 8a5 5 0 0 1 0 8" stroke-linecap="round"/></svg><span>Vorlesen</span>';
+          speakBtn.addEventListener("click", () => speakText(m.content, speakBtn));
+          actions.appendChild(speakBtn);
+        }
       }
 
       if(isLastAssistant && !sending){
@@ -1946,7 +1702,7 @@
     const assistantMsg = { role: "assistant", content: "", usedModel: "" };
     messages.push(assistantMsg);
     saveMessages();
-    runCompletion(newText, assistantMsg, buildTargets(activeAgent()?.preferredProvider));
+    runCompletion(newText, assistantMsg, buildTargets());
   }
 
   function escapeHtml(s){
@@ -2020,11 +1776,8 @@
   }
 
   function renderSidebar(){
-    renderProjectFilterRow();
     conversationList.innerHTML = "";
-    let ids = Object.keys(conversations).sort((a, b) => conversations[b].updatedAt - conversations[a].updatedAt);
-    if(sidebarProjectFilter === "none") ids = ids.filter(id => !conversations[id].projectId);
-    else if(sidebarProjectFilter) ids = ids.filter(id => conversations[id].projectId === sidebarProjectFilter);
+    const ids = Object.keys(conversations).sort((a, b) => conversations[b].updatedAt - conversations[a].updatedAt);
     for(const id of ids){
       const conv = conversations[id];
       const item = document.createElement("div");
@@ -2037,8 +1790,7 @@
       title.textContent = conv.title || "Neuer Chat";
       const time = document.createElement("span");
       time.className = "conv-time";
-      const projectTag = (!sidebarProjectFilter && conv.projectId && projects[conv.projectId]) ? " · " + projects[conv.projectId].name : "";
-      time.textContent = relativeTime(conv.updatedAt) + projectTag;
+      time.textContent = relativeTime(conv.updatedAt);
       textWrap.append(title, time);
       item.appendChild(textWrap);
 
@@ -2241,7 +1993,7 @@
 
   // ---------- Sende-Ziele in Reihenfolge (mit Fallback) ----------
   // Reihenfolge nach Grosszuegigkeit des jeweiligen Gratis-Kontingents.
-  function buildTargets(preferredProvider){
+  function buildTargets(){
     const targets = [];
     if(groqKey){
       targets.push({
@@ -2317,31 +2069,14 @@
         extraHeaders: {}
       });
     }
-    if(preferredProvider){
-      // Bevorzugten Anbieter (aus dem aktiven Agenten) nach vorn holen, Fallback-Kette bleibt erhalten.
-      targets.sort((a, b) => (a.provider === preferredProvider ? -1 : 0) - (b.provider === preferredProvider ? -1 : 0));
-    }
     return targets;
-  }
-
-  function configuredProviderNames(){
-    const names = [];
-    if(groqKey) names.push("Groq");
-    if(geminiKey) names.push("Gemini");
-    if(mistralKey) names.push("Mistral");
-    if(ghmodelsKey) names.push("GitHub Models");
-    if(cohereKey) names.push("Cohere");
-    if(apiKey) names.push("OpenRouter");
-    for(const p of customProviders) names.push(p.name);
-    if(claudeEnabled && claudeKey) names.push("Claude");
-    return names;
   }
 
   // ---------- Senden ----------
   let currentController = null;
 
   async function sendMessage(text){
-    const targets = buildTargets(activeAgent()?.preferredProvider);
+    const targets = buildTargets();
     if(!targets.length){
       openSettings();
       showToast("Erst einen kostenlosen API-Schlüssel eintragen.");
@@ -2372,7 +2107,7 @@
     assistantMsg.usedModel = "";
     delete assistantMsg.isError;
     delete assistantMsg.teamSteps;
-    const targets = buildTargets(activeAgent()?.preferredProvider);
+    const targets = buildTargets();
     if(teamMode && targets.length >= 2){
       await runTeamMode(userMsg.content, assistantMsg, targets);
     }else{
@@ -2570,43 +2305,6 @@
     render();
   }
 
-  // ---------- Agent & Projekt der aktiven Konversation ----------
-  function activeAgent(){
-    const id = conversations[activeId]?.agentId;
-    return id ? agents[id] || null : null;
-  }
-  function activeProject(){
-    const id = conversations[activeId]?.projectId;
-    return id ? projects[id] || null : null;
-  }
-  function composeSystemPrompt(){
-    // Fasst Profil, dauerhaftes Gedaechtnis, aktiven Agenten und Projekt-Gedaechtnis
-    // zu genau einer System-Nachricht zusammen.
-    const parts = [];
-    if(profileName) parts.push("Der Nutzer möchte " + profileName + " genannt werden.");
-    if(profileAbout) parts.push("Über den Nutzer: " + profileAbout);
-    if(profileStyle) parts.push("Gewünschter Antwortstil: " + profileStyle);
-    if(memory.length){
-      parts.push("Dauerhaft gemerkte Informationen (gilt in jedem Chat, unabhängig vom Modell):\n" +
-        memory.map(m => "- " + m.text).join("\n"));
-    }
-    const agent = activeAgent();
-    const project = activeProject();
-    if(agent?.systemPrompt) parts.push(agent.systemPrompt);
-    if(project?.memory) parts.push(`Projekt-Kontext (${project.name}):\n${project.memory}`);
-    return parts.join("\n\n");
-  }
-  function renderContextChips(){
-    const conv = conversations[activeId];
-    const project = conv?.projectId ? projects[conv.projectId] : null;
-    const agent = conv?.agentId ? agents[conv.agentId] : null;
-    $("#chip-project-label").textContent = project ? project.name : "Kein Projekt";
-    $("#chip-project").classList.toggle("set", !!project);
-    $("#chip-agent-icon").textContent = agent ? (agent.icon || "🤖") : "🤖";
-    $("#chip-agent-label").textContent = agent ? agent.name : "Kein Agent";
-    $("#chip-agent").classList.toggle("set", !!agent);
-  }
-
   async function runCompletion(text, assistantMsg, targets){
     render();
     const rows = thread.querySelectorAll(".row.assistant");
@@ -2644,8 +2342,11 @@
 
     const finalMsgs = dedupeTrailingUser(contextMsgs, text);
 
-    const systemPrompt = composeSystemPrompt();
-    if(systemPrompt) finalMsgs.unshift({ role: "system", content: systemPrompt });
+    const profileParts = [];
+    if(profileName) profileParts.push("Der Nutzer möchte " + profileName + " genannt werden.");
+    if(profileAbout) profileParts.push("Über den Nutzer: " + profileAbout);
+    if(profileStyle) profileParts.push("Gewünschter Antwortstil: " + profileStyle);
+    if(profileParts.length) finalMsgs.unshift({ role: "system", content: profileParts.join(" ") });
 
     const errors = [];
     let succeeded = false;
@@ -2661,7 +2362,7 @@
       let usageInfo = null;
       let firstToken = true;
       try{
-        const result = await streamCompletion(target, finalMsgs, currentController.signal, {
+        await streamCompletion(target, finalMsgs, currentController.signal, {
           onToken: (chunk) => {
             if(firstToken){
               bubbleEl.innerHTML = "";
@@ -2682,23 +2383,8 @@
             thinkingTextEl.textContent = assistantMsg.reasoning;
             thinkingBox.style.display = "block";
             maybeAutoScroll();
-          },
-          tools: target.kind === "anthropic" ? null : TOOL_DEFINITIONS
-        });
-
-        if(result?.toolCalls && result.toolCalls.length){
-          recordUsage(target.provider, resolvedModelId, usageInfo);
-          const outcome = await handleToolCalls(result.toolCalls, target, finalMsgs, assistantMsg, bubbleEl);
-          if(outcome === "terminated"){
-            sending = false;
-            currentController = null;
-            updateSendState();
-            return; // z. B. Chat geloescht -- diese Konversation existiert so nicht mehr
           }
-          succeeded = true;
-          break;
-        }
-
+        });
         if(!assistantMsg.content){
           throw new Error("Leere Antwort erhalten.");
         }
@@ -2746,65 +2432,6 @@
     }
   }
 
-  // Fuehrt vom Modell angeforderte Tool-Calls lokal aus. Bei einer terminalen Aktion
-  // (aktuell nur "Chat loeschen") existiert diese Konversation danach nicht mehr in
-  // der bisherigen Form. Sonst: kurzer Zweitaufruf mit dem Tool-Ergebnis, damit das
-  // Modell normal in Worten antwortet statt nur ein Ergebnis-JSON zu zeigen.
-  async function handleToolCalls(toolCalls, target, finalMsgs, assistantMsg, bubbleEl){
-    bubbleEl.innerHTML = '<span class="thinking-dots"><span></span><span></span><span></span></span>';
-
-    const assistantToolMsg = {
-      role: "assistant",
-      content: null,
-      tool_calls: toolCalls.map((tc, i) => ({
-        id: tc.id || ("call_" + Date.now() + i),
-        type: "function",
-        function: { name: tc.name, arguments: tc.arguments || "{}" }
-      }))
-    };
-
-    const toolResultMsgs = [];
-    for(const tc of assistantToolMsg.tool_calls){
-      let args = {};
-      try{ args = JSON.parse(tc.function.arguments || "{}"); }catch{ /* kein valides JSON vom Modell */ }
-      const result = executeToolCall(tc.function.name, args);
-      if(result?.terminal){
-        showToast(result.message || "Erledigt.");
-        return "terminated";
-      }
-      toolResultMsgs.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result) });
-    }
-
-    assistantMsg.content = "";
-    let firstToken = true;
-    try{
-      await streamCompletion(target, [...finalMsgs, assistantToolMsg, ...toolResultMsgs], currentController.signal, {
-        onToken: (chunk) => {
-          if(firstToken){ bubbleEl.innerHTML = ""; firstToken = false; }
-          assistantMsg.content += chunk;
-          bubbleEl.innerHTML = renderMarkdown(assistantMsg.content);
-          maybeAutoScroll();
-        },
-        onModel: (usedModel) => {
-          assistantMsg.usedModel = target.provider + " · " + shortModelName(usedModel || target.model);
-        },
-        onUsage: () => {},
-        onReasoning: () => {},
-        tools: null // im Zweitaufruf soll eine Textantwort kommen, kein weiterer Tool-Call
-      });
-    }catch{
-      // Zweitaufruf fehlgeschlagen -- unten greift die lokale Bestaetigung als Fallback.
-    }
-
-    if(!assistantMsg.content){
-      let parsed = {};
-      try{ parsed = JSON.parse(toolResultMsgs[toolResultMsgs.length - 1]?.content || "{}"); }catch{}
-      assistantMsg.content = parsed.message || "Erledigt.";
-      bubbleEl.innerHTML = renderMarkdown(assistantMsg.content);
-    }
-    return "ok";
-  }
-
   // Erzeugt im Hintergrund einen kurzen, treffenden Titel (statt der reinen
   // Anfangs-Zeichen-Abschneidung) -- scheitert es, bleibt der einfache Titel stehen.
   async function generateSmartTitle(convId, userText, assistantText, targets){
@@ -2838,23 +2465,8 @@
     }
   }
 
-  function stripPreamble(text){
-    // Freemium-Modelle halten sich trotz expliziter Anweisung nicht immer daran,
-    // NUR den eigentlichen Inhalt zu liefern -- haeufige Einleitungen defensiv entfernen.
-    let t = text.trim();
-    const patterns = [
-      /^(hier ist|hier der|hier eine?)\s+(der|dein|die|eine?)?\s*(verbesserte[rn]?|optimierte[rn]?|überarbeitete[rn]?)\s*(version|prompt|fassung)?\s*:?\s*/i,
-      /^(verbesserte[rn]?|optimierte[rn]?)\s*(version|prompt|fassung)\s*:?\s*/i,
-      /^(here'?s?|this is)\s+(the\s+)?(improved\s+)?(prompt|version)\s*:?\s*/i
-    ];
-    for(const re of patterns) t = t.replace(re, "");
-    t = t.trim();
-    if(/^["""].*["""]$/s.test(t)) t = t.slice(1, -1).trim();
-    return t;
-  }
-
   async function improvePrompt(){
-    const targets = buildTargets(activeAgent()?.preferredProvider);
+    const targets = buildTargets();
     if(!targets.length){ openSettings(); showToast("Erst einen kostenlosen Schlüssel eintragen."); return; }
     const original = input.value.trim();
     if(!original || sending) return;
@@ -2880,7 +2492,7 @@
         const json = await res.json();
         const improved = json.choices?.[0]?.message?.content?.trim();
         if(improved){
-          input.value = stripPreamble(improved);
+          input.value = improved;
           autoGrow();
           updateSendState();
           done = true;
@@ -2929,7 +2541,7 @@
     if(target.kind === "anthropic"){
       return streamAnthropic(target, msgs, signal, callbacks);
     }
-    const { onToken, onModel, onUsage, onReasoning, tools } = callbacks;
+    const { onToken, onModel, onUsage, onReasoning } = callbacks;
     const res = await fetch(target.url, {
       method: "POST",
       signal,
@@ -2950,8 +2562,7 @@
         // ab (getestet), deshalb dort nur "reasoning_effort" senden.
         stream_options: { include_usage: true },
         ...(target.kind !== "gemini" ? { reasoning_format: "parsed" } : {}),
-        reasoning_effort: "low",
-        ...(tools && tools.length ? { tools, tool_choice: "auto" } : {})
+        reasoning_effort: "low"
       })
     });
 
@@ -2964,8 +2575,6 @@
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
-    let finishReason = null;
-    const toolCallsAcc = {}; // Index -> { id, name, arguments } -- Argumente kommen fragmentiert
 
     while(true){
       const { done, value } = await reader.read();
@@ -2982,24 +2591,13 @@
         if(data === "[DONE]") continue;
         try{
           const json = JSON.parse(data);
-          const choice = json.choices?.[0];
-          const delta = choice?.delta?.content;
+          const delta = json.choices?.[0]?.delta?.content;
           if(delta) onToken(delta);
           // Reasoning/Thinking-Tokens -- Feldname je nach Anbieter "reasoning"
           // oder "reasoning_content"; beide abdecken, wird sonst einfach ignoriert.
-          const reasoningDelta = choice?.delta?.reasoning || choice?.delta?.reasoning_content;
+          const reasoningDelta = json.choices?.[0]?.delta?.reasoning
+            || json.choices?.[0]?.delta?.reasoning_content;
           if(reasoningDelta && onReasoning) onReasoning(reasoningDelta);
-          const tcDeltas = choice?.delta?.tool_calls;
-          if(tcDeltas){
-            for(const tc of tcDeltas){
-              const idx = tc.index ?? 0;
-              if(!toolCallsAcc[idx]) toolCallsAcc[idx] = { id: "", name: "", arguments: "" };
-              if(tc.id) toolCallsAcc[idx].id = tc.id;
-              if(tc.function?.name && !toolCallsAcc[idx].name) toolCallsAcc[idx].name = tc.function.name;
-              if(tc.function?.arguments) toolCallsAcc[idx].arguments += tc.function.arguments;
-            }
-          }
-          if(choice?.finish_reason) finishReason = choice.finish_reason;
           if(json.model) onModel(json.model);
           if(json.usage && onUsage) onUsage(json.usage);
         }catch{
@@ -3007,8 +2605,6 @@
         }
       }
     }
-
-    return { finishReason, toolCalls: Object.values(toolCallsAcc).filter(tc => tc.name) };
   }
 
   // Anthropic hat ein eigenes Anfrage- und SSE-Format (x-api-key statt Bearer,
@@ -3176,7 +2772,6 @@
   function refreshProviderStatuses(){
     const set = (id, active) => document.getElementById(id)?.classList.toggle("ok", !!active);
     set("status-profile", profileName || profileAbout || profileStyle);
-    set("status-memory", memory.length);
     set("status-openrouter", apiKey);
     set("status-groq", groqKey);
     set("status-gemini", geminiKey);
@@ -3293,412 +2888,6 @@
     closeCustomProviderForm();
     showToast("Gespeichert.");
   }
-
-  // ---------- Agenten (UI) ----------
-  function populateAgentProviderSelect(selected){
-    const sel = $("#agent-provider");
-    sel.innerHTML = '<option value="">Automatisch (Router entscheidet)</option>';
-    for(const name of configuredProviderNames()){
-      const opt = document.createElement("option");
-      opt.value = name; opt.textContent = name;
-      sel.appendChild(opt);
-    }
-    sel.value = selected || "";
-  }
-
-  function renderAgentsList(){
-    const list = $("#agents-list");
-    list.innerHTML = "";
-    const activeAgentId = conversations[activeId]?.agentId || "";
-
-    const noneItem = document.createElement("div");
-    noneItem.className = "conv-item" + (!activeAgentId ? " active" : "");
-    const noneText = document.createElement("div");
-    noneText.className = "conv-text";
-    const noneTitle = document.createElement("span");
-    noneTitle.className = "conv-title";
-    noneTitle.textContent = "Kein Agent";
-    const noneSub = document.createElement("span");
-    noneSub.className = "conv-time";
-    noneSub.textContent = "Freier Chat ohne festen System-Prompt";
-    noneText.append(noneTitle, noneSub);
-    noneItem.appendChild(noneText);
-    noneItem.addEventListener("click", () => selectAgentForConversation(""));
-    list.appendChild(noneItem);
-
-    const ids = Object.keys(agents).sort((a, b) => (agents[a].createdAt || 0) - (agents[b].createdAt || 0));
-    for(const id of ids){
-      const a = agents[id];
-      const item = document.createElement("div");
-      item.className = "conv-item" + (activeAgentId === id ? " active" : "");
-
-      const textWrap = document.createElement("div");
-      textWrap.className = "conv-text";
-      const title = document.createElement("span");
-      title.className = "conv-title";
-      title.textContent = (a.icon ? a.icon + " " : "") + a.name;
-      const sub = document.createElement("span");
-      sub.className = "conv-time";
-      const preview = (a.systemPrompt || "").replace(/\s+/g, " ").trim();
-      sub.textContent = (a.preferredProvider ? "Bevorzugt " + a.preferredProvider + " · " : "") + (preview.length > 50 ? preview.slice(0, 50) + "…" : preview);
-      textWrap.append(title, sub);
-      item.appendChild(textWrap);
-
-      const editBtn = document.createElement("button");
-      editBtn.className = "conv-rename";
-      editBtn.setAttribute("aria-label", "Bearbeiten");
-      editBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-      editBtn.addEventListener("click", (e) => { e.stopPropagation(); openAgentForm(id); });
-      item.appendChild(editBtn);
-
-      const delBtn = document.createElement("button");
-      delBtn.className = "conv-del";
-      delBtn.setAttribute("aria-label", "Löschen");
-      delBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18" stroke-linecap="round"/></svg>';
-      delBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if(!confirm("Diesen Agenten löschen?")) return;
-        delete agents[id];
-        saveAgentsRaw(agents);
-        for(const cid in conversations){
-          if(conversations[cid].agentId === id) conversations[cid].agentId = "";
-        }
-        saveConversationsRaw(conversations);
-        for(const pid in projects){
-          if(projects[pid].defaultAgentId === id) projects[pid].defaultAgentId = "";
-        }
-        saveProjectsRaw(projects);
-        renderAgentsList();
-        renderContextChips();
-      });
-      item.appendChild(delBtn);
-
-      item.addEventListener("click", () => selectAgentForConversation(id));
-      list.appendChild(item);
-    }
-  }
-
-  function selectAgentForConversation(id){
-    if(!conversations[activeId]) return;
-    conversations[activeId].agentId = id;
-    saveConversationsRaw(conversations);
-    renderContextChips();
-    closeAgentsSheet();
-  }
-
-  function openAgentsSheet(){
-    editingAgentId = null;
-    $("#agent-form").style.display = "none";
-    renderAgentsList();
-    agentsBackdrop.classList.add("open");
-  }
-  function closeAgentsSheet(){
-    agentsBackdrop.classList.remove("open");
-    $("#agent-form").style.display = "none";
-    editingAgentId = null;
-  }
-
-  function openAgentForm(id){
-    editingAgentId = id || "new";
-    const a = id ? agents[id] : null;
-    $("#agent-name").value = a ? a.name : "";
-    $("#agent-icon").value = a ? a.icon : "🧭";
-    $("#agent-prompt").value = a ? a.systemPrompt : "";
-    populateAgentProviderSelect(a ? a.preferredProvider : "");
-    $("#agent-form").style.display = "block";
-  }
-  function closeAgentForm(){
-    $("#agent-form").style.display = "none";
-    editingAgentId = null;
-  }
-  function saveAgentForm(){
-    const name = $("#agent-name").value.trim();
-    const systemPrompt = $("#agent-prompt").value.trim();
-    if(!name || !systemPrompt){
-      showToast("Bitte Name und System-Prompt ausfüllen.");
-      return;
-    }
-    const icon = $("#agent-icon").value.trim() || "🧭";
-    const preferredProvider = $("#agent-provider").value;
-    if(editingAgentId && editingAgentId !== "new"){
-      Object.assign(agents[editingAgentId], { name, icon, systemPrompt, preferredProvider });
-    }else{
-      const id = newAgentId();
-      agents[id] = { id, name, icon, systemPrompt, preferredProvider, createdAt: Date.now() };
-    }
-    saveAgentsRaw(agents);
-    closeAgentForm();
-    renderAgentsList();
-    showToast("Gespeichert.");
-  }
-
-  $("#chip-agent").addEventListener("click", openAgentsSheet);
-  $("#btn-add-agent").addEventListener("click", () => openAgentForm(null));
-  $("#btn-cancel-agent").addEventListener("click", closeAgentForm);
-  $("#btn-save-agent").addEventListener("click", saveAgentForm);
-  agentsBackdrop.addEventListener("click", (e) => { if(e.target === agentsBackdrop) closeAgentsSheet(); });
-
-  // ---------- Projekte (UI) ----------
-  function projectChatCount(id){
-    return Object.values(conversations).filter(c => c.projectId === id).length;
-  }
-
-  function renderProjectFilterRow(){
-    const row = $("#project-filter-row");
-    row.innerHTML = "";
-    const makeChip = (label, value) => {
-      const chip = document.createElement("button");
-      chip.type = "button";
-      chip.className = "project-chip" + (sidebarProjectFilter === value ? " active" : "");
-      chip.textContent = label;
-      chip.addEventListener("click", () => { sidebarProjectFilter = value; renderSidebar(); });
-      return chip;
-    };
-    row.appendChild(makeChip("Alle", ""));
-    row.appendChild(makeChip("Ohne Projekt", "none"));
-    const ids = Object.keys(projects).sort((a, b) => (projects[a].name || "").localeCompare(projects[b].name || ""));
-    for(const id of ids) row.appendChild(makeChip(projects[id].name, id));
-    const addChip = document.createElement("button");
-    addChip.type = "button";
-    addChip.className = "project-chip";
-    addChip.style.color = "var(--accent)";
-    addChip.style.borderColor = "var(--accent)";
-    addChip.textContent = "+ Projekt";
-    addChip.addEventListener("click", () => { openProjectSheet(); openProjectForm("new"); });
-    row.appendChild(addChip);
-  }
-
-  function renderProjectsList(){
-    const list = $("#projects-list");
-    list.innerHTML = "";
-    const activeProjectId = conversations[activeId]?.projectId || "";
-
-    const noneItem = document.createElement("div");
-    noneItem.className = "conv-item" + (!activeProjectId ? " active" : "");
-    const noneText = document.createElement("div");
-    noneText.className = "conv-text";
-    const noneTitle = document.createElement("span");
-    noneTitle.className = "conv-title";
-    noneTitle.textContent = "Kein Projekt";
-    noneText.appendChild(noneTitle);
-    noneItem.appendChild(noneText);
-    noneItem.addEventListener("click", () => selectProjectForConversation(""));
-    list.appendChild(noneItem);
-
-    const ids = Object.keys(projects).sort((a, b) => (projects[b].updatedAt || 0) - (projects[a].updatedAt || 0));
-    for(const id of ids){
-      const p = projects[id];
-      const item = document.createElement("div");
-      item.className = "conv-item" + (activeProjectId === id ? " active" : "");
-
-      const textWrap = document.createElement("div");
-      textWrap.className = "conv-text";
-      const title = document.createElement("span");
-      title.className = "conv-title";
-      title.textContent = p.name;
-      const sub = document.createElement("span");
-      sub.className = "conv-time";
-      const todoCount = (p.todos || []).filter(t => !t.done).length;
-      sub.textContent = projectChatCount(id) + " Chats · " + todoCount + " offene ToDos";
-      textWrap.append(title, sub);
-      item.appendChild(textWrap);
-
-      const editBtn = document.createElement("button");
-      editBtn.className = "conv-rename";
-      editBtn.setAttribute("aria-label", "Bearbeiten");
-      editBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-      editBtn.addEventListener("click", (e) => { e.stopPropagation(); openProjectForm(id); });
-      item.appendChild(editBtn);
-
-      item.addEventListener("click", () => selectProjectForConversation(id));
-      list.appendChild(item);
-    }
-  }
-
-  function selectProjectForConversation(id){
-    if(!conversations[activeId]) return;
-    conversations[activeId].projectId = id;
-    if(id && projects[id]?.defaultAgentId && !conversations[activeId].agentId){
-      conversations[activeId].agentId = projects[id].defaultAgentId;
-    }
-    saveConversationsRaw(conversations);
-    renderContextChips();
-    closeProjectSheet();
-    renderSidebar();
-  }
-
-  function openProjectSheet(){
-    editingProjectId = null;
-    $("#project-list-view").style.display = "block";
-    $("#project-form-view").style.display = "none";
-    renderProjectsList();
-    projectBackdrop.classList.add("open");
-  }
-  function closeProjectSheet(){
-    projectBackdrop.classList.remove("open");
-    editingProjectId = null;
-  }
-
-  function populateDefaultAgentSelect(selected){
-    const sel = $("#project-default-agent");
-    sel.innerHTML = '<option value="">Kein Agent</option>';
-    const ids = Object.keys(agents).sort((a, b) => (agents[a].createdAt || 0) - (agents[b].createdAt || 0));
-    for(const id of ids){
-      const opt = document.createElement("option");
-      opt.value = id; opt.textContent = (agents[id].icon ? agents[id].icon + " " : "") + agents[id].name;
-      sel.appendChild(opt);
-    }
-    sel.value = selected || "";
-  }
-
-  function renderTodos(){
-    const wrap = $("#project-todos");
-    wrap.innerHTML = "";
-    if(editingProjectId === "new"){ return; }
-    const todos = projects[editingProjectId]?.todos || [];
-    for(const t of todos){
-      const row = document.createElement("div");
-      row.className = "todo-row" + (t.done ? " done" : "");
-      const cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.checked = !!t.done;
-      cb.addEventListener("change", () => {
-        t.done = cb.checked;
-        saveProjectsRaw(projects);
-        renderTodos();
-      });
-      const text = document.createElement("span");
-      text.className = "todo-text";
-      text.textContent = t.text;
-      const del = document.createElement("button");
-      del.className = "todo-del icon-btn";
-      del.setAttribute("aria-label", "ToDo löschen");
-      del.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M6 6l12 12M18 6 6 18" stroke-linecap="round"/></svg>';
-      del.addEventListener("click", () => {
-        projects[editingProjectId].todos = todos.filter(x => x.id !== t.id);
-        saveProjectsRaw(projects);
-        renderTodos();
-      });
-      row.append(cb, text, del);
-      wrap.appendChild(row);
-    }
-  }
-
-  function openProjectForm(id){
-    editingProjectId = id || "new";
-    const p = id && id !== "new" ? projects[id] : null;
-    $("#project-form-title").textContent = p ? "Projekt bearbeiten" : "Neues Projekt";
-    $("#project-name").value = p ? p.name : "";
-    $("#project-memory").value = p ? (p.memory || "") : "";
-    populateDefaultAgentSelect(p ? p.defaultAgentId : "");
-    $("#btn-delete-project").style.display = p ? "block" : "none";
-    renderTodos();
-    $("#project-list-view").style.display = "none";
-    $("#project-form-view").style.display = "block";
-  }
-  function closeProjectForm(){
-    openProjectSheet();
-  }
-  function saveProjectForm(){
-    const name = $("#project-name").value.trim();
-    if(!name){
-      showToast("Bitte einen Namen eingeben.");
-      return;
-    }
-    const memory = $("#project-memory").value.trim();
-    const defaultAgentId = $("#project-default-agent").value;
-    if(editingProjectId && editingProjectId !== "new"){
-      Object.assign(projects[editingProjectId], { name, memory, defaultAgentId, updatedAt: Date.now() });
-      saveProjectsRaw(projects);
-      showToast("Gespeichert.");
-      openProjectSheet();
-    }else{
-      const id = newProjectId();
-      projects[id] = { id, name, memory, defaultAgentId, todos: [], createdAt: Date.now(), updatedAt: Date.now() };
-      saveProjectsRaw(projects);
-      showToast("Projekt angelegt.");
-      openProjectForm(id); // gleich im Formular bleiben, z. B. um ToDos zu ergaenzen
-    }
-    renderProjectFilterRow();
-  }
-  function deleteProjectConfirmed(){
-    if(editingProjectId === "new") return;
-    if(!confirm("Dieses Projekt löschen? Die zugehörigen Chats bleiben erhalten, verlieren aber die Projekt-Zuordnung.")) return;
-    delete projects[editingProjectId];
-    saveProjectsRaw(projects);
-    for(const cid in conversations){
-      if(conversations[cid].projectId === editingProjectId) conversations[cid].projectId = "";
-    }
-    saveConversationsRaw(conversations);
-    if(sidebarProjectFilter === editingProjectId) sidebarProjectFilter = "";
-    openProjectSheet();
-    renderProjectFilterRow();
-    renderContextChips();
-  }
-
-  $("#chip-project").addEventListener("click", openProjectSheet);
-  $("#btn-add-project").addEventListener("click", () => openProjectForm("new"));
-  $("#btn-cancel-project").addEventListener("click", closeProjectForm);
-  $("#btn-save-project").addEventListener("click", saveProjectForm);
-  $("#btn-delete-project").addEventListener("click", deleteProjectConfirmed);
-  $("#btn-add-todo").addEventListener("click", () => {
-    const input = $("#todo-input");
-    const text = input.value.trim();
-    if(!text || editingProjectId === "new") return;
-    projects[editingProjectId].todos = projects[editingProjectId].todos || [];
-    projects[editingProjectId].todos.push({ id: "t" + Date.now() + Math.random().toString(36).slice(2, 6), text, done: false });
-    saveProjectsRaw(projects);
-    input.value = "";
-    renderTodos();
-  });
-  projectBackdrop.addEventListener("click", (e) => { if(e.target === projectBackdrop) closeProjectSheet(); });
-
-  // ---------- Gedächtnis (UI) ----------
-  function renderMemoryList(){
-    const list = $("#memory-list");
-    list.innerHTML = "";
-    if(!memory.length){
-      const empty = document.createElement("div");
-      empty.className = "hint";
-      empty.style.padding = "4px 0 10px";
-      empty.textContent = "Noch nichts gemerkt.";
-      list.appendChild(empty);
-    }
-    for(const m of memory){
-      const row = document.createElement("div");
-      row.className = "todo-row";
-      const text = document.createElement("span");
-      text.className = "todo-text";
-      text.textContent = m.text;
-      const del = document.createElement("button");
-      del.className = "todo-del icon-btn";
-      del.setAttribute("aria-label", "Eintrag löschen");
-      del.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M6 6l12 12M18 6 6 18" stroke-linecap="round"/></svg>';
-      del.addEventListener("click", () => {
-        memory = memory.filter(x => x.id !== m.id);
-        saveMemoryRaw(memory);
-        renderMemoryList();
-        refreshProviderStatuses();
-      });
-      row.append(text, del);
-      list.appendChild(row);
-    }
-  }
-  renderMemoryList();
-
-  $("#btn-add-memory").addEventListener("click", () => {
-    const input = $("#memory-input");
-    const text = input.value.trim();
-    if(!text) return;
-    memory.push({ id: "m" + Date.now() + Math.random().toString(36).slice(2, 6), text, createdAt: Date.now() });
-    saveMemoryRaw(memory);
-    input.value = "";
-    renderMemoryList();
-    refreshProviderStatuses();
-  });
-  $("#memory-input").addEventListener("keydown", (e) => {
-    if(e.key === "Enter"){ e.preventDefault(); $("#btn-add-memory").click(); }
-  });
 
   $("#btn-add-custom-provider").addEventListener("click", () => openCustomProviderForm(-1));
   $("#btn-cancel-custom").addEventListener("click", closeCustomProviderForm);
@@ -3937,8 +3126,8 @@
 
   $("#btn-chats").addEventListener("click", openSidebar);
   sidebarBackdrop.addEventListener("click", (e) => { if(e.target === sidebarBackdrop) closeSidebar(); });
-  $("#btn-new-chat").addEventListener("click", () => createConversation());
-  $("#btn-new-chat-header").addEventListener("click", () => createConversation());
+  $("#btn-new-chat").addEventListener("click", createConversation);
+  $("#btn-new-chat-header").addEventListener("click", createConversation);
 
   $("#btn-usage").addEventListener("click", openUsage);
   usageBackdrop.addEventListener("click", (e) => { if(e.target === usageBackdrop) closeUsage(); });
@@ -3961,7 +3150,6 @@
     STORAGE_CLAUDE_KEY, STORAGE_CLAUDE_MODEL, STORAGE_CLAUDE_ENABLED,
     STORAGE_CUSTOM_PROVIDERS,
     STORAGE_PROFILE_NAME, STORAGE_PROFILE_ABOUT, STORAGE_PROFILE_STYLE, STORAGE_THEME,
-    STORAGE_AGENTS, STORAGE_PROJECTS, STORAGE_MEMORY,
     STORAGE_CONVERSATIONS, STORAGE_ACTIVE_ID, STORAGE_USAGE
   ];
 
@@ -4039,6 +3227,85 @@
   });
 
   improveBtn.addEventListener("click", improvePrompt);
+
+  // ---------- Spracheingabe ----------
+  // Bewusst KEIN "continuous: true" -- auf iOS Safari bekanntermassen fehlerhaft
+  // (Mikrofon hoert nie von selbst auf). Stattdessen: einzelne Erkennung pro Tap,
+  // die nach einer natuerlichen Sprechpause automatisch endet.
+  const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognizer = null;
+  let listening = false;
+
+  function updateMicUI(active){
+    listening = active;
+    micBtn.classList.toggle("listening", active);
+    micBtn.querySelector(".icon-mic").style.display = active ? "none" : "";
+    micBtn.querySelector(".icon-mic-stop").style.display = active ? "" : "none";
+  }
+
+  if(SpeechRecognitionAPI){
+    micBtn.style.display = "";
+    micBtn.addEventListener("click", () => {
+      if(listening){
+        recognizer?.stop();
+        return;
+      }
+      recognizer = new SpeechRecognitionAPI();
+      recognizer.lang = "de-DE";
+      recognizer.continuous = false;
+      recognizer.interimResults = true;
+      const baseText = input.value.trim();
+
+      recognizer.onstart = () => updateMicUI(true);
+      recognizer.onresult = (e) => {
+        let transcript = "";
+        for(let i = 0; i < e.results.length; i++) transcript += e.results[i][0].transcript;
+        input.value = (baseText ? baseText + " " : "") + transcript;
+        autoGrow();
+        updateSendState();
+      };
+      recognizer.onerror = (e) => {
+        if(e.error === "not-allowed" || e.error === "service-not-allowed"){
+          showToast("Mikrofon-Zugriff verweigert -- in den iOS-Einstellungen für Safari erlauben.");
+        }else if(e.error !== "no-speech" && e.error !== "aborted"){
+          showToast("Spracheingabe fehlgeschlagen: " + e.error);
+        }
+      };
+      recognizer.onend = () => updateMicUI(false);
+      recognizer.start();
+    });
+  }
+  // Kein Support (z.B. manche iOS-Chrome-Varianten) -- Button bleibt unsichtbar,
+  // der Rest der App funktioniert unveraendert per Tastatur weiter.
+
+  // ---------- Antworten vorlesen ----------
+  let currentUtterance = null;
+  function speakText(text, btn){
+    if(!("speechSynthesis" in window)){
+      showToast("Vorlesen wird auf diesem Gerät nicht unterstützt.");
+      return;
+    }
+    if(currentUtterance){
+      window.speechSynthesis.cancel();
+      currentUtterance = null;
+      return; // erneutes Tippen auf denselben/oder anderen Button = stoppen
+    }
+    // Markdown-Zeichen fuers Vorlesen grob entfernen, damit nicht "Stern Stern" gesprochen wird
+    const plain = text.replace(/```[\s\S]*?```/g, " Code-Block ausgelassen. ")
+      .replace(/[*_`#>-]/g, "").replace(/\s+/g, " ").trim();
+    const utter = new SpeechSynthesisUtterance(plain);
+    utter.lang = "de-DE";
+    utter.onend = () => { currentUtterance = null; refreshSpeakButtons(); };
+    utter.onerror = () => { currentUtterance = null; refreshSpeakButtons(); };
+    currentUtterance = utter;
+    window.speechSynthesis.speak(utter);
+    refreshSpeakButtons();
+  }
+  function refreshSpeakButtons(){
+    document.querySelectorAll(".speak-btn").forEach(b => {
+      b.classList.toggle("speaking", !!currentUtterance);
+    });
+  }
 
   function updateTeamToggleUI(){
     teamToggleBtn.setAttribute("aria-pressed", String(teamMode));
