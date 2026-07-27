@@ -676,6 +676,47 @@
   .bubble li{ margin: 2px 0; }
   .bubble a{ color: var(--accent); }
 
+  .code-block{ margin: 8px 0; }
+  .code-block pre{ margin: 0; border-radius: 0 0 10px 10px; border-top: none; }
+  .code-block-head{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 10px 10px 0 0;
+    padding: 6px 6px 6px 12px;
+  }
+  .code-lang{ font-size: 11.5px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .03em; }
+  .code-run-btn{
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 7px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .code-run-btn:hover{ border-color: var(--accent); color: var(--accent); }
+  .code-run-btn:disabled{ opacity: .5; pointer-events: none; }
+  .code-output{
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 10px 10px;
+    padding: 10px 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--text-dim);
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  .code-output.code-output-error{ color: var(--danger); }
+
   /* ---------- Nutzungs-Uebersicht ---------- */
   .usage-row{
     display: flex;
@@ -1328,6 +1369,115 @@
       .catch(() => showToast("Kopieren nicht möglich."));
   }
 
+  // ---------- Code-Ausfuehrung im Browser ----------
+  // JavaScript: in einer sandboxed iframe OHNE allow-same-origin -- die Sandbox
+  // bekommt eine eigene, isolierte Origin und kann weder auf diese App noch auf
+  // das Internet zugreifen (kein fetch/XHR moeglich), nur reines Rechnen.
+  function runJavaScript(code, outputEl){
+    outputEl.style.display = "block";
+    outputEl.classList.remove("code-output-error");
+    outputEl.textContent = "Wird ausgeführt …";
+
+    const iframe = document.createElement("iframe");
+    iframe.setAttribute("sandbox", "allow-scripts");
+    iframe.style.display = "none";
+
+    let settled = false;
+    const timeoutId = setTimeout(() => {
+      if(settled) return;
+      settled = true;
+      outputEl.textContent = "Zeitüberschreitung (5s) — möglicherweise eine Endlosschleife.";
+      outputEl.classList.add("code-output-error");
+      window.removeEventListener("message", handler);
+      iframe.remove();
+    }, 5000);
+
+    function handler(e){
+      if(e.source !== iframe.contentWindow || settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      window.removeEventListener("message", handler);
+      outputEl.textContent = e.data.output || "(keine Ausgabe)";
+      if(e.data.error) outputEl.classList.add("code-output-error");
+      iframe.remove();
+    }
+    window.addEventListener("message", handler);
+
+    const escapedCode = JSON.stringify(code);
+    iframe.srcdoc =
+      '<script>' +
+      'const logs = [];' +
+      'const origLog = console.log;' +
+      'console.log = (...args) => { logs.push(args.map(a => typeof a === "object" ? JSON.stringify(a) : String(a)).join(" ")); };' +
+      'try {' +
+      '  const __code = ' + escapedCode + ';' +
+      '  const result = (0, eval)(__code);' +
+      '  if (result !== undefined) logs.push("=> " + (typeof result === "object" ? JSON.stringify(result) : String(result)));' +
+      '  parent.postMessage({ output: logs.join("\\n") }, "*");' +
+      '} catch(err) {' +
+      '  logs.push("Fehler: " + err.message);' +
+      '  parent.postMessage({ output: logs.join("\\n"), error: true }, "*");' +
+      '}' +
+      '<\/script>';
+    document.body.appendChild(iframe);
+  }
+
+  // Python: Pyodide (WASM-Python) wird erst beim ersten "Ausfuehren" nachgeladen,
+  // damit die App beim normalen Start klein und schnell bleibt.
+  let pyodideReadyPromise = null;
+  function ensurePyodide(onStatus){
+    if(pyodideReadyPromise) return pyodideReadyPromise;
+    pyodideReadyPromise = (async () => {
+      if(!window.loadPyodide){
+        onStatus?.("Python-Umgebung wird geladen (einmalig, ca. 10–20 Sekunden) …");
+        await new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = "https://cdn.jsdelivr.net/pyodide/v314.0.3/full/pyodide.js";
+          script.onload = resolve;
+          script.onerror = () => reject(new Error("Pyodide konnte nicht geladen werden."));
+          document.head.appendChild(script);
+        });
+      }
+      return await window.loadPyodide();
+    })();
+    return pyodideReadyPromise;
+  }
+
+  async function runPython(code, outputEl){
+    outputEl.style.display = "block";
+    outputEl.classList.remove("code-output-error");
+    outputEl.textContent = "Wird vorbereitet …";
+    try{
+      const pyodide = await ensurePyodide((status) => { outputEl.textContent = status; });
+      outputEl.textContent = "Wird ausgeführt …";
+      let out = "";
+      pyodide.setStdout({ batched: (s) => { out += s + "\n"; } });
+      pyodide.setStderr({ batched: (s) => { out += s + "\n"; } });
+      const result = await pyodide.runPythonAsync(code);
+      if(result !== undefined && result !== null) out += (out ? "\n" : "") + "=> " + String(result);
+      outputEl.textContent = out.trim() || "(keine Ausgabe)";
+    }catch(err){
+      outputEl.textContent = "Fehler: " + (err?.message || String(err));
+      outputEl.classList.add("code-output-error");
+    }
+  }
+
+  thread.addEventListener("click", (e) => {
+    const btn = e.target.closest(".code-run-btn");
+    if(!btn) return;
+    const outputEl = document.getElementById(btn.dataset.target);
+    const codeEl = btn.closest(".code-block").querySelector("pre code");
+    const code = codeEl.textContent;
+    btn.disabled = true;
+    const done = () => { btn.disabled = false; };
+    if(btn.dataset.kind === "python"){
+      runPython(code, outputEl).finally(done);
+    }else{
+      runJavaScript(code, outputEl);
+      done();
+    }
+  });
+
   const THEME_BG = { graphit: "#171614", mitternacht: "#0d1117", hell: "#f7f3ec" };
   function applyTheme(name){
     document.documentElement.dataset.theme = name === "graphit" ? "" : name;
@@ -1360,12 +1510,31 @@
   // ---------- Leichtgewichtiges, sicheres Markdown fuer Assistenten-Antworten ----------
   // Escaped zuerst komplett zu HTML-Entities, ersetzt dann nur eigene, feste Tags --
   // es kann also kein Markdown-Text beliebiges HTML einschleusen.
+  let codeRunCounter = 0;
+
   function renderMarkdown(raw){
     let s = escapeHtml(raw);
 
     const codeBlocks = [];
-    s = s.replace(/```[a-zA-Z0-9]*\n?([\s\S]*?)```/g, (m, code) => {
-      codeBlocks.push("<pre><code>" + code + "</code></pre>");
+    s = s.replace(/```([a-zA-Z0-9]*)\n?([\s\S]*?)```/g, (m, lang, code) => {
+      const normLang = lang.toLowerCase().trim();
+      const runnable = /^(js|javascript|py|python|python3)$/.test(normLang);
+      if(runnable){
+        const id = "coderun_" + (codeRunCounter++);
+        const kind = /^py/.test(normLang) ? "python" : "javascript";
+        codeBlocks.push(
+          '<div class="code-block">' +
+            '<div class="code-block-head">' +
+              '<span class="code-lang">' + (kind === "python" ? "Python" : "JavaScript") + '</span>' +
+              '<button type="button" class="code-run-btn" data-kind="' + kind + '" data-target="' + id + '">▶ Ausführen</button>' +
+            '</div>' +
+            '<pre><code>' + code + '</code></pre>' +
+            '<div class="code-output" id="' + id + '" style="display:none"></div>' +
+          '</div>'
+        );
+      }else{
+        codeBlocks.push("<pre><code>" + code + "</code></pre>");
+      }
       return "\u0000" + (codeBlocks.length - 1) + "\u0000";
     });
 
