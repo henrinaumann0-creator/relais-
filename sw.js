@@ -1,9 +1,12 @@
 // Relais -- Service Worker
-// Cached ausschließlich die App-Hülle (HTML/CSS/JS/Icons), damit die App
-// auch bei schlechter Verbindung sofort öffnet. API-Aufrufe an OpenRouter
-// gehen immer direkt ins Netz -- die werden hier nie zwischengespeichert.
+// Cached die App-Huelle (HTML/CSS/JS/Icons) NUR als Offline-Rueckfall.
+// Strategie: Netzwerk zuerst -- wer online ist, sieht immer die aktuelle
+// Version. Nur wenn das Netzwerk fehlschlaegt (z.B. offline), wird auf die
+// zuletzt zwischengespeicherte Version zurueckgegriffen.
+// API-Aufrufe an die KI-Anbieter gehen immer direkt ins Netz -- die werden
+// hier nie zwischengespeichert.
 
-const CACHE = "relais-shell-v1";
+const CACHE = "relais-shell-v2";
 const SHELL_FILES = [
   "./",
   "./index.html",
@@ -32,21 +35,18 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
-  // Fremde Domains (v.a. openrouter.ai) unangetastet lassen.
+  // Fremde Domains (die KI-Anbieter) unangetastet lassen.
   if(url.origin !== self.location.origin) return;
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const network = fetch(event.request)
-        .then((res) => {
-          if(res.ok){
-            const copy = res.clone();
-            caches.open(CACHE).then((cache) => cache.put(event.request, copy));
-          }
-          return res;
-        })
-        .catch(() => cached);
-      return cached || network;
-    })
+    fetch(event.request)
+      .then((res) => {
+        if(res.ok){
+          const copy = res.clone();
+          caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+        }
+        return res;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
