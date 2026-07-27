@@ -895,6 +895,71 @@
   .usage-row:last-child{ border-bottom: none; }
   .usage-row .usage-name{ color: var(--text); }
   .usage-row .usage-count{ color: var(--text-dim); }
+
+  /* ---------- Kontext-Chips (Agent & Projekt) ---------- */
+  .context-row{
+    display: flex;
+    gap: 8px;
+    padding: 0 4px 8px;
+    overflow-x: auto;
+  }
+  .context-chip{
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: var(--text-dim);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 6px 13px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    cursor: pointer;
+    font-family: inherit;
+    transition: border-color .15s, color .15s;
+  }
+  .context-chip:active{ background: var(--surface-2); }
+  .context-chip.set{ color: var(--text); border-color: var(--accent); }
+
+  /* ---------- Projekt-Filterzeile (Sidebar) ---------- */
+  .project-filter-row{
+    display: flex;
+    gap: 6px;
+    padding: 0 8px 12px;
+    overflow-x: auto;
+  }
+  .project-chip{
+    font-size: 12px;
+    color: var(--text-dim);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 5px 11px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .project-chip.active{ color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+
+  /* ---------- ToDos (Projekt-Dashboard & Gedächtnis) ---------- */
+  .todo-row{
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 2px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .todo-row:last-child{ border-bottom: none; }
+  .todo-row input[type=checkbox]{ width: 18px; height: 18px; accent-color: var(--accent); flex-shrink: 0; }
+  .todo-row .todo-text{ flex: 1; }
+  .todo-row.done .todo-text{ color: var(--text-dim); text-decoration: line-through; }
+  .todo-row .todo-del{ color: var(--text-dim); opacity: .6; flex-shrink: 0; }
+  .todo-row .todo-del:hover{ opacity: 1; }
+  .todo-add-row{ display: flex; gap: 8px; margin-top: 10px; }
+  .todo-add-row input{ flex: 1; }
 </style>
 </head>
 <body>
@@ -936,6 +1001,14 @@
 </main>
 
 <div class="composer-wrap">
+  <div class="context-row" id="context-row">
+    <button type="button" class="context-chip" id="chip-project">
+      <span id="chip-project-label">Kein Projekt</span>
+    </button>
+    <button type="button" class="context-chip" id="chip-agent">
+      <span id="chip-agent-icon">🤖</span><span id="chip-agent-label">Kein Agent</span>
+    </button>
+  </div>
   <button type="button" class="team-toggle" id="btn-team-toggle" aria-pressed="false">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2.5 20a5.5 5.5 0 0 1 11 0M10.5 20a5.5 5.5 0 0 1 11 0" stroke-linecap="round"/></svg>
     <span>Team-Modus</span>
@@ -990,6 +1063,20 @@
         </select>
       </div>
       <button type="button" class="btn btn-primary" id="btn-save-profile">Speichern</button>
+    </details>
+
+    <details class="provider-section" id="section-memory">
+      <summary><span class="status-dot" id="status-memory"></span>Gedächtnis</summary>
+      <div class="field">
+        <div class="hint">Gilt in jedem Chat, unabhängig von Modell, Agent oder Projekt. Die KI kann Einträge selbst hinzufügen, wenn du es im Chat bittest ("merk dir …") -- hier verwaltest du sie manuell.</div>
+      </div>
+      <div id="memory-list"></div>
+      <div class="todo-add-row">
+        <input type="text" id="memory-input" placeholder="z. B. Ich bevorzuge kurze Antworten" autocomplete="off">
+        <button type="button" class="key-btn" id="btn-add-memory" aria-label="Eintrag hinzufügen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
+        </button>
+      </div>
     </details>
 
     <details class="provider-section" id="section-openrouter">
@@ -1252,6 +1339,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3" stroke-linecap="round"/></svg>
       <input type="text" id="chat-search" placeholder="Chats durchsuchen…" autocomplete="off">
     </div>
+    <div class="project-filter-row" id="project-filter-row"></div>
     <div id="conversation-list" style="overflow-y:auto; flex:1"></div>
   </div>
 </div>
@@ -1261,6 +1349,76 @@
     <h2>Nutzung</h2>
     <div id="usage-body"></div>
     <button type="button" class="btn btn-ghost" id="btn-reset-usage" style="margin-top:16px">Nutzungszähler zurücksetzen</button>
+  </div>
+</div>
+
+<div class="sheet-backdrop" id="agents-backdrop">
+  <div class="sheet">
+    <h2>Agenten</h2>
+    <div class="field">
+      <div class="hint">Ein Agent gibt dem Modell einen festen System-Prompt und optional einen bevorzugten Anbieter mit. Tippen wählt ihn für diesen Chat aus.</div>
+    </div>
+    <div id="agents-list"></div>
+
+    <div class="field" id="agent-form" style="display:none; margin-top:14px">
+      <label for="agent-name">Name</label>
+      <input type="text" id="agent-name" placeholder="z. B. Übersetzer" autocomplete="off">
+      <label for="agent-icon" style="margin-top:10px">Symbol (ein Emoji)</label>
+      <input type="text" id="agent-icon" placeholder="🧭" maxlength="4" autocomplete="off">
+      <label for="agent-prompt" style="margin-top:10px">System-Prompt</label>
+      <textarea id="agent-prompt" rows="4" placeholder="Wie soll sich dieser Agent verhalten?"></textarea>
+      <label for="agent-provider" style="margin-top:10px">Bevorzugter Anbieter</label>
+      <select id="agent-provider"><option value="">Automatisch (Router entscheidet)</option></select>
+      <div class="hint">Wird zuerst versucht, bei Fehler oder Limit greift trotzdem die normale Fallback-Kette.</div>
+      <div class="edit-actions" style="margin-top:10px">
+        <button type="button" id="btn-cancel-agent">Abbrechen</button>
+        <button type="button" class="primary" id="btn-save-agent">Speichern</button>
+      </div>
+    </div>
+    <button type="button" class="btn btn-ghost" id="btn-add-agent" style="color:var(--text); border-color:var(--border); margin-top:10px">+ Neuer Agent</button>
+  </div>
+</div>
+
+<div class="sheet-backdrop" id="project-backdrop">
+  <div class="sheet">
+    <div id="project-list-view">
+      <h2>Projekte</h2>
+      <div class="field">
+        <div class="hint">Ein Projekt bündelt Chats mit gemeinsamem Gedächtnis, ToDos und Standard-Agent. Tippen weist dieses Projekt dem aktuellen Chat zu.</div>
+      </div>
+      <div id="projects-list"></div>
+      <button type="button" class="btn btn-ghost" id="btn-add-project" style="color:var(--text); border-color:var(--border); margin-top:10px">+ Neues Projekt</button>
+    </div>
+
+    <div id="project-form-view" style="display:none">
+      <h2 id="project-form-title">Projekt</h2>
+      <div class="field">
+        <label for="project-name">Name</label>
+        <input type="text" id="project-name" placeholder="z. B. Netherite AFK Miner" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="project-memory">Gedächtnis</label>
+        <textarea id="project-memory" rows="5" placeholder="Was soll die KI in jedem Chat dieses Projekts wissen? (Ziele, Stand, Entscheidungen, Rahmenbedingungen …)"></textarea>
+        <div class="hint">Wird bei jeder Nachricht in diesem Projekt automatisch als Kontext mitgeschickt.</div>
+      </div>
+      <div class="field">
+        <label for="project-default-agent">Standard-Agent für neue Chats</label>
+        <select id="project-default-agent"><option value="">Kein Agent</option></select>
+      </div>
+      <div class="field">
+        <label>ToDos</label>
+        <div id="project-todos"></div>
+        <div class="todo-add-row">
+          <input type="text" id="todo-input" placeholder="Neues ToDo…" autocomplete="off">
+          <button type="button" class="key-btn" id="btn-add-todo" aria-label="ToDo hinzufügen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+      </div>
+      <button type="button" class="btn btn-primary" id="btn-save-project">Speichern</button>
+      <button type="button" class="btn btn-ghost" id="btn-delete-project">Projekt löschen</button>
+      <button type="button" class="btn btn-ghost" id="btn-cancel-project" style="color:var(--text); border-color:var(--border)">Abbrechen</button>
+    </div>
   </div>
 </div>
 
@@ -1300,6 +1458,153 @@
   const STORAGE_COHERE_MODEL = "relais.cohereModel";
   const COHERE_MODEL_PREFERENCE = ["command-r-plus", "command-r", "command-a-03-2025"];
   const MAX_CONTEXT_MESSAGES = 24; // an das Modell gesendeter Ausschnitt
+
+  const STORAGE_AGENTS   = "relais.agents";
+  const STORAGE_PROJECTS = "relais.projects";
+  const STORAGE_MEMORY   = "relais.memory";
+  // Bewusst nur 3 Standard-Agenten -- lieber wenige, klar unterscheidbare als
+  // ein leeres Plugin-Regal. Weitere legt man bei Bedarf selbst an.
+  const DEFAULT_AGENTS = [
+    {
+      name: "Programmierer",
+      icon: "💻",
+      systemPrompt: "Du bist ein präziser, erfahrener Programmierer. Antworte technisch genau, zeige Code in Codebloecken, erklaere kurz warum eine Loesung so gewaehlt ist, und weise auf Probleme oder bessere Alternativen hin statt nur die Anfrage zu erfuellen.",
+      preferredProvider: ""
+    },
+    {
+      name: "GitHub-Analyst",
+      icon: "🔍",
+      systemPrompt: "Du analysierst Code und Repositories. Nutze list_github_repo und read_github_file, um echte Dateien und Code einzusehen, statt zu raten. Erklaere Architektur, Datenfluesse und Abhaengigkeiten klar strukturiert, finde potenzielle Bugs und Verbesserungen, und sei konkret statt allgemein.",
+      preferredProvider: ""
+    },
+    {
+      name: "Recherche",
+      icon: "📚",
+      systemPrompt: "Du recherchierst und fasst Informationen sachlich und quellenkritisch zusammen. Trenne klar zwischen gesichertem Wissen und Unsicherheit, und nenne wo sinnvoll worauf sich eine Aussage stuetzt.",
+      preferredProvider: ""
+    }
+  ];
+
+  // ---------- Werkzeuge, die das Modell wirklich ausloesen kann (Function Calling) ----------
+  // Gilt nur fuer OpenAI-kompatible Anbieter -- Claude/Anthropic hat ein eigenes
+  // Tool-Schema und wird hier bewusst ausgenommen.
+  const TOOL_DEFINITIONS = [
+    {
+      type: "function",
+      function: {
+        name: "delete_current_chat",
+        description: "Löscht den aktuell geöffneten Chatverlauf unwiderruflich. Nur aufrufen, wenn der Nutzer ausdrücklich darum bittet, diesen Chat / dieses Gespräch / den Verlauf zu löschen.",
+        parameters: { type: "object", properties: {}, required: [] }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "remember",
+        description: "Speichert eine kurze Information dauerhaft und modellübergreifend, sodass sie automatisch in jedem zukünftigen Gespräch bekannt ist -- auch mit anderen Modellen oder in anderen Chats. Nur aufrufen, wenn der Nutzer ausdrücklich möchte, dass sich die KI dauerhaft etwas merkt (z. B. \"merk dir...\", \"erinnere dich an...\").",
+        parameters: {
+          type: "object",
+          properties: { fact: { type: "string", description: "Die zu merkende Information, kurz und in einem Satz formuliert." } },
+          required: ["fact"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "rename_current_chat",
+        description: "Benennt den aktuell geöffneten Chat um. Nur aufrufen, wenn der Nutzer ausdrücklich einen neuen Namen/Titel für diesen Chat wünscht.",
+        parameters: {
+          type: "object",
+          properties: { title: { type: "string", description: "Der neue Titel, kurz und prägnant." } },
+          required: ["title"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "assign_project",
+        description: "Weist den aktuellen Chat einem Projekt zu. Existiert das Projekt noch nicht, wird es neu angelegt. Nur aufrufen, wenn der Nutzer ausdrücklich möchte, dass dieser Chat einem bestimmten Projekt zugeordnet wird.",
+        parameters: {
+          type: "object",
+          properties: { project: { type: "string", description: "Name des Projekts." } },
+          required: ["project"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "add_todo",
+        description: "Fügt einem Projekt ein ToDo hinzu. Ohne Projektangabe wird das Projekt des aktuellen Chats verwendet. Nur aufrufen, wenn der Nutzer ausdrücklich eine Aufgabe/ein ToDo hinzufügen möchte.",
+        parameters: {
+          type: "object",
+          properties: {
+            text: { type: "string", description: "Der ToDo-Text." },
+            project: { type: "string", description: "Name des Projekts (optional, sonst aktuelles Projekt des Chats)." }
+          },
+          required: ["text"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "complete_todo",
+        description: "Markiert ein bestehendes ToDo eines Projekts als erledigt, per Textsuche gefunden. Ohne Projektangabe wird das Projekt des aktuellen Chats verwendet.",
+        parameters: {
+          type: "object",
+          properties: {
+            text: { type: "string", description: "Text oder Teil des Textes des zu erledigenden ToDos." },
+            project: { type: "string", description: "Name des Projekts (optional)." }
+          },
+          required: ["text"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_current_datetime",
+        description: "Gibt das aktuelle Datum, die Uhrzeit, den Wochentag und die Zeitzone zurück (vom Gerät des Nutzers). Nutzen bei Fragen zum heutigen Datum, zur Uhrzeit oder relativen Zeitangaben.",
+        parameters: { type: "object", properties: {}, required: [] }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "list_github_repo",
+        description: "Listet Dateien und Ordner in einem öffentlichen GitHub-Repository auf. Vor read_github_file nutzen, um zu sehen welche Dateien existieren.",
+        parameters: {
+          type: "object",
+          properties: {
+            owner: { type: "string", description: "GitHub-Benutzername oder Organisation." },
+            repo: { type: "string", description: "Repository-Name." },
+            path: { type: "string", description: "Pfad innerhalb des Repos, leer für das Wurzelverzeichnis." }
+          },
+          required: ["owner", "repo"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "read_github_file",
+        description: "Liest den Inhalt einer Textdatei aus einem öffentlichen GitHub-Repository (bis zu einer Größengrenze).",
+        parameters: {
+          type: "object",
+          properties: {
+            owner: { type: "string" },
+            repo: { type: "string" },
+            path: { type: "string", description: "Vollständiger Dateipfad im Repo, z. B. src/index.js" },
+            ref: { type: "string", description: "Branch/Tag/Commit (optional, Standard: Standard-Branch)." }
+          },
+          required: ["owner", "repo", "path"]
+        }
+      }
+    }
+  ];
 
   const $ = (sel) => document.querySelector(sel);
   const thread      = $("#thread");
@@ -1372,10 +1677,236 @@
   const claudeModelSelect = $("#claude-model-select");
   const claudeEnableToggle = $("#claude-enable-toggle");
   const sidebarBackdrop = $("#sidebar-backdrop");
+  const agentsBackdrop = $("#agents-backdrop");
+  const projectBackdrop = $("#project-backdrop");
   const conversationList = $("#conversation-list");
   const chatSearchInput = $("#chat-search");
   const usageBackdrop = $("#usage-backdrop");
   const usageBody = $("#usage-body");
+
+  // ---------- Agenten: laden, seeden, verwalten ----------
+  function newAgentId(){ return "ag" + Date.now() + Math.random().toString(36).slice(2, 7); }
+  function loadAgentsRaw(){
+    try{
+      const raw = localStorage.getItem(STORAGE_AGENTS);
+      return raw ? JSON.parse(raw) : null; // null = noch nie gespeichert -> seeden
+    }catch{ return null; }
+  }
+  function saveAgentsRaw(a){
+    try{ localStorage.setItem(STORAGE_AGENTS, JSON.stringify(a)); }catch{}
+  }
+
+  let agents = loadAgentsRaw();
+  if(!agents){
+    agents = {};
+    for(const seed of DEFAULT_AGENTS){
+      const id = newAgentId();
+      agents[id] = { id, ...seed, createdAt: Date.now() };
+    }
+    saveAgentsRaw(agents);
+  }
+  let editingAgentId = null; // Sheet zeigt entweder Liste (null) oder Formular (Agent-Id / "new")
+
+  // ---------- Projekte: laden, verwalten ----------
+  function newProjectId(){ return "p" + Date.now() + Math.random().toString(36).slice(2, 7); }
+  function loadProjectsRaw(){
+    try{ return JSON.parse(localStorage.getItem(STORAGE_PROJECTS) || "{}"); }catch{ return {}; }
+  }
+  function saveProjectsRaw(p){
+    try{ localStorage.setItem(STORAGE_PROJECTS, JSON.stringify(p)); }catch{}
+  }
+
+  let projects = loadProjectsRaw();
+  let editingProjectId = null; // Sheet zeigt entweder Liste (null) oder Dashboard (Projekt-Id)
+  let sidebarProjectFilter = ""; // "" = alle Chats, "none" = ohne Projekt, sonst Projekt-Id
+
+  // ---------- Gedächtnis: dauerhaft, modell- und projektübergreifend ----------
+  function loadMemoryRaw(){
+    try{ return JSON.parse(localStorage.getItem(STORAGE_MEMORY) || "[]"); }catch{ return []; }
+  }
+  function saveMemoryRaw(m){
+    try{ localStorage.setItem(STORAGE_MEMORY, JSON.stringify(m)); }catch{}
+  }
+  let memory = loadMemoryRaw();
+
+  // Findet ein Projekt per Name (fuer Tools, die optional einen Projektnamen
+  // bekommen); ohne Angabe faellt es auf das Projekt des aktuellen Chats zurueck.
+  function resolveProjectForTool(nameArg){
+    if(nameArg && nameArg.trim()){
+      const found = Object.values(projects).find(p => p.name.toLowerCase() === nameArg.trim().toLowerCase());
+      return found || null;
+    }
+    return activeProject();
+  }
+
+  const GITHUB_FILE_CHAR_LIMIT = 6000;
+
+  async function executeToolCall(name, args){
+    if(name === "delete_current_chat"){
+      const title = conversations[activeId]?.title || "Dieser Chat";
+      if(!confirm(`"${title}" wirklich löschen?`)){
+        return { ok: false, message: "Abgebrochen -- der Chat wurde nicht gelöscht." };
+      }
+      deleteConversation(activeId);
+      return { terminal: true, ok: true, message: `"${title}" wurde gelöscht.` };
+    }
+
+    if(name === "remember"){
+      const fact = (args?.fact || "").trim();
+      if(!fact) return { ok: false, message: "Kein Inhalt zum Merken erhalten." };
+      memory.push({ id: "m" + Date.now() + Math.random().toString(36).slice(2, 6), text: fact, createdAt: Date.now() });
+      saveMemoryRaw(memory);
+      renderMemoryList();
+      return { ok: true, message: "Gemerkt: " + fact };
+    }
+
+    if(name === "rename_current_chat"){
+      const title = (args?.title || "").trim().slice(0, 60);
+      if(!title || !conversations[activeId]) return { ok: false, message: "Kein Titel erhalten." };
+      conversations[activeId].title = title;
+      conversations[activeId].titleIsCustom = true;
+      saveConversationsRaw(conversations);
+      renderSidebar();
+      return { ok: true, message: `Chat umbenannt in "${title}".` };
+    }
+
+    if(name === "assign_project"){
+      const projectName = (args?.project || "").trim();
+      if(!projectName || !conversations[activeId]) return { ok: false, message: "Kein Projektname erhalten." };
+      let match = Object.values(projects).find(p => p.name.toLowerCase() === projectName.toLowerCase());
+      let created = false;
+      if(!match){
+        const id = newProjectId();
+        match = { id, name: projectName, memory: "", defaultAgentId: "", todos: [], createdAt: Date.now(), updatedAt: Date.now() };
+        projects[id] = match;
+        created = true;
+      }
+      conversations[activeId].projectId = match.id;
+      if(match.defaultAgentId && !conversations[activeId].agentId) conversations[activeId].agentId = match.defaultAgentId;
+      saveProjectsRaw(projects);
+      saveConversationsRaw(conversations);
+      renderContextChips();
+      renderProjectFilterRow();
+      return {
+        ok: true,
+        message: created
+          ? `Projekt "${projectName}" wurde angelegt und diesem Chat zugewiesen.`
+          : `Chat wurde dem Projekt "${projectName}" zugewiesen.`
+      };
+    }
+
+    if(name === "add_todo"){
+      const text = (args?.text || "").trim();
+      if(!text) return { ok: false, message: "Kein ToDo-Text erhalten." };
+      const project = resolveProjectForTool(args?.project);
+      if(!project) return { ok: false, message: "Kein Projekt gefunden -- bitte zuerst ein Projekt zuweisen oder einen Projektnamen angeben." };
+      project.todos = project.todos || [];
+      project.todos.push({ id: "t" + Date.now() + Math.random().toString(36).slice(2, 6), text, done: false });
+      project.updatedAt = Date.now();
+      saveProjectsRaw(projects);
+      if(editingProjectId === project.id) renderTodos();
+      return { ok: true, message: `ToDo "${text}" zu Projekt "${project.name}" hinzugefügt.` };
+    }
+
+    if(name === "complete_todo"){
+      const query = (args?.text || "").trim().toLowerCase();
+      if(!query) return { ok: false, message: "Kein Suchtext erhalten." };
+      const project = resolveProjectForTool(args?.project);
+      if(!project) return { ok: false, message: "Kein Projekt gefunden." };
+      const todo = (project.todos || []).find(t => !t.done && t.text.toLowerCase().includes(query));
+      if(!todo) return { ok: false, message: `Kein offenes ToDo gefunden, das zu "${args.text}" passt.` };
+      todo.done = true;
+      saveProjectsRaw(projects);
+      if(editingProjectId === project.id) renderTodos();
+      return { ok: true, message: `ToDo "${todo.text}" als erledigt markiert.` };
+    }
+
+    if(name === "get_current_datetime"){
+      const now = new Date();
+      const local = now.toLocaleString("de-DE", { dateStyle: "full", timeStyle: "short" });
+      return {
+        ok: true,
+        iso: now.toISOString(),
+        local,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        message: "Aktuell: " + local
+      };
+    }
+
+    if(name === "list_github_repo"){
+      const owner = (args?.owner || "").trim();
+      const repo = (args?.repo || "").trim();
+      const path = (args?.path || "").trim().replace(/^\/+/, "");
+      if(!owner || !repo) return { ok: false, message: "owner und repo werden benötigt." };
+      try{
+        const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
+          headers: { Accept: "application/vnd.github+json" }
+        });
+        if(!res.ok){
+          if(res.status === 404) return { ok: false, message: "Repository oder Pfad nicht gefunden." };
+          if(res.status === 403) return { ok: false, message: "GitHub-API-Limit erreicht, bitte später erneut versuchen." };
+          return { ok: false, message: "GitHub-Fehler: " + res.status };
+        }
+        const data = await res.json();
+        if(!Array.isArray(data)){
+          return { ok: false, message: "Das ist eine Datei, kein Ordner -- read_github_file benutzen." };
+        }
+        const entries = data.map(e => ({ name: e.name, path: e.path, type: e.type, size: e.size }));
+        return {
+          ok: true,
+          path: path || "/",
+          entries,
+          message: `${entries.length} Einträge in ${owner}/${repo}${path ? "/" + path : ""}: ` +
+            entries.map(e => e.name + (e.type === "dir" ? "/" : "")).join(", ")
+        };
+      }catch{
+        return { ok: false, message: "Netzwerkfehler beim Zugriff auf GitHub." };
+      }
+    }
+
+    if(name === "read_github_file"){
+      const owner = (args?.owner || "").trim();
+      const repo = (args?.repo || "").trim();
+      const path = (args?.path || "").trim().replace(/^\/+/, "");
+      const ref = (args?.ref || "").trim();
+      if(!owner || !repo || !path) return { ok: false, message: "owner, repo und path werden benötigt." };
+      try{
+        const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}` + (ref ? `?ref=${encodeURIComponent(ref)}` : "");
+        const res = await fetch(url, { headers: { Accept: "application/vnd.github+json" } });
+        if(!res.ok){
+          if(res.status === 404) return { ok: false, message: "Datei nicht gefunden." };
+          if(res.status === 403) return { ok: false, message: "GitHub-API-Limit erreicht, bitte später erneut versuchen." };
+          return { ok: false, message: "GitHub-Fehler: " + res.status };
+        }
+        const data = await res.json();
+        if(Array.isArray(data) || data.type !== "file"){
+          return { ok: false, message: "Das ist ein Ordner, keine Datei -- list_github_repo benutzen." };
+        }
+        if(!data.content || data.encoding !== "base64"){
+          return { ok: false, message: "Datei kann nicht als Text gelesen werden (evtl. zu groß oder binär)." };
+        }
+        let text;
+        try{
+          text = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ""))));
+        }catch{
+          return { ok: false, message: "Datei scheint keine Textdatei zu sein (binär)." };
+        }
+        const truncated = text.length > GITHUB_FILE_CHAR_LIMIT;
+        return {
+          ok: true,
+          path,
+          size: data.size,
+          truncated,
+          message: `Inhalt von ${path} (${data.size} Bytes${truncated ? ", gekürzt" : ""}):\n\n` +
+            (truncated ? text.slice(0, GITHUB_FILE_CHAR_LIMIT) + "\n… (gekürzt)" : text)
+        };
+      }catch{
+        return { ok: false, message: "Netzwerkfehler beim Zugriff auf GitHub." };
+      }
+    }
+
+    return { ok: false, message: "Unbekannte Funktion: " + name };
+  }
 
   // ---------- Konversationen: laden, migrieren, verwalten ----------
   function loadConversations(){
@@ -1444,9 +1975,11 @@
     render();
   }
 
-  function createConversation(){
+  function createConversation(projectId){
     const id = newConversationId();
-    conversations[id] = { id, title: "Neuer Chat", messages: [], updatedAt: Date.now() };
+    const pid = projectId || (projects[sidebarProjectFilter] ? sidebarProjectFilter : "");
+    const agentId = (pid && projects[pid]?.defaultAgentId) || "";
+    conversations[id] = { id, title: "Neuer Chat", messages: [], updatedAt: Date.now(), projectId: pid, agentId };
     saveConversationsRaw(conversations);
     activeId = id;
     localStorage.setItem(STORAGE_ACTIVE_ID, activeId);
@@ -1503,6 +2036,7 @@
     });
     scrollToBottom();
     renderSidebar();
+    renderContextChips();
   }
 
   function renderRow(m, isLastAssistant, index){
@@ -1759,7 +2293,7 @@
     const assistantMsg = { role: "assistant", content: "", usedModel: "" };
     messages.push(assistantMsg);
     saveMessages();
-    runCompletion(newText, assistantMsg, buildTargets());
+    runCompletion(newText, assistantMsg, buildTargets(activeAgent()?.preferredProvider));
   }
 
   function escapeHtml(s){
@@ -1833,9 +2367,13 @@
   }
 
   function renderSidebar(){
+    renderProjectFilterRow();
     conversationList.innerHTML = "";
     const query = (chatSearchInput.value || "").trim().toLowerCase();
     let ids = Object.keys(conversations).sort((a, b) => conversations[b].updatedAt - conversations[a].updatedAt);
+
+    if(sidebarProjectFilter === "none") ids = ids.filter(id => !conversations[id].projectId);
+    else if(sidebarProjectFilter) ids = ids.filter(id => conversations[id].projectId === sidebarProjectFilter);
 
     if(query){
       ids = ids.filter(id => {
@@ -1866,7 +2404,8 @@
       title.textContent = conv.title || "Neuer Chat";
       const time = document.createElement("span");
       time.className = "conv-time";
-      time.textContent = relativeTime(conv.updatedAt);
+      const projectTag = (!sidebarProjectFilter && conv.projectId && projects[conv.projectId]) ? " · " + projects[conv.projectId].name : "";
+      time.textContent = relativeTime(conv.updatedAt) + projectTag;
       textWrap.append(title, time);
       item.appendChild(textWrap);
 
@@ -2069,7 +2608,7 @@
 
   // ---------- Sende-Ziele in Reihenfolge (mit Fallback) ----------
   // Reihenfolge nach Grosszuegigkeit des jeweiligen Gratis-Kontingents.
-  function buildTargets(){
+  function buildTargets(preferredProvider){
     const targets = [];
     if(groqKey){
       targets.push({
@@ -2145,14 +2684,31 @@
         extraHeaders: {}
       });
     }
+    if(preferredProvider){
+      // Bevorzugten Anbieter (aus dem aktiven Agenten) nach vorn holen, Fallback-Kette bleibt erhalten.
+      targets.sort((a, b) => (a.provider === preferredProvider ? -1 : 0) - (b.provider === preferredProvider ? -1 : 0));
+    }
     return targets;
+  }
+
+  function configuredProviderNames(){
+    const names = [];
+    if(groqKey) names.push("Groq");
+    if(geminiKey) names.push("Gemini");
+    if(mistralKey) names.push("Mistral");
+    if(ghmodelsKey) names.push("GitHub Models");
+    if(cohereKey) names.push("Cohere");
+    if(apiKey) names.push("OpenRouter");
+    for(const p of customProviders) names.push(p.name);
+    if(claudeEnabled && claudeKey) names.push("Claude");
+    return names;
   }
 
   // ---------- Senden ----------
   let currentController = null;
 
   async function sendMessage(text){
-    const targets = buildTargets();
+    const targets = buildTargets(activeAgent()?.preferredProvider);
     if(!targets.length){
       openSettings();
       showToast("Erst einen kostenlosen API-Schlüssel eintragen.");
@@ -2183,7 +2739,7 @@
     assistantMsg.usedModel = "";
     delete assistantMsg.isError;
     delete assistantMsg.teamSteps;
-    const targets = buildTargets();
+    const targets = buildTargets(activeAgent()?.preferredProvider);
     if(teamMode && targets.length >= 2){
       await runTeamMode(userMsg.content, assistantMsg, targets);
     }else{
@@ -2381,6 +2937,41 @@
     render();
   }
 
+  // ---------- Agent & Projekt der aktiven Konversation ----------
+  function activeAgent(){
+    const id = conversations[activeId]?.agentId;
+    return id ? agents[id] || null : null;
+  }
+  function activeProject(){
+    const id = conversations[activeId]?.projectId;
+    return id ? projects[id] || null : null;
+  }
+  function composeSystemPrompt(){
+    const parts = [];
+    if(profileName) parts.push("Der Nutzer möchte " + profileName + " genannt werden.");
+    if(profileAbout) parts.push("Über den Nutzer: " + profileAbout);
+    if(profileStyle) parts.push("Gewünschter Antwortstil: " + profileStyle);
+    if(memory.length){
+      parts.push("Dauerhaft gemerkte Informationen (gilt in jedem Chat, unabhängig vom Modell):\n" +
+        memory.map(m => "- " + m.text).join("\n"));
+    }
+    const agent = activeAgent();
+    const project = activeProject();
+    if(agent?.systemPrompt) parts.push(agent.systemPrompt);
+    if(project?.memory) parts.push(`Projekt-Kontext (${project.name}):\n${project.memory}`);
+    return parts.join("\n\n");
+  }
+  function renderContextChips(){
+    const conv = conversations[activeId];
+    const project = conv?.projectId ? projects[conv.projectId] : null;
+    const agent = conv?.agentId ? agents[conv.agentId] : null;
+    $("#chip-project-label").textContent = project ? project.name : "Kein Projekt";
+    $("#chip-project").classList.toggle("set", !!project);
+    $("#chip-agent-icon").textContent = agent ? (agent.icon || "🤖") : "🤖";
+    $("#chip-agent-label").textContent = agent ? agent.name : "Kein Agent";
+    $("#chip-agent").classList.toggle("set", !!agent);
+  }
+
   async function runCompletion(text, assistantMsg, targets){
     render();
     const rows = thread.querySelectorAll(".row.assistant");
@@ -2418,11 +3009,8 @@
 
     const finalMsgs = dedupeTrailingUser(contextMsgs, text);
 
-    const profileParts = [];
-    if(profileName) profileParts.push("Der Nutzer möchte " + profileName + " genannt werden.");
-    if(profileAbout) profileParts.push("Über den Nutzer: " + profileAbout);
-    if(profileStyle) profileParts.push("Gewünschter Antwortstil: " + profileStyle);
-    if(profileParts.length) finalMsgs.unshift({ role: "system", content: profileParts.join(" ") });
+    const systemPrompt = composeSystemPrompt();
+    if(systemPrompt) finalMsgs.unshift({ role: "system", content: systemPrompt });
 
     const errors = [];
     let succeeded = false;
@@ -2438,7 +3026,7 @@
       let usageInfo = null;
       let firstToken = true;
       try{
-        await streamCompletion(target, finalMsgs, currentController.signal, {
+        const result = await streamCompletion(target, finalMsgs, currentController.signal, {
           onToken: (chunk) => {
             if(firstToken){
               bubbleEl.innerHTML = "";
@@ -2459,8 +3047,23 @@
             thinkingTextEl.textContent = assistantMsg.reasoning;
             thinkingBox.style.display = "block";
             maybeAutoScroll();
-          }
+          },
+          tools: target.kind === "anthropic" ? null : TOOL_DEFINITIONS
         });
+
+        if(result?.toolCalls && result.toolCalls.length){
+          recordUsage(target.provider, resolvedModelId, usageInfo);
+          const outcome = await handleToolCalls(result.toolCalls, target, finalMsgs, assistantMsg, bubbleEl);
+          if(outcome === "terminated"){
+            sending = false;
+            currentController = null;
+            updateSendState();
+            return; // z. B. Chat geloescht -- diese Konversation existiert so nicht mehr
+          }
+          succeeded = true;
+          break;
+        }
+
         if(!assistantMsg.content){
           throw new Error("Leere Antwort erhalten.");
         }
@@ -2508,6 +3111,65 @@
     }
   }
 
+  // Fuehrt vom Modell angeforderte Tool-Calls lokal aus. Bei einer terminalen Aktion
+  // (aktuell nur "Chat loeschen") existiert diese Konversation danach nicht mehr in
+  // der bisherigen Form. Sonst: kurzer Zweitaufruf mit dem Tool-Ergebnis, damit das
+  // Modell normal in Worten antwortet statt nur ein Ergebnis-JSON zu zeigen.
+  async function handleToolCalls(toolCalls, target, finalMsgs, assistantMsg, bubbleEl){
+    bubbleEl.innerHTML = '<span class="thinking-dots"><span></span><span></span><span></span></span>';
+
+    const assistantToolMsg = {
+      role: "assistant",
+      content: null,
+      tool_calls: toolCalls.map((tc, i) => ({
+        id: tc.id || ("call_" + Date.now() + i),
+        type: "function",
+        function: { name: tc.name, arguments: tc.arguments || "{}" }
+      }))
+    };
+
+    const toolResultMsgs = [];
+    for(const tc of assistantToolMsg.tool_calls){
+      let args = {};
+      try{ args = JSON.parse(tc.function.arguments || "{}"); }catch{ /* kein valides JSON vom Modell */ }
+      const result = await executeToolCall(tc.function.name, args);
+      if(result?.terminal){
+        showToast(result.message || "Erledigt.");
+        return "terminated";
+      }
+      toolResultMsgs.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result) });
+    }
+
+    assistantMsg.content = "";
+    let firstToken = true;
+    try{
+      await streamCompletion(target, [...finalMsgs, assistantToolMsg, ...toolResultMsgs], currentController.signal, {
+        onToken: (chunk) => {
+          if(firstToken){ bubbleEl.innerHTML = ""; firstToken = false; }
+          assistantMsg.content += chunk;
+          bubbleEl.innerHTML = renderMarkdown(assistantMsg.content);
+          maybeAutoScroll();
+        },
+        onModel: (usedModel) => {
+          assistantMsg.usedModel = target.provider + " · " + shortModelName(usedModel || target.model);
+        },
+        onUsage: () => {},
+        onReasoning: () => {},
+        tools: null // im Zweitaufruf soll eine Textantwort kommen, kein weiterer Tool-Call
+      });
+    }catch{
+      // Zweitaufruf fehlgeschlagen -- unten greift die lokale Bestaetigung als Fallback.
+    }
+
+    if(!assistantMsg.content){
+      let parsed = {};
+      try{ parsed = JSON.parse(toolResultMsgs[toolResultMsgs.length - 1]?.content || "{}"); }catch{}
+      assistantMsg.content = parsed.message || "Erledigt.";
+      bubbleEl.innerHTML = renderMarkdown(assistantMsg.content);
+    }
+    return "ok";
+  }
+
   // Erzeugt im Hintergrund einen kurzen, treffenden Titel (statt der reinen
   // Anfangs-Zeichen-Abschneidung) -- scheitert es, bleibt der einfache Titel stehen.
   async function generateSmartTitle(convId, userText, assistantText, targets){
@@ -2541,8 +3203,23 @@
     }
   }
 
+  function stripPreamble(text){
+    // Freemium-Modelle halten sich trotz expliziter Anweisung nicht immer daran,
+    // NUR den eigentlichen Inhalt zu liefern -- haeufige Einleitungen defensiv entfernen.
+    let t = text.trim();
+    const patterns = [
+      /^(hier ist|hier der|hier eine?)\s+(der|dein|die|eine?)?\s*(verbesserte[rn]?|optimierte[rn]?|überarbeitete[rn]?)\s*(version|prompt|fassung)?\s*:?\s*/i,
+      /^(verbesserte[rn]?|optimierte[rn]?)\s*(version|prompt|fassung)\s*:?\s*/i,
+      /^(here'?s?|this is)\s+(the\s+)?(improved\s+)?(prompt|version)\s*:?\s*/i
+    ];
+    for(const re of patterns) t = t.replace(re, "");
+    t = t.trim();
+    if(/^["""].*["""]$/s.test(t)) t = t.slice(1, -1).trim();
+    return t;
+  }
+
   async function improvePrompt(){
-    const targets = buildTargets();
+    const targets = buildTargets(activeAgent()?.preferredProvider);
     if(!targets.length){ openSettings(); showToast("Erst einen kostenlosen Schlüssel eintragen."); return; }
     const original = input.value.trim();
     if(!original || sending) return;
@@ -2568,7 +3245,7 @@
         const json = await res.json();
         const improved = json.choices?.[0]?.message?.content?.trim();
         if(improved){
-          input.value = improved;
+          input.value = stripPreamble(improved);
           autoGrow();
           updateSendState();
           done = true;
@@ -2617,7 +3294,7 @@
     if(target.kind === "anthropic"){
       return streamAnthropic(target, msgs, signal, callbacks);
     }
-    const { onToken, onModel, onUsage, onReasoning } = callbacks;
+    const { onToken, onModel, onUsage, onReasoning, tools } = callbacks;
     const res = await fetch(target.url, {
       method: "POST",
       signal,
@@ -2638,7 +3315,8 @@
         // ab (getestet), deshalb dort nur "reasoning_effort" senden.
         stream_options: { include_usage: true },
         ...(target.kind !== "gemini" ? { reasoning_format: "parsed" } : {}),
-        reasoning_effort: "low"
+        reasoning_effort: "low",
+        ...(tools && tools.length ? { tools, tool_choice: "auto" } : {})
       })
     });
 
@@ -2651,6 +3329,8 @@
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
+    let finishReason = null;
+    const toolCallsAcc = {}; // Index -> { id, name, arguments } -- Argumente kommen fragmentiert
 
     while(true){
       const { done, value } = await reader.read();
@@ -2667,13 +3347,24 @@
         if(data === "[DONE]") continue;
         try{
           const json = JSON.parse(data);
-          const delta = json.choices?.[0]?.delta?.content;
+          const choice = json.choices?.[0];
+          const delta = choice?.delta?.content;
           if(delta) onToken(delta);
           // Reasoning/Thinking-Tokens -- Feldname je nach Anbieter "reasoning"
           // oder "reasoning_content"; beide abdecken, wird sonst einfach ignoriert.
-          const reasoningDelta = json.choices?.[0]?.delta?.reasoning
-            || json.choices?.[0]?.delta?.reasoning_content;
+          const reasoningDelta = choice?.delta?.reasoning || choice?.delta?.reasoning_content;
           if(reasoningDelta && onReasoning) onReasoning(reasoningDelta);
+          const tcDeltas = choice?.delta?.tool_calls;
+          if(tcDeltas){
+            for(const tc of tcDeltas){
+              const idx = tc.index ?? 0;
+              if(!toolCallsAcc[idx]) toolCallsAcc[idx] = { id: "", name: "", arguments: "" };
+              if(tc.id) toolCallsAcc[idx].id = tc.id;
+              if(tc.function?.name && !toolCallsAcc[idx].name) toolCallsAcc[idx].name = tc.function.name;
+              if(tc.function?.arguments) toolCallsAcc[idx].arguments += tc.function.arguments;
+            }
+          }
+          if(choice?.finish_reason) finishReason = choice.finish_reason;
           if(json.model) onModel(json.model);
           if(json.usage && onUsage) onUsage(json.usage);
         }catch{
@@ -2681,6 +3372,8 @@
         }
       }
     }
+
+    return { finishReason, toolCalls: Object.values(toolCallsAcc).filter(tc => tc.name) };
   }
 
   // Anthropic hat ein eigenes Anfrage- und SSE-Format (x-api-key statt Bearer,
@@ -2849,6 +3542,7 @@
   function refreshProviderStatuses(){
     const set = (id, active) => document.getElementById(id)?.classList.toggle("ok", !!active);
     set("status-profile", profileName || profileAbout || profileStyle);
+    set("status-memory", memory.length);
     set("status-openrouter", apiKey);
     set("status-groq", groqKey);
     set("status-gemini", geminiKey);
@@ -2965,6 +3659,412 @@
     closeCustomProviderForm();
     showToast("Gespeichert.");
   }
+
+  // ---------- Agenten (UI) ----------
+  function populateAgentProviderSelect(selected){
+    const sel = $("#agent-provider");
+    sel.innerHTML = '<option value="">Automatisch (Router entscheidet)</option>';
+    for(const name of configuredProviderNames()){
+      const opt = document.createElement("option");
+      opt.value = name; opt.textContent = name;
+      sel.appendChild(opt);
+    }
+    sel.value = selected || "";
+  }
+
+  function renderAgentsList(){
+    const list = $("#agents-list");
+    list.innerHTML = "";
+    const activeAgentId = conversations[activeId]?.agentId || "";
+
+    const noneItem = document.createElement("div");
+    noneItem.className = "conv-item" + (!activeAgentId ? " active" : "");
+    const noneText = document.createElement("div");
+    noneText.className = "conv-text";
+    const noneTitle = document.createElement("span");
+    noneTitle.className = "conv-title";
+    noneTitle.textContent = "Kein Agent";
+    const noneSub = document.createElement("span");
+    noneSub.className = "conv-time";
+    noneSub.textContent = "Freier Chat ohne festen System-Prompt";
+    noneText.append(noneTitle, noneSub);
+    noneItem.appendChild(noneText);
+    noneItem.addEventListener("click", () => selectAgentForConversation(""));
+    list.appendChild(noneItem);
+
+    const ids = Object.keys(agents).sort((a, b) => (agents[a].createdAt || 0) - (agents[b].createdAt || 0));
+    for(const id of ids){
+      const a = agents[id];
+      const item = document.createElement("div");
+      item.className = "conv-item" + (activeAgentId === id ? " active" : "");
+
+      const textWrap = document.createElement("div");
+      textWrap.className = "conv-text";
+      const title = document.createElement("span");
+      title.className = "conv-title";
+      title.textContent = (a.icon ? a.icon + " " : "") + a.name;
+      const sub = document.createElement("span");
+      sub.className = "conv-time";
+      const preview = (a.systemPrompt || "").replace(/\s+/g, " ").trim();
+      sub.textContent = (a.preferredProvider ? "Bevorzugt " + a.preferredProvider + " · " : "") + (preview.length > 50 ? preview.slice(0, 50) + "…" : preview);
+      textWrap.append(title, sub);
+      item.appendChild(textWrap);
+
+      const editBtn = document.createElement("button");
+      editBtn.className = "conv-rename";
+      editBtn.setAttribute("aria-label", "Bearbeiten");
+      editBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      editBtn.addEventListener("click", (e) => { e.stopPropagation(); openAgentForm(id); });
+      item.appendChild(editBtn);
+
+      const delBtn = document.createElement("button");
+      delBtn.className = "conv-del";
+      delBtn.setAttribute("aria-label", "Löschen");
+      delBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18" stroke-linecap="round"/></svg>';
+      delBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if(!confirm("Diesen Agenten löschen?")) return;
+        delete agents[id];
+        saveAgentsRaw(agents);
+        for(const cid in conversations){
+          if(conversations[cid].agentId === id) conversations[cid].agentId = "";
+        }
+        saveConversationsRaw(conversations);
+        for(const pid in projects){
+          if(projects[pid].defaultAgentId === id) projects[pid].defaultAgentId = "";
+        }
+        saveProjectsRaw(projects);
+        renderAgentsList();
+        renderContextChips();
+      });
+      item.appendChild(delBtn);
+
+      item.addEventListener("click", () => selectAgentForConversation(id));
+      list.appendChild(item);
+    }
+  }
+
+  function selectAgentForConversation(id){
+    if(!conversations[activeId]) return;
+    conversations[activeId].agentId = id;
+    saveConversationsRaw(conversations);
+    renderContextChips();
+    closeAgentsSheet();
+  }
+
+  function openAgentsSheet(){
+    editingAgentId = null;
+    $("#agent-form").style.display = "none";
+    renderAgentsList();
+    agentsBackdrop.classList.add("open");
+  }
+  function closeAgentsSheet(){
+    agentsBackdrop.classList.remove("open");
+    $("#agent-form").style.display = "none";
+    editingAgentId = null;
+  }
+
+  function openAgentForm(id){
+    editingAgentId = id || "new";
+    const a = id ? agents[id] : null;
+    $("#agent-name").value = a ? a.name : "";
+    $("#agent-icon").value = a ? a.icon : "🧭";
+    $("#agent-prompt").value = a ? a.systemPrompt : "";
+    populateAgentProviderSelect(a ? a.preferredProvider : "");
+    $("#agent-form").style.display = "block";
+  }
+  function closeAgentForm(){
+    $("#agent-form").style.display = "none";
+    editingAgentId = null;
+  }
+  function saveAgentForm(){
+    const name = $("#agent-name").value.trim();
+    const systemPrompt = $("#agent-prompt").value.trim();
+    if(!name || !systemPrompt){
+      showToast("Bitte Name und System-Prompt ausfüllen.");
+      return;
+    }
+    const icon = $("#agent-icon").value.trim() || "🧭";
+    const preferredProvider = $("#agent-provider").value;
+    if(editingAgentId && editingAgentId !== "new"){
+      Object.assign(agents[editingAgentId], { name, icon, systemPrompt, preferredProvider });
+    }else{
+      const id = newAgentId();
+      agents[id] = { id, name, icon, systemPrompt, preferredProvider, createdAt: Date.now() };
+    }
+    saveAgentsRaw(agents);
+    closeAgentForm();
+    renderAgentsList();
+    showToast("Gespeichert.");
+  }
+
+  $("#chip-agent").addEventListener("click", openAgentsSheet);
+  $("#btn-add-agent").addEventListener("click", () => openAgentForm(null));
+  $("#btn-cancel-agent").addEventListener("click", closeAgentForm);
+  $("#btn-save-agent").addEventListener("click", saveAgentForm);
+  agentsBackdrop.addEventListener("click", (e) => { if(e.target === agentsBackdrop) closeAgentsSheet(); });
+
+  // ---------- Projekte (UI) ----------
+  function projectChatCount(id){
+    return Object.values(conversations).filter(c => c.projectId === id).length;
+  }
+
+  function renderProjectFilterRow(){
+    const row = $("#project-filter-row");
+    row.innerHTML = "";
+    const makeChip = (label, value) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "project-chip" + (sidebarProjectFilter === value ? " active" : "");
+      chip.textContent = label;
+      chip.addEventListener("click", () => { sidebarProjectFilter = value; renderSidebar(); });
+      return chip;
+    };
+    row.appendChild(makeChip("Alle", ""));
+    row.appendChild(makeChip("Ohne Projekt", "none"));
+    const ids = Object.keys(projects).sort((a, b) => (projects[a].name || "").localeCompare(projects[b].name || ""));
+    for(const id of ids) row.appendChild(makeChip(projects[id].name, id));
+    const addChip = document.createElement("button");
+    addChip.type = "button";
+    addChip.className = "project-chip";
+    addChip.style.color = "var(--accent)";
+    addChip.style.borderColor = "var(--accent)";
+    addChip.textContent = "+ Projekt";
+    addChip.addEventListener("click", () => { openProjectSheet(); openProjectForm("new"); });
+    row.appendChild(addChip);
+  }
+
+  function renderProjectsList(){
+    const list = $("#projects-list");
+    list.innerHTML = "";
+    const activeProjectId = conversations[activeId]?.projectId || "";
+
+    const noneItem = document.createElement("div");
+    noneItem.className = "conv-item" + (!activeProjectId ? " active" : "");
+    const noneText = document.createElement("div");
+    noneText.className = "conv-text";
+    const noneTitle = document.createElement("span");
+    noneTitle.className = "conv-title";
+    noneTitle.textContent = "Kein Projekt";
+    noneText.appendChild(noneTitle);
+    noneItem.appendChild(noneText);
+    noneItem.addEventListener("click", () => selectProjectForConversation(""));
+    list.appendChild(noneItem);
+
+    const ids = Object.keys(projects).sort((a, b) => (projects[b].updatedAt || 0) - (projects[a].updatedAt || 0));
+    for(const id of ids){
+      const p = projects[id];
+      const item = document.createElement("div");
+      item.className = "conv-item" + (activeProjectId === id ? " active" : "");
+
+      const textWrap = document.createElement("div");
+      textWrap.className = "conv-text";
+      const title = document.createElement("span");
+      title.className = "conv-title";
+      title.textContent = p.name;
+      const sub = document.createElement("span");
+      sub.className = "conv-time";
+      const todoCount = (p.todos || []).filter(t => !t.done).length;
+      sub.textContent = projectChatCount(id) + " Chats · " + todoCount + " offene ToDos";
+      textWrap.append(title, sub);
+      item.appendChild(textWrap);
+
+      const editBtn = document.createElement("button");
+      editBtn.className = "conv-rename";
+      editBtn.setAttribute("aria-label", "Bearbeiten");
+      editBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      editBtn.addEventListener("click", (e) => { e.stopPropagation(); openProjectForm(id); });
+      item.appendChild(editBtn);
+
+      item.addEventListener("click", () => selectProjectForConversation(id));
+      list.appendChild(item);
+    }
+  }
+
+  function selectProjectForConversation(id){
+    if(!conversations[activeId]) return;
+    conversations[activeId].projectId = id;
+    if(id && projects[id]?.defaultAgentId && !conversations[activeId].agentId){
+      conversations[activeId].agentId = projects[id].defaultAgentId;
+    }
+    saveConversationsRaw(conversations);
+    renderContextChips();
+    closeProjectSheet();
+    renderSidebar();
+  }
+
+  function openProjectSheet(){
+    editingProjectId = null;
+    $("#project-list-view").style.display = "block";
+    $("#project-form-view").style.display = "none";
+    renderProjectsList();
+    projectBackdrop.classList.add("open");
+  }
+  function closeProjectSheet(){
+    projectBackdrop.classList.remove("open");
+    editingProjectId = null;
+  }
+
+  function populateDefaultAgentSelect(selected){
+    const sel = $("#project-default-agent");
+    sel.innerHTML = '<option value="">Kein Agent</option>';
+    const ids = Object.keys(agents).sort((a, b) => (agents[a].createdAt || 0) - (agents[b].createdAt || 0));
+    for(const id of ids){
+      const opt = document.createElement("option");
+      opt.value = id; opt.textContent = (agents[id].icon ? agents[id].icon + " " : "") + agents[id].name;
+      sel.appendChild(opt);
+    }
+    sel.value = selected || "";
+  }
+
+  function renderTodos(){
+    const wrap = $("#project-todos");
+    wrap.innerHTML = "";
+    if(editingProjectId === "new"){ return; }
+    const todos = projects[editingProjectId]?.todos || [];
+    for(const t of todos){
+      const row = document.createElement("div");
+      row.className = "todo-row" + (t.done ? " done" : "");
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = !!t.done;
+      cb.addEventListener("change", () => {
+        t.done = cb.checked;
+        saveProjectsRaw(projects);
+        renderTodos();
+      });
+      const text = document.createElement("span");
+      text.className = "todo-text";
+      text.textContent = t.text;
+      const del = document.createElement("button");
+      del.className = "todo-del icon-btn";
+      del.setAttribute("aria-label", "ToDo löschen");
+      del.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M6 6l12 12M18 6 6 18" stroke-linecap="round"/></svg>';
+      del.addEventListener("click", () => {
+        projects[editingProjectId].todos = todos.filter(x => x.id !== t.id);
+        saveProjectsRaw(projects);
+        renderTodos();
+      });
+      row.append(cb, text, del);
+      wrap.appendChild(row);
+    }
+  }
+
+  function openProjectForm(id){
+    editingProjectId = id || "new";
+    const p = id && id !== "new" ? projects[id] : null;
+    $("#project-form-title").textContent = p ? "Projekt bearbeiten" : "Neues Projekt";
+    $("#project-name").value = p ? p.name : "";
+    $("#project-memory").value = p ? (p.memory || "") : "";
+    populateDefaultAgentSelect(p ? p.defaultAgentId : "");
+    $("#btn-delete-project").style.display = p ? "block" : "none";
+    renderTodos();
+    $("#project-list-view").style.display = "none";
+    $("#project-form-view").style.display = "block";
+  }
+  function closeProjectForm(){
+    openProjectSheet();
+  }
+  function saveProjectForm(){
+    const name = $("#project-name").value.trim();
+    if(!name){
+      showToast("Bitte einen Namen eingeben.");
+      return;
+    }
+    const memory = $("#project-memory").value.trim();
+    const defaultAgentId = $("#project-default-agent").value;
+    if(editingProjectId && editingProjectId !== "new"){
+      Object.assign(projects[editingProjectId], { name, memory, defaultAgentId, updatedAt: Date.now() });
+      saveProjectsRaw(projects);
+      showToast("Gespeichert.");
+      openProjectSheet();
+    }else{
+      const id = newProjectId();
+      projects[id] = { id, name, memory, defaultAgentId, todos: [], createdAt: Date.now(), updatedAt: Date.now() };
+      saveProjectsRaw(projects);
+      showToast("Projekt angelegt.");
+      openProjectForm(id); // gleich im Formular bleiben, z. B. um ToDos zu ergaenzen
+    }
+    renderProjectFilterRow();
+  }
+  function deleteProjectConfirmed(){
+    if(editingProjectId === "new") return;
+    if(!confirm("Dieses Projekt löschen? Die zugehörigen Chats bleiben erhalten, verlieren aber die Projekt-Zuordnung.")) return;
+    delete projects[editingProjectId];
+    saveProjectsRaw(projects);
+    for(const cid in conversations){
+      if(conversations[cid].projectId === editingProjectId) conversations[cid].projectId = "";
+    }
+    saveConversationsRaw(conversations);
+    if(sidebarProjectFilter === editingProjectId) sidebarProjectFilter = "";
+    openProjectSheet();
+    renderProjectFilterRow();
+    renderContextChips();
+  }
+
+  $("#chip-project").addEventListener("click", openProjectSheet);
+  $("#btn-add-project").addEventListener("click", () => openProjectForm("new"));
+  $("#btn-cancel-project").addEventListener("click", closeProjectForm);
+  $("#btn-save-project").addEventListener("click", saveProjectForm);
+  $("#btn-delete-project").addEventListener("click", deleteProjectConfirmed);
+  $("#btn-add-todo").addEventListener("click", () => {
+    const input = $("#todo-input");
+    const text = input.value.trim();
+    if(!text || editingProjectId === "new") return;
+    projects[editingProjectId].todos = projects[editingProjectId].todos || [];
+    projects[editingProjectId].todos.push({ id: "t" + Date.now() + Math.random().toString(36).slice(2, 6), text, done: false });
+    saveProjectsRaw(projects);
+    input.value = "";
+    renderTodos();
+  });
+  projectBackdrop.addEventListener("click", (e) => { if(e.target === projectBackdrop) closeProjectSheet(); });
+
+  // ---------- Gedächtnis (UI) ----------
+  function renderMemoryList(){
+    const list = $("#memory-list");
+    list.innerHTML = "";
+    if(!memory.length){
+      const empty = document.createElement("div");
+      empty.className = "hint";
+      empty.style.padding = "4px 0 10px";
+      empty.textContent = "Noch nichts gemerkt.";
+      list.appendChild(empty);
+    }
+    for(const m of memory){
+      const row = document.createElement("div");
+      row.className = "todo-row";
+      const text = document.createElement("span");
+      text.className = "todo-text";
+      text.textContent = m.text;
+      const del = document.createElement("button");
+      del.className = "todo-del icon-btn";
+      del.setAttribute("aria-label", "Eintrag löschen");
+      del.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M6 6l12 12M18 6 6 18" stroke-linecap="round"/></svg>';
+      del.addEventListener("click", () => {
+        memory = memory.filter(x => x.id !== m.id);
+        saveMemoryRaw(memory);
+        renderMemoryList();
+        refreshProviderStatuses();
+      });
+      row.append(text, del);
+      list.appendChild(row);
+    }
+  }
+  renderMemoryList();
+
+  $("#btn-add-memory").addEventListener("click", () => {
+    const input = $("#memory-input");
+    const text = input.value.trim();
+    if(!text) return;
+    memory.push({ id: "m" + Date.now() + Math.random().toString(36).slice(2, 6), text, createdAt: Date.now() });
+    saveMemoryRaw(memory);
+    input.value = "";
+    renderMemoryList();
+    refreshProviderStatuses();
+  });
+  $("#memory-input").addEventListener("keydown", (e) => {
+    if(e.key === "Enter"){ e.preventDefault(); $("#btn-add-memory").click(); }
+  });
 
   $("#btn-add-custom-provider").addEventListener("click", () => openCustomProviderForm(-1));
   $("#btn-cancel-custom").addEventListener("click", closeCustomProviderForm);
@@ -3203,9 +4303,9 @@
 
   $("#btn-chats").addEventListener("click", openSidebar);
   sidebarBackdrop.addEventListener("click", (e) => { if(e.target === sidebarBackdrop) closeSidebar(); });
-  $("#btn-new-chat").addEventListener("click", createConversation);
+  $("#btn-new-chat").addEventListener("click", () => createConversation());
   chatSearchInput.addEventListener("input", renderSidebar);
-  $("#btn-new-chat-header").addEventListener("click", createConversation);
+  $("#btn-new-chat-header").addEventListener("click", () => createConversation());
 
   $("#btn-usage").addEventListener("click", openUsage);
   usageBackdrop.addEventListener("click", (e) => { if(e.target === usageBackdrop) closeUsage(); });
@@ -3228,6 +4328,7 @@
     STORAGE_CLAUDE_KEY, STORAGE_CLAUDE_MODEL, STORAGE_CLAUDE_ENABLED,
     STORAGE_CUSTOM_PROVIDERS,
     STORAGE_PROFILE_NAME, STORAGE_PROFILE_ABOUT, STORAGE_PROFILE_STYLE, STORAGE_THEME,
+    STORAGE_AGENTS, STORAGE_PROJECTS, STORAGE_MEMORY,
     STORAGE_CONVERSATIONS, STORAGE_ACTIVE_ID, STORAGE_USAGE
   ];
 
