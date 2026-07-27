@@ -668,6 +668,25 @@
     font-family: inherit;
   }
   .field textarea{ resize: vertical; min-height: 60px; line-height: 1.4; }
+
+  .persona-chips{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .persona-chip{
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 12.5px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .persona-chip:hover{ border-color: var(--accent); color: var(--text); }
+  .persona-chip.active{ background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
   .field input:focus, .field select:focus{ outline: 2px solid var(--accent); outline-offset: -1px; }
   .field .hint{ font-size: 12px; color: var(--text-dim); margin-top: 6px; line-height: 1.5; }
   .field .hint a{ color: var(--accent); }
@@ -733,6 +752,33 @@
     align-items: center;
     justify-content: space-between;
     padding: 4px 8px 14px;
+  }
+  .sidebar-search{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 10px;
+    margin: 0 4px 12px;
+  }
+  .sidebar-search svg{ width: 15px; height: 15px; color: var(--text-dim); flex-shrink: 0; }
+  .sidebar-search input{
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .sidebar-search input::placeholder{ color: var(--text-dim); }
+  .sidebar-empty{
+    padding: 20px 10px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 13px;
   }
   .conv-item{
     display: flex;
@@ -927,6 +973,12 @@
       </div>
       <div class="field">
         <label for="profile-style">Wie soll die KI antworten?</label>
+        <div class="persona-chips" id="persona-chips">
+          <button type="button" class="persona-chip" data-style="Kurz und direkt antworten, ohne Umschweife, keine unnötigen Einleitungen.">Kurz &amp; direkt</button>
+          <button type="button" class="persona-chip" data-style="Ausführlich erklären, mit Hintergrund und Beispielen, auch Zusammenhänge einordnen.">Ausführlich</button>
+          <button type="button" class="persona-chip" data-style="Locker und informell antworten, wie ein Freund, ruhig auch mal umgangssprachlich.">Locker</button>
+          <button type="button" class="persona-chip" data-style="Sachlich und formell antworten, präzise Fachsprache, keine Umgangssprache.">Formell</button>
+        </div>
         <textarea id="profile-style" rows="3" placeholder="z. B. kurz und direkt, mit Beispielen, ohne Emojis"></textarea>
       </div>
       <div class="field">
@@ -1196,6 +1248,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
       </button>
     </div>
+    <div class="sidebar-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3" stroke-linecap="round"/></svg>
+      <input type="text" id="chat-search" placeholder="Chats durchsuchen…" autocomplete="off">
+    </div>
     <div id="conversation-list" style="overflow-y:auto; flex:1"></div>
   </div>
 </div>
@@ -1317,6 +1373,7 @@
   const claudeEnableToggle = $("#claude-enable-toggle");
   const sidebarBackdrop = $("#sidebar-backdrop");
   const conversationList = $("#conversation-list");
+  const chatSearchInput = $("#chat-search");
   const usageBackdrop = $("#usage-backdrop");
   const usageBody = $("#usage-body");
 
@@ -1777,7 +1834,26 @@
 
   function renderSidebar(){
     conversationList.innerHTML = "";
-    const ids = Object.keys(conversations).sort((a, b) => conversations[b].updatedAt - conversations[a].updatedAt);
+    const query = (chatSearchInput.value || "").trim().toLowerCase();
+    let ids = Object.keys(conversations).sort((a, b) => conversations[b].updatedAt - conversations[a].updatedAt);
+
+    if(query){
+      ids = ids.filter(id => {
+        const conv = conversations[id];
+        const inTitle = (conv.title || "").toLowerCase().includes(query);
+        const inMessages = (conv.messages || []).some(m => (m.content || "").toLowerCase().includes(query));
+        return inTitle || inMessages;
+      });
+    }
+
+    if(!ids.length){
+      const empty = document.createElement("div");
+      empty.className = "sidebar-empty";
+      empty.textContent = query ? "Keine Chats gefunden." : "Noch keine Chats.";
+      conversationList.appendChild(empty);
+      return;
+    }
+
     for(const id of ids){
       const conv = conversations[id];
       const item = document.createElement("div");
@@ -2755,6 +2831,7 @@
     profileNameField.value = profileName;
     profileAboutField.value = profileAbout;
     profileStyleField.value = profileStyle;
+    refreshPersonaChips();
     themeSelect.value = currentTheme;
     loadGroqModels();
     loadGeminiModels();
@@ -3127,6 +3204,7 @@
   $("#btn-chats").addEventListener("click", openSidebar);
   sidebarBackdrop.addEventListener("click", (e) => { if(e.target === sidebarBackdrop) closeSidebar(); });
   $("#btn-new-chat").addEventListener("click", createConversation);
+  chatSearchInput.addEventListener("input", renderSidebar);
   $("#btn-new-chat-header").addEventListener("click", createConversation);
 
   $("#btn-usage").addEventListener("click", openUsage);
@@ -3227,6 +3305,22 @@
   });
 
   improveBtn.addEventListener("click", improvePrompt);
+
+  // ---------- Persona-Presets ----------
+  function refreshPersonaChips(){
+    const current = profileStyleField.value.trim();
+    document.querySelectorAll(".persona-chip").forEach(chip => {
+      chip.classList.toggle("active", chip.dataset.style === current);
+    });
+  }
+  $("#persona-chips").addEventListener("click", (e) => {
+    const chip = e.target.closest(".persona-chip");
+    if(!chip) return;
+    const already = chip.classList.contains("active");
+    profileStyleField.value = already ? "" : chip.dataset.style;
+    refreshPersonaChips();
+  });
+  profileStyleField.addEventListener("input", refreshPersonaChips);
 
   // ---------- Spracheingabe ----------
   // Bewusst KEIN "continuous: true" -- auf iOS Safari bekanntermassen fehlerhaft
