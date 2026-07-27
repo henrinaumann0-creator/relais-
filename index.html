@@ -374,6 +374,68 @@
   @keyframes spin{ to{ transform: rotate(360deg); } }
 
   /* ---------- Denkprozess ---------- */
+  .team-toggle{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 640px;
+    margin: 0 auto 8px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-dim);
+    font-size: 12.5px;
+    font-family: inherit;
+    cursor: pointer;
+    width: fit-content;
+  }
+  .team-toggle svg{ width: 15px; height: 15px; }
+  .team-toggle[aria-pressed="true"]{
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-color: var(--accent);
+  }
+
+  .team-box{
+    max-width: 82%;
+    margin-bottom: 8px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .team-box summary{
+    padding: 9px 13px;
+    font-size: 12px;
+    color: var(--text-dim);
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
+  }
+  .team-box summary::-webkit-details-marker{ display: none; }
+  .team-box summary::before{ content: "▸"; font-size: 10px; transition: transform .15s; }
+  .team-box[open] summary::before{ transform: rotate(90deg); }
+  .team-step{
+    padding: 9px 13px;
+    border-top: 1px solid var(--border);
+    font-size: 12.5px;
+  }
+  .team-step-head{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .team-step-task{ color: var(--text-dim); font-style: italic; margin-bottom: 5px; }
+  .team-step-result{ color: var(--text-dim); white-space: pre-wrap; }
+  .team-step .status-dot{ margin-right: 0; }
+  .team-step.error .team-step-result{ color: var(--danger); }
+
   .thinking-box{
     max-width: 82%;
     margin-bottom: 6px;
@@ -769,6 +831,10 @@
 </main>
 
 <div class="composer-wrap">
+  <button type="button" class="team-toggle" id="btn-team-toggle" aria-pressed="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2.5 20a5.5 5.5 0 0 1 11 0M10.5 20a5.5 5.5 0 0 1 11 0" stroke-linecap="round"/></svg>
+    <span>Team-Modus</span>
+  </button>
   <form class="composer" id="composer">
     <textarea id="input" rows="1" placeholder="Nachricht schreiben…" autocomplete="off" enterkeyhint="send"></textarea>
     <button type="button" class="improve-btn" id="btn-improve" aria-label="Prompt verbessern" title="Prompt verbessern">
@@ -1087,6 +1153,8 @@
   const iconSpinner = improveBtn.querySelector(".icon-spinner");
   const scrollBottomBtn = $("#btn-scroll-bottom");
   const starterChips = $("#starter-chips");
+  const teamToggleBtn = $("#btn-team-toggle");
+  let teamMode = localStorage.getItem("relais.teamMode") === "1";
   const sheetBackdrop = $("#sheet-backdrop");
   const apiKeyField = $("#api-key");
   const modelSelect = $("#model-select");
@@ -1311,6 +1379,17 @@
       txt.textContent = m.reasoning;
       box.appendChild(txt);
       row.appendChild(box);
+    }
+
+    if(m.role === "assistant" && m.teamSteps && m.teamSteps.length){
+      const teamBox = document.createElement("details");
+      teamBox.className = "team-box";
+      const summary = document.createElement("summary");
+      const doneCount = m.teamSteps.filter(s => s.status === "done").length;
+      summary.textContent = "Team hat gearbeitet (" + doneCount + "/" + m.teamSteps.length + ")";
+      teamBox.appendChild(summary);
+      row.appendChild(teamBox);
+      renderTeamSteps(teamBox, m.teamSteps);
     }
 
     const bubble = document.createElement("div");
@@ -1876,7 +1955,11 @@
 
     const assistantMsg = { role: "assistant", content: "", usedModel: "" };
     messages.push(assistantMsg);
-    await runCompletion(text, assistantMsg, targets);
+    if(teamMode && targets.length >= 2){
+      await runTeamMode(text, assistantMsg, targets);
+    }else{
+      await runCompletion(text, assistantMsg, targets);
+    }
   }
 
   async function regenerateLast(){
@@ -1890,7 +1973,182 @@
     assistantMsg.content = "";
     assistantMsg.usedModel = "";
     delete assistantMsg.isError;
-    await runCompletion(userMsg.content, assistantMsg, buildTargets());
+    delete assistantMsg.teamSteps;
+    const targets = buildTargets();
+    if(teamMode && targets.length >= 2){
+      await runTeamMode(userMsg.content, assistantMsg, targets);
+    }else{
+      await runCompletion(userMsg.content, assistantMsg, targets);
+    }
+  }
+
+  // Einfacher, nicht-streamender Aufruf -- fuer Orchestrator- und Teilaufgaben-Anfragen im Team-Modus.
+  async function simpleComplete(target, prompt){
+    const res = await fetch(target.url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + target.key, ...target.extraHeaders },
+      body: JSON.stringify({ model: target.model, messages: [{ role: "user", content: prompt }], stream: false })
+    });
+    if(!res.ok){
+      let detail = "";
+      try{ detail = (await res.json())?.error?.message || ""; }catch{}
+      throw new Error(res.status + (detail ? ": " + detail : ""));
+    }
+    const json = await res.json();
+    const content = json.choices?.[0]?.message?.content?.trim();
+    if(!content) throw new Error("Leere Antwort");
+    return content;
+  }
+
+  function renderTeamSteps(teamBox, steps){
+    teamBox.querySelectorAll(".team-step").forEach(el => el.remove());
+    for(const s of steps){
+      const div = document.createElement("div");
+      div.className = "team-step" + (s.status === "error" ? " error" : "");
+      const head = document.createElement("div");
+      head.className = "team-step-head";
+      const dot = document.createElement("span");
+      dot.className = "status-dot" + (s.status === "done" ? " ok" : "");
+      if(s.status === "error") dot.style.background = "var(--danger)";
+      head.appendChild(dot);
+      const name = document.createElement("span");
+      name.textContent = s.provider + (s.status === "running" ? " (arbeitet …)" : "");
+      head.appendChild(name);
+      div.appendChild(head);
+      const task = document.createElement("div");
+      task.className = "team-step-task";
+      task.textContent = s.task;
+      div.appendChild(task);
+      if(s.result){
+        const result = document.createElement("div");
+        result.className = "team-step-result";
+        result.textContent = s.result.length > 400 ? s.result.slice(0, 400) + "…" : s.result;
+        div.appendChild(result);
+      }
+      teamBox.appendChild(div);
+    }
+  }
+
+  // ---------- Team-Modus: Aufgabe aufteilen, parallel bearbeiten, zusammenfassen ----------
+  async function runTeamMode(text, assistantMsg, targets){
+    render();
+    const rows = thread.querySelectorAll(".row.assistant");
+    const lastRow = rows[rows.length - 1];
+    const bubbleEl = lastRow.querySelector(".bubble");
+    bubbleEl.classList.add("streaming");
+    bubbleEl.innerHTML = '<span class="thinking-dots"><span></span><span></span><span></span></span>';
+
+    let teamBox = lastRow.querySelector(".team-box");
+    if(!teamBox){
+      teamBox = document.createElement("details");
+      teamBox.className = "team-box";
+      teamBox.open = true;
+      const summary = document.createElement("summary");
+      summary.textContent = "Team teilt die Aufgabe auf …";
+      teamBox.appendChild(summary);
+      lastRow.insertBefore(teamBox, bubbleEl);
+    }
+    const summaryEl = teamBox.querySelector("summary");
+
+    sending = true;
+    currentController = new AbortController();
+    updateSendState();
+
+    // ---- 1) Orchestrator: Aufgabe aufteilen ----
+    const providerNames = targets.map(t => t.provider);
+    const splitPrompt =
+      "Du bist Projekt-Koordinator für ein Team aus " + targets.length + " KI-Assistenten: " + providerNames.join(", ") + ".\n" +
+      "Teile die folgende Aufgabe in genau " + targets.length + " sinnvolle, unterschiedliche Teilaufgaben auf, eine pro Assistent.\n" +
+      "Antworte NUR mit gültigem JSON, ohne Erklärung, ohne Markdown-Codeblock, in genau diesem Format:\n" +
+      '{"subtasks":[{"provider":"NAME","task":"konkrete Teilaufgabe"}]}\n\n' +
+      "Aufgabe: " + text;
+
+    let subtasks = null;
+    try{
+      const raw = await simpleComplete(targets[0], splitPrompt);
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+      if(Array.isArray(parsed.subtasks) && parsed.subtasks.length){
+        subtasks = parsed.subtasks.slice(0, targets.length).map((s, i) => ({
+          provider: (s.provider && providerNames.includes(s.provider)) ? s.provider : providerNames[i],
+          task: String(s.task || text)
+        }));
+      }
+    }catch{
+      // Aufteilung fehlgeschlagen -- unten greift der Rueckfall
+    }
+    if(!subtasks || !subtasks.length){
+      subtasks = targets.map(t => ({ provider: t.provider, task: text }));
+    }
+
+    // ---- 2) Parallel ausfuehren ----
+    assistantMsg.teamSteps = subtasks.map(s => ({ provider: s.provider, task: s.task, result: "", status: "running" }));
+    summaryEl.textContent = "Team arbeitet … (0/" + subtasks.length + ")";
+    renderTeamSteps(teamBox, assistantMsg.teamSteps);
+
+    let doneCount = 0;
+    await Promise.all(subtasks.map(async (s, i) => {
+      const target = targets.find(t => t.provider === s.provider) || targets[i % targets.length];
+      try{
+        const result = await simpleComplete(target, s.task);
+        assistantMsg.teamSteps[i].result = result;
+        assistantMsg.teamSteps[i].status = "done";
+      }catch(err){
+        assistantMsg.teamSteps[i].result = "Nicht erreichbar: " + err.message;
+        assistantMsg.teamSteps[i].status = "error";
+      }
+      doneCount++;
+      summaryEl.textContent = "Team hat gearbeitet (" + doneCount + "/" + subtasks.length + ")";
+      renderTeamSteps(teamBox, assistantMsg.teamSteps);
+    }));
+    teamBox.open = false;
+
+    // ---- 3) Synthese ----
+    const successSteps = assistantMsg.teamSteps.filter(s => s.status === "done");
+    if(!successSteps.length){
+      assistantMsg.content = "Keiner der Anbieter im Team-Modus war erreichbar.";
+      assistantMsg.isError = true;
+      bubbleEl.textContent = assistantMsg.content;
+      bubbleEl.classList.add("error");
+    }else{
+      const synthPrompt =
+        "Ursprüngliche Aufgabe: " + text + "\n\n" +
+        "Ergebnisse der einzelnen Team-Mitglieder:\n\n" +
+        assistantMsg.teamSteps.map(s => "[" + s.provider + "] Teilaufgabe: " + s.task + "\nErgebnis: " + s.result).join("\n\n") +
+        "\n\nFasse das Ganze zu einer einzigen, klaren, gut strukturierten Antwort auf die ursprüngliche Aufgabe zusammen. " +
+        "Erwähne nicht ausdrücklich, dass mehrere KIs beteiligt waren -- liefere einfach die beste zusammengeführte Antwort.";
+
+      let firstToken = true;
+      try{
+        await streamCompletion(targets[0], [{ role: "user", content: synthPrompt }], currentController.signal, {
+          onToken: (chunk) => {
+            if(firstToken){ bubbleEl.innerHTML = ""; firstToken = false; }
+            assistantMsg.content += chunk;
+            bubbleEl.innerHTML = renderMarkdown(assistantMsg.content);
+            maybeAutoScroll();
+          },
+          onModel: (usedModel) => {
+            assistantMsg.usedModel = "Team (" + targets.length + ") · " + shortModelName(usedModel || targets[0].model);
+          },
+          onUsage: (u) => { if(u) recordUsage(targets[0].provider, targets[0].model, u); },
+          onReasoning: () => {}
+        });
+      }catch{
+        // Synthese fehlgeschlagen -- keine leere Antwort zeigen, sondern die Rohergebnisse
+      }
+      if(!assistantMsg.content){
+        assistantMsg.content = successSteps.map(s => "[" + s.provider + "]\n" + s.result).join("\n\n");
+        bubbleEl.innerHTML = renderMarkdown(assistantMsg.content);
+        assistantMsg.usedModel = "Team (" + targets.length + ")";
+      }
+    }
+
+    bubbleEl.classList.remove("streaming");
+    sending = false;
+    currentController = null;
+    updateSendState();
+    saveMessages();
+    render();
   }
 
   async function runCompletion(text, assistantMsg, targets){
@@ -2700,6 +2958,23 @@
   });
 
   improveBtn.addEventListener("click", improvePrompt);
+
+  function updateTeamToggleUI(){
+    teamToggleBtn.setAttribute("aria-pressed", String(teamMode));
+    teamToggleBtn.querySelector("span").textContent = teamMode ? "Team-Modus an" : "Team-Modus";
+  }
+  updateTeamToggleUI();
+  teamToggleBtn.addEventListener("click", () => {
+    const targets = buildTargets();
+    if(!teamMode && targets.length < 2){
+      showToast("Team-Modus braucht mindestens zwei eingerichtete Anbieter.");
+      return;
+    }
+    teamMode = !teamMode;
+    localStorage.setItem("relais.teamMode", teamMode ? "1" : "0");
+    updateTeamToggleUI();
+    showToast(teamMode ? "Team-Modus an — nächste Nachricht wird aufgeteilt." : "Team-Modus aus.");
+  });
 
   starterChips.addEventListener("click", (e) => {
     const chip = e.target.closest(".chip");
