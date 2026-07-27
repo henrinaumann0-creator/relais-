@@ -1370,57 +1370,63 @@
   }
 
   // ---------- Code-Ausfuehrung im Browser ----------
-  // JavaScript: in einer sandboxed iframe OHNE allow-same-origin -- die Sandbox
-  // bekommt eine eigene, isolierte Origin und kann weder auf diese App noch auf
-  // das Internet zugreifen (kein fetch/XHR moeglich), nur reines Rechnen.
+  // JavaScript: in einem Web Worker -- eigener Thread, isoliert (kein DOM-, kein
+  // localStorage-Zugriff auf diese App moeglich, da Worker keine "parent"-Referenz
+  // haben), und vor allem: bei einer Endlosschleife per worker.terminate() wirklich
+  // abbrechbar, ohne die restliche App einzufrieren.
   function runJavaScript(code, outputEl){
     outputEl.style.display = "block";
     outputEl.classList.remove("code-output-error");
     outputEl.textContent = "Wird ausgeführt …";
 
-    const iframe = document.createElement("iframe");
-    iframe.setAttribute("sandbox", "allow-scripts");
-    iframe.style.display = "none";
+    const workerSrc =
+      'self.onmessage = function(e){' +
+      '  const logs = [];' +
+      '  console.log = (...args) => { logs.push(args.map(a => typeof a === "object" ? JSON.stringify(a) : String(a)).join(" ")); };' +
+      '  try {' +
+      '    const result = (0, eval)(e.data);' +
+      '    if (result !== undefined) logs.push("=> " + (typeof result === "object" ? JSON.stringify(result) : String(result)));' +
+      '    self.postMessage({ output: logs.join("\\n") });' +
+      '  } catch(err) {' +
+      '    logs.push("Fehler: " + err.message);' +
+      '    self.postMessage({ output: logs.join("\\n"), error: true });' +
+      '  }' +
+      '};';
+    const blob = new Blob([workerSrc], { type: "application/javascript" });
+    const workerUrl = URL.createObjectURL(blob);
+    const worker = new Worker(workerUrl);
 
     let settled = false;
-    const timeoutId = setTimeout(() => {
-      if(settled) return;
-      settled = true;
-      outputEl.textContent = "Zeitüberschreitung (5s) — möglicherweise eine Endlosschleife.";
-      outputEl.classList.add("code-output-error");
-      window.removeEventListener("message", handler);
-      iframe.remove();
-    }, 5000);
-
-    function handler(e){
-      if(e.source !== iframe.contentWindow || settled) return;
+    function finish(){
       settled = true;
       clearTimeout(timeoutId);
-      window.removeEventListener("message", handler);
+      worker.terminate();
+      URL.revokeObjectURL(workerUrl);
+    }
+
+    const timeoutId = setTimeout(() => {
+      if(settled) return;
+      outputEl.textContent = "Zeitüberschreitung (5s) — möglicherweise eine Endlosschleife.";
+      outputEl.classList.add("code-output-error");
+      finish();
+    }, 5000);
+
+    worker.onmessage = (e) => {
+      if(settled) return;
       outputEl.textContent = e.data.output || "(keine Ausgabe)";
       if(e.data.error) outputEl.classList.add("code-output-error");
-      iframe.remove();
-    }
-    window.addEventListener("message", handler);
+      finish();
+    };
+    worker.onerror = (e) => {
+      if(settled) return;
+      outputEl.textContent = "Fehler: " + (e.message || "Unbekannter Fehler");
+      outputEl.classList.add("code-output-error");
+      finish();
+    };
 
-    const escapedCode = JSON.stringify(code);
-    iframe.srcdoc =
-      '<script>' +
-      'const logs = [];' +
-      'const origLog = console.log;' +
-      'console.log = (...args) => { logs.push(args.map(a => typeof a === "object" ? JSON.stringify(a) : String(a)).join(" ")); };' +
-      'try {' +
-      '  const __code = ' + escapedCode + ';' +
-      '  const result = (0, eval)(__code);' +
-      '  if (result !== undefined) logs.push("=> " + (typeof result === "object" ? JSON.stringify(result) : String(result)));' +
-      '  parent.postMessage({ output: logs.join("\\n") }, "*");' +
-      '} catch(err) {' +
-      '  logs.push("Fehler: " + err.message);' +
-      '  parent.postMessage({ output: logs.join("\\n"), error: true }, "*");' +
-      '}' +
-      '<\/script>';
-    document.body.appendChild(iframe);
+    worker.postMessage(code);
   }
+
 
   // Python: Pyodide (WASM-Python) wird erst beim ersten "Ausfuehren" nachgeladen,
   // damit die App beim normalen Start klein und schnell bleibt.
