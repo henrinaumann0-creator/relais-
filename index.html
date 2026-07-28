@@ -8,7 +8,7 @@
 
 <!-- PWA / Installierbarkeit -->
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#171614">
+<meta name="theme-color" content="#0a0a0b">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -18,16 +18,17 @@
 
 <style>
   :root{
-    --bg:        #171614;
-    --surface:   #201f1c;
-    --surface-2: #26241f;
-    --border:    #34322d;
-    --text:      #ede7dc;
-    --text-dim:  #948c7e;
-    --accent:    #be6a3d;
-    --accent-ink:#180e08;
-    --ok:        #7a8a6b;
-    --danger:    #b6553f;
+    --bg:        #0a0a0b;
+    --surface:   #161618;
+    --surface-2: #202024;
+    --border:    #2b2b31;
+    --text:      #f0f0f2;
+    --text-dim:  #8b8b95;
+    --accent:    #ececef;
+    --accent-ink:#111113;
+    --accent-soft: rgba(236,236,239,.14);
+    --ok:        #4ec98a;
+    --danger:    #f0685c;
     --radius:    16px;
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -42,6 +43,7 @@
     --text-dim:  #8b949e;
     --accent:    #5b8dd6;
     --accent-ink:#0a1420;
+    --accent-soft: rgba(91,141,214,.20);
     --ok:        #3fb950;
     --danger:    #f85149;
   }
@@ -55,6 +57,7 @@
     --text-dim:  #6d6558;
     --accent:    #a8492a;
     --accent-ink:#fdf6ef;
+    --accent-soft: rgba(168,73,42,.16);
     --ok:        #2f7a3d;
     --danger:    #b3261e;
   }
@@ -68,6 +71,7 @@
     --text-dim:  #6c7180;
     --accent:    #4560e8;
     --accent-ink:#ffffff;
+    --accent-soft: rgba(69,96,232,.18);
     --ok:        #1f9d55;
     --danger:    #e0392b;
   }
@@ -81,6 +85,7 @@
     --text-dim:  #8b91a3;
     --accent:    #5b7cf5;
     --accent-ink:#0c1220;
+    --accent-soft: rgba(91,124,245,.20);
     --ok:        #3ecf7a;
     --danger:    #f16a5c;
   }
@@ -177,48 +182,80 @@
     position: relative;
   }
   .thread{
-    max-width: 640px;
+    max-width: 720px;
     margin: 0 auto;
     display: flex;
     flex-direction: column;
+    width: 100%;
   }
 
   .empty-state{
-    max-width: 460px;
-    margin: 12vh auto 0;
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+    /* mittig im freien Raum, wie bei Kimi -- nicht oben angeheftet */
+    min-height: calc(100dvh - 210px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     text-align: center;
     color: var(--text-dim);
-    padding: 0 20px;
+    padding: 0 16px 24px;
   }
-  .empty-state .wordmark{ font-size: 30px; display:block; margin-bottom: 10px; color: var(--text); }
-  .empty-state p{ font-size: 14.5px; line-height: 1.6; margin: 0; }
+  .empty-state .wordmark{
+    display: block;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: clamp(52px, 13vw, 96px);
+    font-weight: 800;
+    letter-spacing: .12em;
+    line-height: 1;
+    text-transform: uppercase;
+    margin: 0 0 28px;
+    color: var(--text);
+  }
+  .empty-state p{
+    font-size: 14.5px;
+    line-height: 1.6;
+    margin: 0 0 22px;
+    color: var(--text-dim);
+  }
   .empty-state #empty-composer-slot:empty{ display: none; }
   .empty-state #empty-composer-slot .composer-wrap{
     border-top: none;
     padding: 0;
-    margin: 22px 0 0;
+    margin: 0;
+    background: none;
   }
-  .empty-state #empty-composer-slot .team-toggle{ margin-left: 0; margin-right: 0; }
 
   .starter-chips{
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 8px;
-    margin-top: 22px;
+    margin-top: 24px;
   }
   .chip{
-    background: var(--surface);
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: none;
     border: 1px solid var(--border);
-    color: var(--text);
-    padding: 11px 16px;
-    border-radius: 12px;
-    font-size: 14px;
+    color: var(--text-dim);
+    padding: 9px 15px;
+    border-radius: 999px;
+    font-size: 13.5px;
     text-align: left;
     cursor: pointer;
     font-family: inherit;
-    transition: border-color .15s, background .15s;
+    white-space: nowrap;
+    transition: border-color .15s, background .15s, color .15s;
   }
-  .chip:hover, .chip:active{ border-color: var(--accent); background: var(--surface-2); }
+  .chip svg{ width: 15px; height: 15px; flex-shrink: 0; }
+  .chip:hover, .chip:active{
+    border-color: var(--text-dim);
+    background: var(--surface);
+    color: var(--text);
+  }
 
   .row{
     display: flex;
@@ -256,10 +293,11 @@
     word-wrap: break-word;
   }
   .row.user .bubble{
-    background: var(--accent);
-    color: var(--accent-ink);
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--border);
     border-bottom-right-radius: 4px;
-    box-shadow: 0 2px 10px rgba(190,106,61,.18);
+    box-shadow: 0 2px 10px rgba(0,0,0,.22);
   }
   .row.assistant .bubble{
     background: var(--surface);
@@ -339,23 +377,23 @@
     background: var(--bg);
   }
   .composer{
-    max-width: 640px;
+    max-width: 720px;
     margin: 0 auto;
     display: flex;
-    align-items: flex-end;
-    gap: 8px;
+    flex-direction: column;
+    gap: 10px;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 22px;
-    padding: 6px 6px 6px 16px;
+    border-radius: 26px;
+    padding: 16px 16px 12px;
     transition: border-color .2s, box-shadow .2s;
   }
   .composer:focus-within{
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(190,106,61,.14);
+    border-color: var(--text-dim);
+    box-shadow: 0 0 0 3px var(--accent-soft);
   }
   .composer textarea{
-    flex: 1;
+    width: 100%;
     background: none;
     border: none;
     outline: none;
@@ -363,11 +401,26 @@
     color: var(--text);
     font-size: 16px; /* 16px verhindert Auto-Zoom in iOS Safari */
     font-family: inherit;
-    line-height: 1.4;
-    max-height: 120px;
-    padding: 8px 0;
+    line-height: 1.45;
+    min-height: 26px;
+    max-height: 180px;
+    padding: 0;
   }
   .composer textarea::placeholder{ color: var(--text-dim); }
+
+  /* Steuerleiste unter dem Textfeld (Kimi-Anordnung) */
+  .composer-bar{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .composer-bar-left,
+  .composer-bar-right{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
 
   .send-btn{
     width: 38px;
@@ -428,8 +481,8 @@
     animation: mic-pulse 1.4s ease-in-out infinite;
   }
   @keyframes mic-pulse{
-    0%, 100%{ box-shadow: 0 0 0 0 rgba(190,106,61,.5); }
-    50%{ box-shadow: 0 0 0 7px rgba(190,106,61,0); }
+    0%, 100%{ box-shadow: 0 0 0 0 var(--accent-soft); }
+    50%{ box-shadow: 0 0 0 7px rgba(0,0,0,0); }
   }
 
   /* ---------- Denkprozess ---------- */
@@ -437,18 +490,19 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    max-width: 640px;
-    margin: 0 auto 8px;
-    padding: 6px 12px;
-    border-radius: 20px;
+    padding: 7px 13px;
+    border-radius: 999px;
     border: 1px solid var(--border);
-    background: var(--surface);
+    background: none;
     color: var(--text-dim);
-    font-size: 12.5px;
+    font-size: 13px;
     font-family: inherit;
     cursor: pointer;
     width: fit-content;
+    flex-shrink: 0;
+    transition: color .15s, border-color .15s, background .15s;
   }
+  .team-toggle:hover{ color: var(--text); border-color: var(--text-dim); }
   .team-toggle svg{ width: 15px; height: 15px; }
   .team-toggle[aria-pressed="true"]{
     background: var(--accent);
@@ -940,22 +994,24 @@
   .code-fix-btn .icon-spinner{ animation: spin .8s linear infinite; }
 
   .attach-btn{
-    width: 34px; height: 34px;
+    width: 33px; height: 33px;
     border-radius: 50%;
     background: none;
-    border: none;
+    border: 1px solid var(--border);
     color: var(--text-dim);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     flex-shrink: 0;
+    transition: color .15s, border-color .15s, background .15s;
   }
+  .attach-btn:hover{ color: var(--text); border-color: var(--text-dim); }
   .attach-btn:hover{ color: var(--accent); background: var(--surface-2); }
   .attach-btn svg{ width: 18px; height: 18px; }
 
   .attach-preview{
-    max-width: 640px;
+    max-width: 720px;
     margin: 0 auto 8px;
     display: flex;
     align-items: center;
@@ -1029,9 +1085,26 @@
       <p id="empty-text">Schreib einfach los. Läuft komplett auf diesem Gerät, ohne eigenen Server.</p>
       <div id="empty-composer-slot"></div>
       <div class="starter-chips" id="starter-chips">
-        <button type="button" class="chip">Erklär mir ein Thema einfach</button>
-        <button type="button" class="chip">Hilf mir eine Nachricht zu formulieren</button>
-        <button type="button" class="chip">Fass mir einen Text zusammen</button>
+        <button type="button" class="chip" data-prompt="Erklär mir ein Thema einfach und verständlich: ">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 6.5C10.5 5 8.5 4.5 4 4.5v13c4.5 0 6.5.5 8 2 1.5-1.5 3.5-2 8-2v-13c-4.5 0-6.5.5-8 2Z" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 6.5v13" stroke-linecap="round"/></svg>
+          Erklären
+        </button>
+        <button type="button" class="chip" data-prompt="Hilf mir, diese Nachricht freundlich und klar zu formulieren: ">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v11H8l-4 4V5Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Nachricht
+        </button>
+        <button type="button" class="chip" data-prompt="Fass mir diesen Text knapp zusammen: ">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 6h14M5 11h14M5 16h8" stroke-linecap="round"/></svg>
+          Zusammenfassen
+        </button>
+        <button type="button" class="chip" data-prompt="Schreib mir Code für folgende Aufgabe: ">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m9 8-4 4 4 4M15 8l4 4-4 4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Code
+        </button>
+        <button type="button" class="chip" data-prompt="Lass uns gemeinsam Ideen sammeln zu: ">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.3.3.5.7.5 1.1h6c0-.4.2-.8.5-1.1A6 6 0 0 0 12 3Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Ideen
+        </button>
       </div>
     </div>
   </div>
@@ -1041,10 +1114,6 @@
 </main>
 
 <div class="composer-wrap" id="composer-wrap">
-  <button type="button" class="team-toggle" id="btn-team-toggle" aria-pressed="false">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2.5 20a5.5 5.5 0 0 1 11 0M10.5 20a5.5 5.5 0 0 1 11 0" stroke-linecap="round"/></svg>
-    <span>Team-Modus</span>
-  </button>
   <div class="attach-preview" id="attach-preview" style="display:none">
     <img id="attach-preview-img" alt="Angehängtes Bild">
     <button type="button" id="attach-remove" aria-label="Bild entfernen">
@@ -1052,23 +1121,33 @@
     </button>
   </div>
   <form class="composer" id="composer">
-    <button type="button" class="attach-btn" id="btn-attach" aria-label="Bild anhängen" title="Bild anhängen">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.5V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m3 16 4.5-4.5a2 2 0 0 1 2.8 0L15 16" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 15v6M15 18h6" stroke-linecap="round"/></svg>
-    </button>
     <input type="file" id="attach-input" accept="image/*" style="display:none">
-    <textarea id="input" rows="1" placeholder="Nachricht schreiben…" autocomplete="off" enterkeyhint="send"></textarea>
-    <button type="button" class="mic-btn" id="btn-mic" aria-label="Spracheingabe" title="Spracheingabe" style="display:none">
-      <svg class="icon-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z"/><path d="M19 11a7 7 0 0 1-14 0M12 18v3" stroke-linecap="round"/></svg>
-      <svg class="icon-mic-stop" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
-    </button>
-    <button type="button" class="improve-btn" id="btn-improve" aria-label="Prompt verbessern" title="Prompt verbessern">
-      <svg class="icon-sparkle" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l1.6 4.9L18.5 9.5l-4.9 1.6L12 16l-1.6-4.9L5.5 9.5l4.9-1.6L12 3ZM19 14l.9 2.6L22.5 17.5l-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9L19 14Z"/></svg>
-      <svg class="icon-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M12 3a9 9 0 1 0 9 9" stroke-linecap="round"/></svg>
-    </button>
-    <button type="submit" class="send-btn" id="btn-send" aria-label="Senden">
-      <svg class="icon-send" viewBox="0 0 24 24" fill="currentColor"><path d="M3 11.5 21 3l-6.5 18-3.5-7.5L3 11.5Z"/></svg>
-      <svg class="icon-stop" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
-    </button>
+    <textarea id="input" rows="1" placeholder="Frag mich, was immer du willst…" autocomplete="off" enterkeyhint="send"></textarea>
+    <div class="composer-bar">
+      <div class="composer-bar-left">
+        <button type="button" class="attach-btn" id="btn-attach" aria-label="Bild anhängen" title="Bild anhängen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
+        </button>
+        <button type="button" class="team-toggle" id="btn-team-toggle" aria-pressed="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2.5 20a5.5 5.5 0 0 1 11 0M10.5 20a5.5 5.5 0 0 1 11 0" stroke-linecap="round"/></svg>
+          <span>Team-Modus</span>
+        </button>
+      </div>
+      <div class="composer-bar-right">
+        <button type="button" class="mic-btn" id="btn-mic" aria-label="Spracheingabe" title="Spracheingabe" style="display:none">
+          <svg class="icon-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z"/><path d="M19 11a7 7 0 0 1-14 0M12 18v3" stroke-linecap="round"/></svg>
+          <svg class="icon-mic-stop" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+        </button>
+        <button type="button" class="improve-btn" id="btn-improve" aria-label="Prompt verbessern" title="Prompt verbessern">
+          <svg class="icon-sparkle" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l1.6 4.9L18.5 9.5l-4.9 1.6L12 16l-1.6-4.9L5.5 9.5l4.9-1.6L12 3ZM19 14l.9 2.6L22.5 17.5l-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9L19 14Z"/></svg>
+          <svg class="icon-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M12 3a9 9 0 1 0 9 9" stroke-linecap="round"/></svg>
+        </button>
+        <button type="submit" class="send-btn" id="btn-send" aria-label="Senden">
+          <svg class="icon-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 19V5M6 11l6-6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg class="icon-stop" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+        </button>
+      </div>
+    </div>
   </form>
 </div>
 
@@ -1099,7 +1178,7 @@
       <div class="field">
         <label for="theme-select">Erscheinungsbild</label>
         <select id="theme-select">
-          <option value="graphit">Graphit (Standard)</option>
+          <option value="graphit">Nachtschwarz (Standard)</option>
           <option value="mitternacht">Mitternacht</option>
           <option value="hell">Hell</option>
           <option value="mondlicht">Mondlicht (hell, blau)</option>
@@ -1680,7 +1759,7 @@
   function render(){
     thread.querySelectorAll(".row, .model-pill, .assistant-head").forEach(el => el.remove());
     const isEmpty = messages.length === 0;
-    emptyState.style.display = isEmpty ? "block" : "none";
+    emptyState.style.display = isEmpty ? "flex" : "none";
     if(isEmpty){
       emptyComposerSlot.appendChild(composerWrapEl);
     }else{
@@ -3183,6 +3262,7 @@
   }
 
   function refreshProviderStatuses(){
+    updateEmptyHint();
     const set = (id, active) => document.getElementById(id)?.classList.toggle("ok", !!active);
     set("status-profile", profileName || profileAbout || profileStyle);
     set("status-openrouter", openrouterEnabled && apiKey);
@@ -3823,16 +3903,33 @@
   starterChips.addEventListener("click", (e) => {
     const chip = e.target.closest(".chip");
     if(!chip) return;
-    input.value = chip.textContent;
+    const prompt = chip.dataset.prompt || chip.textContent.trim();
+    input.value = prompt;
     autoGrow();
     updateSendState();
-    composer.requestSubmit();
+    // Endet der Vorschlag offen (z.B. "... zu: "), soll der Nutzer erst
+    // weiterschreiben statt einen halben Satz abzuschicken.
+    if(/[: ]$/.test(prompt)){
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    }else{
+      composer.requestSubmit();
+    }
   });
 
   // ---------- Start ----------
-  if(!apiKey){
-    emptyText.textContent = "Erst einen kostenlosen OpenRouter-Schlüssel eintragen — unten rechts, im Zahnrad.";
+  // Der Hero bleibt aufgeraeumt: der Hinweistext erscheint nur, solange
+  // wirklich noch kein Schluessel hinterlegt ist.
+  function updateEmptyHint(){
+    const targets = [...customProviders].length;
+    if(!apiKey && !targets){
+      emptyText.textContent = "Erst einen kostenlosen OpenRouter-Schlüssel eintragen — oben rechts, im Zahnrad.";
+      emptyText.style.display = "";
+    }else{
+      emptyText.style.display = "none";
+    }
   }
+  updateEmptyHint();
   render();
   loadFreeModels();
   updateSendState();
