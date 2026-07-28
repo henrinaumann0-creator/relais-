@@ -1751,6 +1751,10 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 8h18v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8ZM3 3h18v5H3zM10 12h4" stroke-linecap="round" stroke-linejoin="round"/></svg>
     <span data-label="archive">Archivieren</span>
   </button>
+  <button type="button" class="ctx-item" data-act="export">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12M8 11l4 4 4-4M4 19h16" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Als Datei sichern
+  </button>
   <div class="ctx-sep"></div>
   <button type="button" class="ctx-item danger" data-act="delete">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -3088,6 +3092,13 @@
       switchConversation(id);
       openProjectSheet();
       return;
+    }else if(act === "export"){
+      closeConvMenu();
+      const vorher = activeId;
+      if(id !== activeId) switchConversation(id);
+      exportCurrentChat();
+      if(vorher !== id) switchConversation(vorher);
+      return;
     }else if(act === "archive"){
       conv.archived = !conv.archived;
       saveMessages();
@@ -3099,6 +3110,65 @@
     }
     closeConvMenu();
   });
+
+  // ---------- Tastenkuerzel ----------
+  // Bewusst nur Kombinationen, die weder Browser- noch Eingabe-Standards
+  // ueberschreiben; im Textfeld greifen sie nur, wo es eindeutig ist.
+  document.addEventListener("keydown", (e) => {
+    const meta = e.metaKey || e.ctrlKey;
+    const imFeld = /^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName || "");
+
+    if(meta && e.key.toLowerCase() === "b"){
+      e.preventDefault(); toggleSidebar(); return;
+    }
+    if(meta && e.key.toLowerCase() === "k"){
+      e.preventDefault();
+      if(!sidebarBackdrop.classList.contains("open")) openSidebar();
+      chatSearchInput.focus(); chatSearchInput.select();
+      return;
+    }
+    if(meta && e.shiftKey && e.key.toLowerCase() === "o"){
+      e.preventDefault(); createConversation(); return;
+    }
+    if(meta && e.key === "/"){
+      e.preventDefault(); input.focus(); return;
+    }
+    if(e.key === "Escape"){
+      if(convMenu.classList.contains("open")){ closeConvMenu(); return; }
+      if(sidebarBackdrop.classList.contains("open") && !isWide()){ closeSidebar(); return; }
+      if(!imFeld) input.focus();
+      return;
+    }
+  });
+
+  // ---------- Chat als Markdown sichern ----------
+  function exportCurrentChat(){
+    const conv = conversations[activeId];
+    if(!conv || !conv.messages?.length){
+      showToast("Dieser Chat ist noch leer.");
+      return;
+    }
+    const zeilen = ["# " + (conv.title || "Chat"), ""];
+    const datum = new Date(conv.updatedAt || Date.now()).toLocaleString("de-DE");
+    zeilen.push("_" + datum + "_", "");
+    for(const m of conv.messages){
+      if(!m.content && !m.fileName) continue;
+      zeilen.push(m.role === "user" ? "## Du" : "## " + (m.usedModel || "Assistent"));
+      if(m.fileName) zeilen.push("_Anhang: " + m.fileName + "_", "");
+      zeilen.push(m.content || "", "");
+    }
+    const blob = new Blob([zeilen.join("\n")], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const name = (conv.title || "chat").replace(/[^\p{L}\p{N}]+/gu, "-").slice(0, 40).replace(/^-|-$/g, "");
+    a.href = url;
+    a.download = (name || "chat") + ".md";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast("Chat gesichert.");
+  }
 
   // Antworttiefe umschalten
   function renderModeChips(){
