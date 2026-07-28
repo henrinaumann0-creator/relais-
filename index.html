@@ -185,13 +185,20 @@
 
   .empty-state{
     max-width: 460px;
-    margin: 15vh auto 0;
+    margin: 12vh auto 0;
     text-align: center;
     color: var(--text-dim);
     padding: 0 20px;
   }
   .empty-state .wordmark{ font-size: 30px; display:block; margin-bottom: 10px; color: var(--text); }
   .empty-state p{ font-size: 14.5px; line-height: 1.6; margin: 0; }
+  .empty-state #empty-composer-slot:empty{ display: none; }
+  .empty-state #empty-composer-slot .composer-wrap{
+    border-top: none;
+    padding: 0;
+    margin: 22px 0 0;
+  }
+  .empty-state #empty-composer-slot .team-toggle{ margin-left: 0; margin-right: 0; }
 
   .starter-chips{
     display: flex;
@@ -1021,6 +1028,7 @@
     <div class="empty-state" id="empty-state">
       <span class="wordmark">Relais</span>
       <p id="empty-text">Schreib einfach los. Läuft komplett auf diesem Gerät, ohne eigenen Server.</p>
+      <div id="empty-composer-slot"></div>
       <div class="starter-chips" id="starter-chips">
         <button type="button" class="chip">Erklär mir ein Thema einfach</button>
         <button type="button" class="chip">Hilf mir eine Nachricht zu formulieren</button>
@@ -1033,7 +1041,7 @@
   </button>
 </main>
 
-<div class="composer-wrap">
+<div class="composer-wrap" id="composer-wrap">
   <button type="button" class="team-toggle" id="btn-team-toggle" aria-pressed="false">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2.5 20a5.5 5.5 0 0 1 11 0M10.5 20a5.5 5.5 0 0 1 11 0" stroke-linecap="round"/></svg>
     <span>Team-Modus</span>
@@ -1457,6 +1465,8 @@
   const thread      = $("#thread");
   const emptyState  = $("#empty-state");
   const emptyText   = $("#empty-text");
+  const composerWrapEl = $("#composer-wrap");
+  const emptyComposerSlot = $("#empty-composer-slot");
   const main        = $("#main");
   const composer    = $("#composer");
   const input       = $("#input");
@@ -1670,7 +1680,13 @@
   // ---------- Rendering ----------
   function render(){
     thread.querySelectorAll(".row, .model-pill, .assistant-head").forEach(el => el.remove());
-    emptyState.style.display = messages.length ? "none" : "block";
+    const isEmpty = messages.length === 0;
+    emptyState.style.display = isEmpty ? "block" : "none";
+    if(isEmpty){
+      emptyComposerSlot.appendChild(composerWrapEl);
+    }else{
+      sheetBackdrop.before(composerWrapEl);
+    }
     const lastAssistantIdx = messages.map(m => m.role).lastIndexOf("assistant");
     messages.forEach((m, i) => {
       thread.appendChild(renderRow(m, i === lastAssistantIdx, i));
