@@ -886,6 +886,58 @@
     body.sidebar-docked .sidebar-panel{ pointer-events: auto; width: 300px; }
   }
 
+  .file-chip{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 720px;
+    margin: 0 auto 8px;
+    padding: 8px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .file-chip span{
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .file-chip button{
+    background: none; border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    display: flex; align-items: center;
+    padding: 2px;
+  }
+  .file-chip button:hover{ color: var(--text); }
+
+  .mode-chip-group{
+    display: inline-flex;
+    gap: 3px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 3px;
+    flex-shrink: 0;
+  }
+  .mode-chip{
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-family: inherit;
+    font-size: 12px;
+    padding: 4px 11px;
+    border-radius: 999px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .15s, color .15s;
+  }
+  .mode-chip:hover{ color: var(--text); }
+  .mode-chip.active{ background: var(--accent); color: var(--accent-ink); }
+
   .sidebar-filters{
     display: flex;
     gap: 6px;
@@ -1264,11 +1316,23 @@
 
 <div class="composer-wrap" id="composer-wrap">
   <div class="context-row" id="context-row">
+    <div class="mode-chip-group" id="mode-chips" role="group" aria-label="Antworttiefe">
+      <button type="button" class="mode-chip active" data-mode="schnell" title="Kurz und direkt">Schnell</button>
+      <button type="button" class="mode-chip" data-mode="tief" title="Ausführlich mit Begründung">Tief</button>
+      <button type="button" class="mode-chip" data-mode="experte" title="Fachlich, präzise, mit Details">Experte</button>
+    </div>
     <button type="button" class="context-chip" id="chip-project">
       <span id="chip-project-label">Kein Projekt</span>
     </button>
     <button type="button" class="context-chip" id="chip-agent">
       <span id="chip-agent-icon">🤖</span><span id="chip-agent-label">Kein Agent</span>
+    </button>
+  </div>
+  <div class="file-chip" id="file-chip" style="display:none">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M14 3v5h5M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span id="file-chip-name"></span>
+    <button type="button" id="file-chip-remove" aria-label="Datei entfernen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M6 6l12 12M18 6 6 18" stroke-linecap="round"/></svg>
     </button>
   </div>
   <div class="attach-preview" id="attach-preview" style="display:none">
@@ -1278,7 +1342,7 @@
     </button>
   </div>
   <form class="composer" id="composer">
-    <input type="file" id="attach-input" accept="image/*" style="display:none">
+    <input type="file" id="attach-input" accept="image/*,.pdf,.docx,.txt,.md,.csv,.json" style="display:none">
     <textarea id="input" rows="1" placeholder="Frag mich, was immer du willst…" autocomplete="off" enterkeyhint="send"></textarea>
     <div class="composer-bar">
       <div class="composer-bar-left">
@@ -1797,6 +1861,27 @@
   const STORAGE_PROFILE_STYLE = "relais.profileStyle";
   const STORAGE_THEME = "relais.theme";
   const STORAGE_SIDEBAR = "relais.sidebarOpen";
+  const STORAGE_MODE = "relais.answerMode";
+
+  // Antworttiefe: gibt dem Modell eine zusaetzliche Stilvorgabe mit und
+  // begrenzt bei "Schnell" die Laenge, damit es wirklich knapp bleibt.
+  const ANSWER_MODES = {
+    schnell: {
+      prompt: "Antworte knapp und direkt. Komm sofort zum Punkt, keine Einleitung, keine Zusammenfassung am Ende. Nur wenn nötig mehr als ein paar Sätze.",
+      maxTokens: 800
+    },
+    tief: {
+      prompt: "Antworte ausführlich und nachvollziehbar. Erkläre deine Überlegung, nenne relevante Alternativen und begründe deine Empfehlung.",
+      maxTokens: 4000
+    },
+    experte: {
+      prompt: "Antworte auf Fachniveau. Setze Vorwissen voraus, nutze präzise Fachbegriffe, gehe auf Randfälle, Kompromisse und typische Fehlerquellen ein. Verzichte auf Grundlagenerklärungen, außer sie sind für den Punkt entscheidend.",
+      maxTokens: 4000
+    }
+  };
+  let answerMode = "schnell";
+  try{ answerMode = localStorage.getItem(STORAGE_MODE) || "schnell"; }catch{}
+  if(!ANSWER_MODES[answerMode]) answerMode = "schnell";
   const STORAGE_AGENTS   = "relais.agents";
   const STORAGE_PROJECTS = "relais.projects";
   const STORAGE_MEMORY   = "relais.memory";
@@ -1985,6 +2070,8 @@
   const attachPreviewImg = $("#attach-preview-img");
   const attachRemoveBtn = $("#attach-remove");
   let pendingImage = null;
+  let pendingFileText = null;
+  let pendingFileName = "";
   const teamToggleBtn = $("#btn-team-toggle");
   let teamMode = localStorage.getItem("relais.teamMode") === "1";
   const sheetBackdrop = $("#sheet-backdrop");
@@ -3013,6 +3100,20 @@
     closeConvMenu();
   });
 
+  // Antworttiefe umschalten
+  function renderModeChips(){
+    [...document.querySelectorAll("#mode-chips .mode-chip")]
+      .forEach(c => c.classList.toggle("active", c.dataset.mode === answerMode));
+  }
+  $("#mode-chips").addEventListener("click", (e) => {
+    const chip = e.target.closest(".mode-chip");
+    if(!chip) return;
+    answerMode = chip.dataset.mode;
+    try{ localStorage.setItem(STORAGE_MODE, answerMode); }catch{}
+    renderModeChips();
+  });
+  renderModeChips();
+
   $("#sidebar-filters").addEventListener("click", (e) => {
     const chip = e.target.closest(".filter-chip");
     if(!chip) return;
@@ -3318,20 +3419,34 @@
     if(image && teamMode){
       showToast("Bilder werden im Team-Modus noch nicht unterstützt -- wird ohne Bild gesendet.");
     }
-    const userMsg = { role: "user", content: text };
+
+    // Dateiinhalt wird dem Text vorangestellt, damit ihn jeder Anbieter
+    // versteht -- auch die ohne eigenes Datei-Format.
+    let versandText = text;
+    if(pendingFileText){
+      versandText = "Inhalt der angehängten Datei \"" + pendingFileName + "\":\n\n"
+        + pendingFileText + "\n\n---\n\n" + (text || "Bitte fasse die Datei zusammen.");
+    }
+
+    const userMsg = { role: "user", content: text || (pendingFileName ? "📎 " + pendingFileName : "") };
+    if(pendingFileText){
+      userMsg.fileName = pendingFileName;
+      userMsg.sendContent = versandText;
+    }
     if(image && !teamMode) userMsg.image = image;
     messages.push(userMsg);
     pendingImage = null;
     attachPreview.style.display = "none";
+    clearPendingFile();
     saveMessages();
     render();
 
     const assistantMsg = { role: "assistant", content: "", usedModel: "" };
     messages.push(assistantMsg);
     if(teamMode && targets.length >= 2){
-      await runTeamMode(text, assistantMsg, targets);
+      await runTeamMode(versandText, assistantMsg, targets);
     }else{
-      await runCompletion(text, assistantMsg, targets, image);
+      await runCompletion(versandText, assistantMsg, targets, image);
     }
   }
 
@@ -3348,10 +3463,11 @@
     delete assistantMsg.isError;
     delete assistantMsg.teamSteps;
     const targets = buildTargets();
+    const erneutText = userMsg.sendContent || userMsg.content;
     if(teamMode && targets.length >= 2){
-      await runTeamMode(userMsg.content, assistantMsg, targets);
+      await runTeamMode(erneutText, assistantMsg, targets);
     }else{
-      await runCompletion(userMsg.content, assistantMsg, targets);
+      await runCompletion(erneutText, assistantMsg, targets);
     }
   }
 
@@ -3588,6 +3704,8 @@
       parts.push("Dauerhaft gemerkte Informationen (gilt in jedem Chat, unabhängig vom Modell):\n" +
         memory.map(m => "- " + m.text).join("\n"));
     }
+    const modus = ANSWER_MODES[answerMode];
+    if(modus?.prompt) parts.push(modus.prompt);
     const agent = activeAgent();
     const project = activeProject();
     if(agent?.systemPrompt) parts.push(agent.systemPrompt);
@@ -3637,7 +3755,7 @@
     const contextMsgs = messages
       .filter(m => (m.content || m.image) && m !== assistantMsg)
       .slice(-MAX_CONTEXT_MESSAGES)
-      .map(m => ({ role: m.role, content: m.content, image: m.image }));
+      .map(m => ({ role: m.role, content: m.sendContent || m.content, image: m.image }));
     contextMsgs.push({ role: "user", content: text, image });
 
     const finalMsgs = dedupeTrailingUser(contextMsgs, text);
@@ -3957,6 +4075,7 @@
         stream_options: { include_usage: true },
         ...(target.kind !== "gemini" ? { reasoning_format: "parsed" } : {}),
         reasoning_effort: "low",
+        max_tokens: ANSWER_MODES[answerMode]?.maxTokens || 4000,
         // Werkzeuge nur mitschicken, wenn welche angefragt sind -- Anbieter
         // ohne Unterstuetzung ignorieren das Feld einfach.
         ...(tools && tools.length ? { tools, tool_choice: "auto" } : {})
@@ -4098,7 +4217,7 @@
       iconStop.style.display = "";
       improveBtn.disabled = true;
     }else{
-      sendBtn.disabled = !input.value.trim() && !pendingImage;
+      sendBtn.disabled = !input.value.trim() && !pendingImage && !pendingFileText;
       sendBtn.classList.remove("stopping");
       iconSend.style.display = "";
       iconStop.style.display = "none";
@@ -5099,19 +5218,97 @@
   }
 
   attachBtn.addEventListener("click", () => attachInput.click());
+  // ---------- Datei-Anhaenge (PDF, Word, Text) ----------
+  const MAX_FILE_CHARS = 15000; // Grenze, damit eine Datei nicht das Kontextfenster sprengt
+  const fileChip = $("#file-chip");
+  const fileChipName = $("#file-chip-name");
+
+  function loadScriptOnce(url){
+    return new Promise((resolve, reject) => {
+      const vorhanden = document.querySelector('script[data-src="' + url + '"]');
+      if(vorhanden){
+        if(vorhanden.dataset.loaded === "1") return resolve();
+        vorhanden.addEventListener("load", () => resolve());
+        vorhanden.addEventListener("error", () => reject(new Error("Bibliothek konnte nicht geladen werden.")));
+        return;
+      }
+      const sc = document.createElement("script");
+      sc.src = url;
+      sc.dataset.src = url;
+      sc.onload = () => { sc.dataset.loaded = "1"; resolve(); };
+      sc.onerror = () => reject(new Error("Bibliothek konnte nicht geladen werden (kein Netz?)."));
+      document.head.appendChild(sc);
+    });
+  }
+
+  async function extractPdf(file){
+    await loadScriptOnce("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js");
+    const pdfjs = window.pdfjsLib;
+    pdfjs.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    const buf = await file.arrayBuffer();
+    const doc = await pdfjs.getDocument({ data: buf }).promise;
+    let text = "";
+    for(let i = 1; i <= doc.numPages; i++){
+      const seite = await doc.getPage(i);
+      const inhalt = await seite.getTextContent();
+      text += inhalt.items.map(it => it.str).join(" ") + "\n\n";
+      if(text.length > MAX_FILE_CHARS) break;
+    }
+    return text;
+  }
+
+  async function extractDocx(file){
+    await loadScriptOnce("https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js");
+    const buf = await file.arrayBuffer();
+    const res = await window.mammoth.extractRawText({ arrayBuffer: buf });
+    return res.value || "";
+  }
+
+  function clearPendingFile(){
+    pendingFileText = null;
+    pendingFileName = "";
+    fileChip.style.display = "none";
+    updateSendState();
+  }
+
   attachInput.addEventListener("change", async () => {
     const file = attachInput.files[0];
     attachInput.value = "";
     if(!file) return;
+
+    const name = file.name.toLowerCase();
     try{
-      pendingImage = await compressImage(file);
-      attachPreviewImg.src = pendingImage;
-      attachPreview.style.display = "flex";
+      if(file.type.startsWith("image/")){
+        pendingImage = await compressImage(file);
+        attachPreviewImg.src = pendingImage;
+        attachPreview.style.display = "flex";
+        updateSendState();
+        return;
+      }
+
+      showToast("Datei wird gelesen…");
+      let text = "";
+      if(name.endsWith(".pdf")) text = await extractPdf(file);
+      else if(name.endsWith(".docx")) text = await extractDocx(file);
+      else if(/\.(txt|md|csv|json)$/.test(name)) text = await file.text();
+      else throw new Error("Dateityp wird nicht unterstützt.");
+
+      text = text.trim();
+      if(!text) throw new Error("Aus der Datei liess sich kein Text lesen (evtl. ein Scan?).");
+
+      const gekuerzt = text.length > MAX_FILE_CHARS;
+      pendingFileText = gekuerzt ? text.slice(0, MAX_FILE_CHARS) : text;
+      pendingFileName = file.name;
+      fileChipName.textContent = file.name + (gekuerzt ? " (gekürzt)" : "");
+      fileChip.style.display = "flex";
       updateSendState();
+      showToast(gekuerzt ? "Datei gelesen, wegen Länge gekürzt." : "Datei gelesen.");
     }catch(err){
-      showToast(err.message || "Bild konnte nicht verarbeitet werden.");
+      showToast(err.message || "Datei konnte nicht verarbeitet werden.");
     }
   });
+
+  $("#file-chip-remove").addEventListener("click", clearPendingFile);
   attachRemoveBtn.addEventListener("click", () => {
     pendingImage = null;
     attachPreview.style.display = "none";
