@@ -124,6 +124,16 @@
     letter-spacing: 0.02em;
     font-weight: 500;
     color: var(--text);
+    /* Echt mittig statt ueber Flex-space-between: links steht nur 1 Icon,
+       rechts stehen 3 -- mit space-between rutscht der Titel dadurch
+       Richtung der schmaleren (linken) Seite. Absolute Positionierung
+       macht ihn von der Breite beider Seiten unabhaengig. */
+    position: absolute;
+    left: 50%;
+    top: calc(50% + (var(--safe-top) / 2));
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    white-space: nowrap;
   }
   .icon-btn{
     background: none;
