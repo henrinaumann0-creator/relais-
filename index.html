@@ -883,6 +883,28 @@
     overflow-y: auto;
   }
   .code-output.code-output-error{ color: var(--danger); }
+  .code-output:has(+ .code-fix-btn){ border-radius: 0; border-bottom: none; }
+
+  .code-fix-btn{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--danger);
+    border-top: none;
+    color: var(--danger);
+    font-size: 12.5px;
+    padding: 9px;
+    border-radius: 0 0 10px 10px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .code-fix-btn:hover{ background: var(--surface); }
+  .code-fix-btn:disabled{ opacity: .6; pointer-events: none; }
+  .code-fix-btn svg{ width: 14px; height: 14px; }
+  .code-fix-btn .icon-spinner{ animation: spin .8s linear infinite; }
 
   .attach-btn{
     width: 34px; height: 34px;
@@ -1765,56 +1787,59 @@
   // haben), und vor allem: bei einer Endlosschleife per worker.terminate() wirklich
   // abbrechbar, ohne die restliche App einzufrieren.
   function runJavaScript(code, outputEl){
-    outputEl.style.display = "block";
-    outputEl.classList.remove("code-output-error");
-    outputEl.textContent = "Wird ausgeführt …";
+    return new Promise((resolve) => {
+      outputEl.style.display = "block";
+      outputEl.classList.remove("code-output-error");
+      outputEl.textContent = "Wird ausgeführt …";
 
-    const workerSrc =
-      'self.onmessage = function(e){' +
-      '  const logs = [];' +
-      '  console.log = (...args) => { logs.push(args.map(a => typeof a === "object" ? JSON.stringify(a) : String(a)).join(" ")); };' +
-      '  try {' +
-      '    const result = (0, eval)(e.data);' +
-      '    if (result !== undefined) logs.push("=> " + (typeof result === "object" ? JSON.stringify(result) : String(result)));' +
-      '    self.postMessage({ output: logs.join("\\n") });' +
-      '  } catch(err) {' +
-      '    logs.push("Fehler: " + err.message);' +
-      '    self.postMessage({ output: logs.join("\\n"), error: true });' +
-      '  }' +
-      '};';
-    const blob = new Blob([workerSrc], { type: "application/javascript" });
-    const workerUrl = URL.createObjectURL(blob);
-    const worker = new Worker(workerUrl);
+      const workerSrc =
+        'self.onmessage = function(e){' +
+        '  const logs = [];' +
+        '  console.log = (...args) => { logs.push(args.map(a => typeof a === "object" ? JSON.stringify(a) : String(a)).join(" ")); };' +
+        '  try {' +
+        '    const result = (0, eval)(e.data);' +
+        '    if (result !== undefined) logs.push("=> " + (typeof result === "object" ? JSON.stringify(result) : String(result)));' +
+        '    self.postMessage({ output: logs.join("\\n") });' +
+        '  } catch(err) {' +
+        '    logs.push("Fehler: " + err.message);' +
+        '    self.postMessage({ output: logs.join("\\n"), error: true });' +
+        '  }' +
+        '};';
+      const blob = new Blob([workerSrc], { type: "application/javascript" });
+      const workerUrl = URL.createObjectURL(blob);
+      const worker = new Worker(workerUrl);
 
-    let settled = false;
-    function finish(){
-      settled = true;
-      clearTimeout(timeoutId);
-      worker.terminate();
-      URL.revokeObjectURL(workerUrl);
-    }
+      let settled = false;
+      function finish(){
+        settled = true;
+        clearTimeout(timeoutId);
+        worker.terminate();
+        URL.revokeObjectURL(workerUrl);
+        resolve();
+      }
 
-    const timeoutId = setTimeout(() => {
-      if(settled) return;
-      outputEl.textContent = "Zeitüberschreitung (5s) — möglicherweise eine Endlosschleife.";
-      outputEl.classList.add("code-output-error");
-      finish();
-    }, 5000);
+      const timeoutId = setTimeout(() => {
+        if(settled) return;
+        outputEl.textContent = "Zeitüberschreitung (5s) — möglicherweise eine Endlosschleife.";
+        outputEl.classList.add("code-output-error");
+        finish();
+      }, 5000);
 
-    worker.onmessage = (e) => {
-      if(settled) return;
-      outputEl.textContent = e.data.output || "(keine Ausgabe)";
-      if(e.data.error) outputEl.classList.add("code-output-error");
-      finish();
-    };
-    worker.onerror = (e) => {
-      if(settled) return;
-      outputEl.textContent = "Fehler: " + (e.message || "Unbekannter Fehler");
-      outputEl.classList.add("code-output-error");
-      finish();
-    };
+      worker.onmessage = (e) => {
+        if(settled) return;
+        outputEl.textContent = e.data.output || "(keine Ausgabe)";
+        if(e.data.error) outputEl.classList.add("code-output-error");
+        finish();
+      };
+      worker.onerror = (e) => {
+        if(settled) return;
+        outputEl.textContent = "Fehler: " + (e.message || "Unbekannter Fehler");
+        outputEl.classList.add("code-output-error");
+        finish();
+      };
 
-    worker.postMessage(code);
+      worker.postMessage(code);
+    });
   }
 
 
@@ -1858,21 +1883,94 @@
     }
   }
 
-  thread.addEventListener("click", (e) => {
-    const btn = e.target.closest(".code-run-btn");
-    if(!btn) return;
-    const outputEl = document.getElementById(btn.dataset.target);
-    const codeEl = btn.closest(".code-block").querySelector("pre code");
-    const code = codeEl.textContent;
-    btn.disabled = true;
-    const done = () => { btn.disabled = false; };
-    if(btn.dataset.kind === "python"){
-      runPython(code, outputEl).finally(done);
-    }else{
-      runJavaScript(code, outputEl);
-      done();
+  thread.addEventListener("click", async (e) => {
+    const runBtn = e.target.closest(".code-run-btn");
+    if(runBtn){
+      const outputEl = document.getElementById(runBtn.dataset.target);
+      const codeEl = runBtn.closest(".code-block").querySelector("pre code");
+      const code = codeEl.textContent;
+      const lang = runBtn.dataset.kind;
+      runBtn.disabled = true;
+      if(lang === "python") await runPython(code, outputEl);
+      else await runJavaScript(code, outputEl);
+      runBtn.disabled = false;
+      showFixButtonIfError(outputEl, code, lang);
+      return;
+    }
+    const fixBtn = e.target.closest(".code-fix-btn");
+    if(fixBtn){
+      await handleFixCode(fixBtn);
+      return;
     }
   });
+
+  // Bevorzugt Claude fuer die Fehleranalyse, falls aktiviert -- sonst die
+  // normale Gratis-Anbieter-Kette, damit es auch ohne Claude funktioniert.
+  function buildDiagnosisTargets(){
+    const targets = buildTargets();
+    const claudeTarget = targets.find(t => t.provider === "Claude");
+    if(!claudeTarget) return targets;
+    return [claudeTarget, ...targets.filter(t => t.provider !== "Claude")];
+  }
+
+  function showFixButtonIfError(outputEl, code, lang){
+    const block = outputEl.closest(".code-block");
+    block?.querySelector(".code-fix-btn")?.remove();
+    if(!block || !outputEl.classList.contains("code-output-error")) return;
+    const fixBtn = document.createElement("button");
+    fixBtn.className = "code-fix-btn";
+    fixBtn.dataset.lang = lang;
+    fixBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.5-3.5a6 6 0 0 1-7.8 7.8l-6.7 6.7a2.1 2.1 0 0 1-3-3l6.7-6.7a6 6 0 0 1 7.8-7.8Z" stroke-linejoin="round"/></svg><span>Beheben lassen</span>';
+    fixBtn.__code = code;
+    fixBtn.__error = outputEl.textContent;
+    block.appendChild(fixBtn);
+  }
+
+  async function handleFixCode(btn){
+    const code = btn.__code;
+    const errorText = btn.__error;
+    const lang = btn.dataset.lang;
+    const targets = buildDiagnosisTargets();
+    if(!targets.length){
+      showToast("Kein Anbieter verfügbar.");
+      return;
+    }
+
+    btn.disabled = true;
+    const originalHTML = btn.innerHTML;
+    btn.innerHTML = '<svg class="icon-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin .8s linear infinite"><path d="M12 3a9 9 0 1 0 9 9" stroke-linecap="round"/></svg><span>Analysiere …</span>';
+
+    const langLabel = lang === "python" ? "Python" : "JavaScript";
+    const prompt =
+      "Der folgende " + langLabel + "-Code hat beim Ausführen einen Fehler produziert. " +
+      "Analysiere kurz die Ursache (1-2 Sätze) und liefere danach den vollständig korrigierten Code in einem Codeblock.\n\n" +
+      "Code:\n```" + lang + "\n" + code + "\n```\n\nFehlermeldung:\n" + errorText;
+
+    let result = null, usedProvider = null;
+    for(const target of targets){
+      try{
+        result = await simpleComplete(target, prompt);
+        usedProvider = target.provider;
+        break;
+      }catch{
+        // naechstes Ziel versuchen
+      }
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = originalHTML;
+
+    if(!result){
+      showToast("Fehleranalyse fehlgeschlagen — kein Anbieter erreichbar.");
+      return;
+    }
+
+    const assistantMsg = { role: "assistant", content: result, usedModel: usedProvider + " · Fehleranalyse" };
+    messages.push(assistantMsg);
+    saveMessages();
+    render();
+    maybeAutoScroll();
+  }
 
   const THEME_BG = { graphit: "#171614", mitternacht: "#0d1117", hell: "#f7f3ec" };
   function applyTheme(name){
