@@ -124,16 +124,6 @@
     letter-spacing: 0.02em;
     font-weight: 500;
     color: var(--text);
-    /* Echt mittig statt ueber Flex-space-between: links steht nur 1 Icon,
-       rechts stehen 3 -- mit space-between rutscht der Titel dadurch
-       Richtung der schmaleren (linken) Seite. Absolute Positionierung
-       macht ihn von der Breite beider Seiten unabhaengig. */
-    position: absolute;
-    left: 50%;
-    top: calc(50% + (var(--safe-top) / 2));
-    transform: translate(-50%, -50%);
-    pointer-events: none;
-    white-space: nowrap;
   }
   .icon-btn{
     background: none;
@@ -1018,7 +1008,6 @@
   <button class="icon-btn" id="btn-chats" title="Chats" aria-label="Chats">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h10" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </button>
-  <span class="wordmark">Relais</span>
   <div style="display:flex; gap:4px">
     <button class="icon-btn" id="btn-new-chat-header" title="Neuer Chat" aria-label="Neuer Chat">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
