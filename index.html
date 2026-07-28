@@ -72,6 +72,19 @@
     --danger:    #e0392b;
   }
 
+  html[data-theme="mondlicht-dunkel"]{
+    --bg:        #14161c;
+    --surface:   #1c1f28;
+    --surface-2: #242835;
+    --border:    #333849;
+    --text:      #eceef3;
+    --text-dim:  #8b91a3;
+    --accent:    #5b7cf5;
+    --accent-ink:#0c1220;
+    --ok:        #3ecf7a;
+    --danger:    #f16a5c;
+  }
+
   *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
   html, body{
@@ -1083,6 +1096,7 @@
           <option value="mitternacht">Mitternacht</option>
           <option value="hell">Hell</option>
           <option value="mondlicht">Mondlicht (hell, blau)</option>
+          <option value="mondlicht-dunkel">Mondlicht Dunkel (dunkel, blau)</option>
         </select>
       </div>
       <button type="button" class="btn btn-primary" id="btn-save-profile">Speichern</button>
@@ -1986,7 +2000,7 @@
     maybeAutoScroll();
   }
 
-  const THEME_BG = { graphit: "#171614", mitternacht: "#0d1117", hell: "#f7f3ec", mondlicht: "#ffffff" };
+  const THEME_BG = { graphit: "#171614", mitternacht: "#0d1117", hell: "#f7f3ec", mondlicht: "#ffffff", "mondlicht-dunkel": "#14161c" };
   function applyTheme(name){
     document.documentElement.dataset.theme = name === "graphit" ? "" : name;
     const meta = document.querySelector('meta[name="theme-color"]');
