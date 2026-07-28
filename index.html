@@ -2474,10 +2474,13 @@
   }
 
   // Einfacher, nicht-streamender Aufruf -- fuer Orchestrator- und Teilaufgaben-Anfragen im Team-Modus.
-  async function simpleComplete(target, prompt){
+  // "signal" wird durchgereicht, damit ein Abbruch (Stop-Button) die echte Netzwerk-Anfrage
+  // tatsaechlich kappt, statt nur einen ungenutzten AbortController abzuhaken.
+  async function simpleComplete(target, prompt, signal){
     if(target.kind === "anthropic"){
       const res = await fetch(target.url, {
         method: "POST",
+        signal,
         headers: {
           "Content-Type": "application/json",
           "x-api-key": target.key,
@@ -2498,6 +2501,7 @@
     }
     const res = await fetch(target.url, {
       method: "POST",
+      signal,
       headers: { "Content-Type": "application/json", "Authorization": "Bearer " + target.key, ...target.extraHeaders },
       body: JSON.stringify({ model: target.model, messages: [{ role: "user", content: prompt }], stream: false })
     });
@@ -2564,7 +2568,25 @@
 
     sending = true;
     currentController = new AbortController();
+    const signal = currentController.signal;
     updateSendState();
+
+    // Einheitlicher Abbruch-Ausstieg -- fuer "Stop" waehrend Aufteilung ODER Teilaufgaben.
+    function stopAborted(){
+      summaryEl.textContent = "Team-Modus abgebrochen";
+      assistantMsg.content = "Team-Modus abgebrochen.";
+      assistantMsg.isError = true;
+      bubbleEl.innerHTML = "";
+      bubbleEl.textContent = assistantMsg.content;
+      bubbleEl.classList.remove("streaming");
+      bubbleEl.classList.add("error");
+      teamBox.open = false;
+      sending = false;
+      currentController = null;
+      updateSendState();
+      saveMessages();
+      render();
+    }
 
     // ---- 1) Orchestrator: Aufgabe aufteilen ----
     const providerNames = targets.map(t => t.provider);
@@ -2577,7 +2599,7 @@
 
     let subtasks = null;
     try{
-      const raw = await simpleComplete(targets[0], splitPrompt);
+      const raw = await simpleComplete(targets[0], splitPrompt, signal);
       const jsonMatch = raw.match(/\{[\s\S]*\}/);
       const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
       if(Array.isArray(parsed.subtasks) && parsed.subtasks.length){
@@ -2586,9 +2608,11 @@
           task: String(s.task || text)
         }));
       }
-    }catch{
+    }catch(err){
+      if(err?.name === "AbortError"){ stopAborted(); return; }
       // Aufteilung fehlgeschlagen -- unten greift der Rueckfall
     }
+    if(signal.aborted){ stopAborted(); return; }
     if(!subtasks || !subtasks.length){
       subtasks = targets.map(t => ({ provider: t.provider, task: text }));
     }
@@ -2602,17 +2626,19 @@
     await Promise.all(subtasks.map(async (s, i) => {
       const target = targets.find(t => t.provider === s.provider) || targets[i % targets.length];
       try{
-        const result = await simpleComplete(target, s.task);
+        const result = await simpleComplete(target, s.task, signal);
         assistantMsg.teamSteps[i].result = result;
         assistantMsg.teamSteps[i].status = "done";
       }catch(err){
-        assistantMsg.teamSteps[i].result = "Nicht erreichbar: " + err.message;
+        assistantMsg.teamSteps[i].result = err?.name === "AbortError" ? "Abgebrochen" : "Nicht erreichbar: " + err.message;
         assistantMsg.teamSteps[i].status = "error";
       }
       doneCount++;
       summaryEl.textContent = "Team hat gearbeitet (" + doneCount + "/" + subtasks.length + ")";
       renderTeamSteps(teamBox, assistantMsg.teamSteps);
     }));
+
+    if(signal.aborted){ stopAborted(); return; }
     teamBox.open = false;
 
     // ---- 3) Synthese ----
