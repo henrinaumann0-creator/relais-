@@ -873,6 +873,103 @@
     z-index: 25;
   }
   .sidebar-backdrop.open{ display: block; }
+
+  /* Ab Tablet-Breite dockt die Seitenleiste an, statt den Inhalt zu ueberlagern:
+     der Rest der Seite rueckt nach rechts, der Abdunkler wird durchlaessig. */
+  @media (min-width: 900px){
+    body{ padding-left: var(--sidebar-w, 0px); transition: padding-left .25s ease; }
+    body.sidebar-docked{ --sidebar-w: 300px; }
+    body.sidebar-docked .sidebar-backdrop{
+      background: transparent;
+      pointer-events: none;
+    }
+    body.sidebar-docked .sidebar-panel{ pointer-events: auto; width: 300px; }
+  }
+
+  .sidebar-filters{
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 0 2px 10px;
+    scrollbar-width: none;
+  }
+  .sidebar-filters::-webkit-scrollbar{ display: none; }
+  .filter-chip{
+    flex-shrink: 0;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-size: 12.5px;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color .15s, border-color .15s, background .15s;
+  }
+  .filter-chip:hover{ color: var(--text); border-color: var(--text-dim); }
+  .filter-chip.active{
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-color: var(--accent);
+  }
+  .conv-group-label{
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--text-dim);
+    padding: 12px 6px 6px;
+    font-weight: 600;
+  }
+  .conv-menu-btn{
+    background: none; border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    display: flex; align-items: center;
+    opacity: 0;
+    transition: opacity .15s, color .15s;
+  }
+  .conv-item:hover .conv-menu-btn,
+  .conv-item.active .conv-menu-btn{ opacity: 1; }
+  .conv-menu-btn:hover{ color: var(--text); background: var(--surface-2); }
+  .conv-menu-btn svg{ width: 16px; height: 16px; }
+  .conv-pin-dot{
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+    margin-right: 6px;
+  }
+  .ctx-menu{
+    position: fixed;
+    z-index: 60;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 5px;
+    min-width: 190px;
+    box-shadow: 0 12px 32px rgba(0,0,0,.45);
+    display: none;
+  }
+  .ctx-menu.open{ display: block; }
+  .ctx-item{
+    display: flex; align-items: center; gap: 9px;
+    width: 100%;
+    background: none; border: none;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13.5px;
+    text-align: left;
+    padding: 9px 11px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .ctx-item:hover{ background: var(--surface); }
+  .ctx-item.danger{ color: var(--danger); }
+  .ctx-item svg{ width: 15px; height: 15px; flex-shrink: 0; }
+  .ctx-sep{ height: 1px; background: var(--border); margin: 5px 4px; }
   .sidebar-panel{
     position: fixed;
     top: 0; bottom: 0; left: 0;
@@ -1549,16 +1646,52 @@
   <div class="sidebar-panel">
     <div class="sidebar-header">
       <span class="wordmark" style="font-size:19px">Chats</span>
-      <button class="icon-btn" id="btn-new-chat" title="Neuer Chat" aria-label="Neuer Chat">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
-      </button>
+      <div style="display:flex; gap:2px">
+        <button class="icon-btn" id="btn-new-chat" title="Neuer Chat" aria-label="Neuer Chat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
+        </button>
+        <button class="icon-btn" id="btn-close-sidebar" title="Seitenleiste schließen" aria-label="Seitenleiste schließen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
     </div>
     <div class="sidebar-search">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3" stroke-linecap="round"/></svg>
       <input type="text" id="chat-search" placeholder="Chats durchsuchen…" autocomplete="off">
     </div>
+    <div class="sidebar-filters" id="sidebar-filters">
+      <button type="button" class="filter-chip active" data-filter="alle">Alle</button>
+      <button type="button" class="filter-chip" data-filter="angeheftet">Angeheftet</button>
+      <button type="button" class="filter-chip" data-filter="projekte">Projekte</button>
+      <button type="button" class="filter-chip" data-filter="archiv">Archiv</button>
+    </div>
     <div id="conversation-list" style="overflow-y:auto; flex:1"></div>
   </div>
+</div>
+
+
+<div class="ctx-menu" id="conv-menu">
+  <button type="button" class="ctx-item" data-act="pin">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 17v5M9 3h6l-1 7 4 3H6l4-3-1-7Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span data-label="pin">Anheften</span>
+  </button>
+  <button type="button" class="ctx-item" data-act="rename">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Umbenennen
+  </button>
+  <button type="button" class="ctx-item" data-act="project">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Projekt zuweisen
+  </button>
+  <button type="button" class="ctx-item" data-act="archive">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 8h18v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8ZM3 3h18v5H3zM10 12h4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span data-label="archive">Archivieren</span>
+  </button>
+  <div class="ctx-sep"></div>
+  <button type="button" class="ctx-item danger" data-act="delete">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Löschen
+  </button>
 </div>
 
 <div class="sheet-backdrop" id="agents-backdrop">
@@ -1663,6 +1796,7 @@
   const STORAGE_PROFILE_ABOUT = "relais.profileAbout";
   const STORAGE_PROFILE_STYLE = "relais.profileStyle";
   const STORAGE_THEME = "relais.theme";
+  const STORAGE_SIDEBAR = "relais.sidebarOpen";
   const STORAGE_AGENTS   = "relais.agents";
   const STORAGE_PROJECTS = "relais.projects";
   const STORAGE_MEMORY   = "relais.memory";
@@ -2698,10 +2832,35 @@
     return new Date(ts).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "2-digit" });
   }
 
+  // Aktiver Filter der Seitenleiste: alle | angeheftet | projekte | archiv
+  let sidebarFilter = "alle";
+
+  function chatGroupLabel(ts){
+    const d = new Date(ts);
+    const heute = new Date(); heute.setHours(0,0,0,0);
+    const gestern = new Date(heute); gestern.setDate(gestern.getDate()-1);
+    const woche = new Date(heute); woche.setDate(woche.getDate()-7);
+    const tag = new Date(d); tag.setHours(0,0,0,0);
+    if(tag.getTime() === heute.getTime()) return "Heute";
+    if(tag.getTime() === gestern.getTime()) return "Gestern";
+    if(tag > woche) return "Letzte 7 Tage";
+    return "Älter";
+  }
+
   function renderSidebar(){
     conversationList.innerHTML = "";
     const query = (chatSearchInput.value || "").trim().toLowerCase();
-    let ids = Object.keys(conversations).sort((a, b) => conversations[b].updatedAt - conversations[a].updatedAt);
+
+    let ids = Object.keys(conversations);
+
+    // Archivierte Chats tauchen nur im Archiv-Filter auf.
+    ids = ids.filter(id => {
+      const archiviert = !!conversations[id].archived;
+      return sidebarFilter === "archiv" ? archiviert : !archiviert;
+    });
+
+    if(sidebarFilter === "angeheftet") ids = ids.filter(id => conversations[id].pinned);
+    if(sidebarFilter === "projekte")   ids = ids.filter(id => conversations[id].projectId);
 
     if(query){
       ids = ids.filter(id => {
@@ -2712,18 +2871,52 @@
       });
     }
 
+    // Angeheftete zuerst, sonst nach letzter Aenderung.
+    ids.sort((a, b) => {
+      const pa = conversations[a].pinned ? 1 : 0;
+      const pb = conversations[b].pinned ? 1 : 0;
+      if(pa !== pb) return pb - pa;
+      return conversations[b].updatedAt - conversations[a].updatedAt;
+    });
+
     if(!ids.length){
       const empty = document.createElement("div");
       empty.className = "sidebar-empty";
-      empty.textContent = query ? "Keine Chats gefunden." : "Noch keine Chats.";
+      empty.textContent = query ? "Keine Chats gefunden."
+        : sidebarFilter === "archiv" ? "Nichts archiviert."
+        : sidebarFilter === "angeheftet" ? "Nichts angeheftet."
+        : sidebarFilter === "projekte" ? "Keine Chats in Projekten."
+        : "Noch keine Chats.";
       conversationList.appendChild(empty);
       return;
     }
 
+    let letzteGruppe = null;
     for(const id of ids){
       const conv = conversations[id];
+
+      // Gruppenueberschrift: Angeheftet, sonst Projektname bzw. Zeitraum.
+      let gruppe;
+      if(conv.pinned && sidebarFilter !== "archiv") gruppe = "Angeheftet";
+      else if(sidebarFilter === "projekte") gruppe = projects[conv.projectId]?.name || "Ohne Projekt";
+      else gruppe = chatGroupLabel(conv.updatedAt);
+
+      if(gruppe !== letzteGruppe){
+        const label = document.createElement("div");
+        label.className = "conv-group-label";
+        label.textContent = gruppe;
+        conversationList.appendChild(label);
+        letzteGruppe = gruppe;
+      }
+
       const item = document.createElement("div");
       item.className = "conv-item" + (id === activeId ? " active" : "");
+
+      if(conv.pinned){
+        const dot = document.createElement("span");
+        dot.className = "conv-pin-dot";
+        item.appendChild(dot);
+      }
 
       const textWrap = document.createElement("div");
       textWrap.className = "conv-text";
@@ -2732,34 +2925,102 @@
       title.textContent = conv.title || "Neuer Chat";
       const time = document.createElement("span");
       time.className = "conv-time";
-      time.textContent = relativeTime(conv.updatedAt);
+      const proj = conv.projectId ? projects[conv.projectId] : null;
+      time.textContent = (proj ? proj.name + " · " : "") + relativeTime(conv.updatedAt);
       textWrap.append(title, time);
       item.appendChild(textWrap);
 
-      const renameBtn = document.createElement("button");
-      renameBtn.className = "conv-rename";
-      renameBtn.setAttribute("aria-label", "Chat umbenennen");
-      renameBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-      renameBtn.addEventListener("click", (e) => {
+      const menuBtn = document.createElement("button");
+      menuBtn.className = "conv-menu-btn";
+      menuBtn.setAttribute("aria-label", "Optionen");
+      menuBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>';
+      menuBtn.addEventListener("click", (e) => {
         e.stopPropagation();
-        startRename(id, item, textWrap);
+        openConvMenu(id, menuBtn, item, textWrap);
       });
-      item.appendChild(renameBtn);
+      item.appendChild(menuBtn);
 
-      const del = document.createElement("button");
-      del.className = "conv-del";
-      del.setAttribute("aria-label", "Chat löschen");
-      del.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18" stroke-linecap="round"/></svg>';
-      del.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if(confirm("Diesen Chat löschen?")) deleteConversation(id);
+      item.addEventListener("click", () => {
+        switchConversation(id);
+        if(!isWide()) closeSidebar();
       });
-      item.appendChild(del);
-
-      item.addEventListener("click", () => switchConversation(id));
       conversationList.appendChild(item);
     }
   }
+
+  // ---------- Kontextmenue eines Chats ----------
+  const convMenu = $("#conv-menu");
+  let menuTargetId = null;
+  let menuTargetItem = null;
+  let menuTargetTextWrap = null;
+
+  function openConvMenu(id, anchorEl, item, textWrap){
+    menuTargetId = id;
+    menuTargetItem = item;
+    menuTargetTextWrap = textWrap;
+    const conv = conversations[id];
+    convMenu.querySelector('[data-label="pin"]').textContent = conv.pinned ? "Lösen" : "Anheften";
+    convMenu.querySelector('[data-label="archive"]').textContent = conv.archived ? "Aus Archiv holen" : "Archivieren";
+
+    convMenu.classList.add("open");
+    const r = anchorEl.getBoundingClientRect();
+    const mw = convMenu.offsetWidth || 190;
+    const mh = convMenu.offsetHeight || 210;
+    let left = Math.min(r.left, window.innerWidth - mw - 8);
+    let top = r.bottom + 6;
+    if(top + mh > window.innerHeight - 8) top = Math.max(8, r.top - mh - 6);
+    convMenu.style.left = Math.max(8, left) + "px";
+    convMenu.style.top = top + "px";
+  }
+  function closeConvMenu(){
+    convMenu.classList.remove("open");
+    menuTargetId = null;
+  }
+  document.addEventListener("click", (e) => {
+    if(convMenu.classList.contains("open") && !convMenu.contains(e.target)) closeConvMenu();
+  });
+
+  convMenu.addEventListener("click", (e) => {
+    const btn = e.target.closest(".ctx-item");
+    if(!btn || !menuTargetId) return;
+    const id = menuTargetId;
+    const conv = conversations[id];
+    const act = btn.dataset.act;
+
+    if(act === "pin"){
+      conv.pinned = !conv.pinned;
+      saveMessages();
+      renderSidebar();
+    }else if(act === "rename"){
+      const item = menuTargetItem, textWrap = menuTargetTextWrap;
+      closeConvMenu();
+      startRename(id, item, textWrap);
+      return;
+    }else if(act === "project"){
+      closeConvMenu();
+      switchConversation(id);
+      openProjectSheet();
+      return;
+    }else if(act === "archive"){
+      conv.archived = !conv.archived;
+      saveMessages();
+      renderSidebar();
+    }else if(act === "delete"){
+      closeConvMenu();
+      if(confirm("Diesen Chat löschen?")) deleteConversation(id);
+      return;
+    }
+    closeConvMenu();
+  });
+
+  $("#sidebar-filters").addEventListener("click", (e) => {
+    const chip = e.target.closest(".filter-chip");
+    if(!chip) return;
+    sidebarFilter = chip.dataset.filter;
+    [...$("#sidebar-filters").querySelectorAll(".filter-chip")]
+      .forEach(c => c.classList.toggle("active", c === chip));
+    renderSidebar();
+  });
 
   function startRename(id, item, textWrap){
     const current = conversations[id].title || "Neuer Chat";
@@ -2785,8 +3046,37 @@
     inp.addEventListener("click", (e) => e.stopPropagation());
   }
 
-  function openSidebar(){ renderSidebar(); sidebarBackdrop.classList.add("open"); }
-  function closeSidebar(){ sidebarBackdrop.classList.remove("open"); }
+  // Die Seitenleiste ueberlagert auf schmalen Bildschirmen und dockt ab
+  // 900px an (der Inhalt rueckt dann zur Seite statt abgedunkelt zu werden).
+  const DOCK_WIDTH = 900;
+  function isWide(){ return window.innerWidth >= DOCK_WIDTH; }
+
+  function openSidebar(){
+    renderSidebar();
+    sidebarBackdrop.classList.add("open");
+    if(isWide()){
+      document.body.classList.add("sidebar-docked");
+      try{ localStorage.setItem(STORAGE_SIDEBAR, "1"); }catch{}
+    }
+  }
+  function closeSidebar(){
+    sidebarBackdrop.classList.remove("open");
+    document.body.classList.remove("sidebar-docked");
+    if(isWide()){
+      try{ localStorage.setItem(STORAGE_SIDEBAR, "0"); }catch{}
+    }
+  }
+  function toggleSidebar(){
+    const offen = sidebarBackdrop.classList.contains("open");
+    offen ? closeSidebar() : openSidebar();
+  }
+  // Beim Wechsel zwischen schmal und breit den passenden Modus herstellen,
+  // damit die Leiste nicht als unsichtbares Overlay Klicks abfaengt.
+  window.addEventListener("resize", () => {
+    const offen = sidebarBackdrop.classList.contains("open");
+    if(!offen) return;
+    document.body.classList.toggle("sidebar-docked", isWide());
+  });
 
   // ---------- Modell-Liste (frei, dynamisch) ----------
   async function loadFreeModels(){
@@ -4670,7 +4960,12 @@
     showToast("Claude-Schlüssel entfernt.");
   });
 
-  $("#btn-chats").addEventListener("click", openSidebar);
+  $("#btn-chats").addEventListener("click", toggleSidebar);
+  $("#btn-close-sidebar").addEventListener("click", closeSidebar);
+  // Auf breiten Bildschirmen den zuletzt gewaehlten Zustand wiederherstellen.
+  if(isWide()){
+    try{ if(localStorage.getItem(STORAGE_SIDEBAR) === "1") openSidebar(); }catch{}
+  }
   sidebarBackdrop.addEventListener("click", (e) => { if(e.target === sidebarBackdrop) closeSidebar(); });
   $("#btn-new-chat").addEventListener("click", createConversation);
   chatSearchInput.addEventListener("input", renderSidebar);
