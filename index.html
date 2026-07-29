@@ -961,6 +961,29 @@
     animation: spin .8s linear infinite;
   }
 
+  .storage-bar{
+    height: 8px;
+    background: var(--surface-2);
+    border-radius: 999px;
+    overflow: hidden;
+    margin: 8px 0 6px;
+  }
+  .storage-bar span{
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    border-radius: 999px;
+    transition: width .3s ease;
+  }
+  .storage-bar.warn span{ background: var(--danger); }
+  .storage-actions{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .storage-actions .btn{ flex: 1; min-width: 190px; }
+
   .file-chip{
     display: flex;
     align-items: center;
@@ -1417,7 +1440,7 @@
     </button>
   </div>
   <form class="composer" id="composer">
-    <input type="file" id="attach-input" accept="image/*,.pdf,.docx,.txt,.md,.csv,.json" style="display:none">
+    <input type="file" id="attach-input" aria-label="Datei oder Bild anhängen" accept="image/*,.pdf,.docx,.txt,.md,.csv,.json" style="display:none">
     <textarea id="input" rows="1" placeholder="Frag mich, was immer du willst…" autocomplete="off" enterkeyhint="send"></textarea>
     <div class="composer-bar">
       <div class="composer-bar-left">
@@ -1493,7 +1516,7 @@
       <div class="field">
         <div class="toggle-row">
           <span>Anbieter nutzen</span>
-          <button type="button" class="toggle-switch" id="openrouter-enable-toggle" role="switch" aria-checked="true"></button>
+          <button type="button" class="toggle-switch" id="openrouter-enable-toggle" aria-label="OpenRouter nutzen" role="switch" aria-checked="true"></button>
         </div>
       </div>
       <div class="field">
@@ -1528,7 +1551,7 @@
       <div class="field">
         <div class="toggle-row">
           <span>Anbieter nutzen</span>
-          <button type="button" class="toggle-switch" id="groq-enable-toggle" role="switch" aria-checked="true"></button>
+          <button type="button" class="toggle-switch" id="groq-enable-toggle" aria-label="Groq nutzen" role="switch" aria-checked="true"></button>
         </div>
       </div>
       <div class="field">
@@ -1560,7 +1583,7 @@
       <div class="field">
         <div class="toggle-row">
           <span>Anbieter nutzen</span>
-          <button type="button" class="toggle-switch" id="gemini-enable-toggle" role="switch" aria-checked="true"></button>
+          <button type="button" class="toggle-switch" id="gemini-enable-toggle" aria-label="Gemini nutzen" role="switch" aria-checked="true"></button>
         </div>
       </div>
       <div class="field">
@@ -1592,7 +1615,7 @@
       <div class="field">
         <div class="toggle-row">
           <span>Anbieter nutzen</span>
-          <button type="button" class="toggle-switch" id="mistral-enable-toggle" role="switch" aria-checked="true"></button>
+          <button type="button" class="toggle-switch" id="mistral-enable-toggle" aria-label="Mistral nutzen" role="switch" aria-checked="true"></button>
         </div>
       </div>
       <div class="field">
@@ -1624,7 +1647,7 @@
       <div class="field">
         <div class="toggle-row">
           <span>Anbieter nutzen</span>
-          <button type="button" class="toggle-switch" id="ghmodels-enable-toggle" role="switch" aria-checked="true"></button>
+          <button type="button" class="toggle-switch" id="ghmodels-enable-toggle" aria-label="GitHub Models nutzen" role="switch" aria-checked="true"></button>
         </div>
       </div>
       <div class="field">
@@ -1657,7 +1680,7 @@
       <div class="field">
         <div class="toggle-row">
           <span>Anbieter nutzen</span>
-          <button type="button" class="toggle-switch" id="cohere-enable-toggle" role="switch" aria-checked="true"></button>
+          <button type="button" class="toggle-switch" id="cohere-enable-toggle" aria-label="Cohere nutzen" role="switch" aria-checked="true"></button>
         </div>
       </div>
       <div class="field">
@@ -1696,7 +1719,7 @@
       <div class="field">
         <div class="toggle-row">
           <span>Claude aktivieren</span>
-          <button type="button" class="toggle-switch" id="claude-enable-toggle" role="switch" aria-checked="false"></button>
+          <button type="button" class="toggle-switch" id="claude-enable-toggle" aria-label="Claude nutzen" role="switch" aria-checked="false"></button>
         </div>
       </div>
       <div class="field">
@@ -1780,7 +1803,7 @@
       </div>
       <button type="button" class="btn btn-primary" id="btn-export">Sicherung exportieren</button>
       <button type="button" class="btn btn-ghost" id="btn-import" style="color:var(--text); border-color:var(--border); margin-top:8px">Sicherung importieren</button>
-      <input type="file" id="import-file" accept="application/json" style="display:none">
+      <input type="file" id="import-file" aria-label="Sicherungsdatei auswählen" accept="application/json" style="display:none">
     </details>
   </div>
 </div>
@@ -1915,7 +1938,15 @@
   <div class="sheet">
     <h2>Nutzung</h2>
     <div id="usage-body"></div>
-    <button type="button" class="btn btn-ghost" id="btn-reset-usage" style="margin-top:16px">Nutzungszähler zurücksetzen</button>
+
+    <h2 style="margin-top:26px">Speicher</h2>
+    <div id="storage-body"></div>
+    <div class="storage-actions">
+      <button type="button" class="btn btn-ghost" id="btn-clean-archived">Archivierte Chats löschen</button>
+      <button type="button" class="btn btn-ghost" id="btn-clean-old">Chats älter als 30 Tage löschen</button>
+    </div>
+
+    <button type="button" class="btn btn-ghost" id="btn-reset-usage" style="margin-top:20px">Nutzungszähler zurücksetzen</button>
   </div>
 </div>
 
@@ -4643,7 +4674,85 @@
     }
     usageBody.innerHTML = html;
   }
-  function openUsage(){ renderUsage(); usageBackdrop.classList.add("open"); }
+  // ---------- Speicher-Uebersicht ----------
+  // Der Browser-Speicher ist knapp; hier sieht man, was ihn belegt, und
+  // kann gezielt aufraeumen, bevor Chats nicht mehr gesichert werden.
+  const SPEICHER_ANNAHME = 5 * 1024 * 1024; // uebliche Obergrenze pro Ursprung
+
+  function speicherBelegung(){
+    let gesamt = 0;
+    const nach = {};
+    for(let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      const gr = ((localStorage.getItem(k) || "").length + k.length) * 2; // UTF-16
+      gesamt += gr;
+      const bereich =
+        k === STORAGE_CONVERSATIONS ? "Chats" :
+        k === STORAGE_USAGE ? "Nutzungsdaten" :
+        k === STORAGE_AGENTS ? "Agenten" :
+        k === STORAGE_PROJECTS ? "Projekte" :
+        k === STORAGE_MEMORY ? "Gedächtnis" :
+        k.startsWith("relais.") ? "Einstellungen" : "Sonstiges";
+      nach[bereich] = (nach[bereich] || 0) + gr;
+    }
+    return { gesamt, nach };
+  }
+
+  function formatBytes(n){
+    if(n < 1024) return n + " B";
+    if(n < 1024 * 1024) return (n / 1024).toFixed(1).replace(".", ",") + " KB";
+    return (n / (1024 * 1024)).toFixed(2).replace(".", ",") + " MB";
+  }
+
+  function renderStorage(){
+    const el = $("#storage-body");
+    if(!el) return;
+    const { gesamt, nach } = speicherBelegung();
+    const anteil = Math.min(100, Math.round(gesamt / SPEICHER_ANNAHME * 100));
+    const knapp = anteil >= 80;
+
+    const chats = Object.keys(conversations).length;
+    const archiviert = Object.values(conversations).filter(c => c.archived).length;
+    const grenze = Date.now() - 30 * 24 * 3600 * 1000;
+    const alt = Object.values(conversations).filter(c => (c.updatedAt || 0) < grenze).length;
+
+    let html = `<div class="usage-row"><span class="usage-name"><strong>Belegt</strong></span>`
+      + `<span class="usage-count"><strong>${formatBytes(gesamt)}</strong> von ca. ${formatBytes(SPEICHER_ANNAHME)}</span></div>`;
+    html += `<div class="storage-bar${knapp ? " warn" : ""}"><span style="width:${anteil}%"></span></div>`;
+    if(knapp){
+      html += `<p style="color:var(--danger); font-size:12.5px; margin:4px 0 10px">`
+        + `Der Speicher wird knapp. Räum auf oder sichere die Daten, sonst können neue Chats nicht mehr gespeichert werden.</p>`;
+    }
+    for(const [bereich, gr] of Object.entries(nach).sort((a, b) => b[1] - a[1])){
+      html += `<div class="usage-row"><span class="usage-name">${escapeHtml(bereich)}</span>`
+        + `<span class="usage-count">${formatBytes(gr)}</span></div>`;
+    }
+    html += `<div class="usage-row"><span class="usage-name" style="color:var(--text-dim); font-size:12px">`
+      + `${chats} Chats, davon ${archiviert} archiviert · ${alt} älter als 30 Tage</span><span></span></div>`;
+    el.innerHTML = html;
+  }
+
+  function chatsEntfernen(filter, frage){
+    const treffer = Object.values(conversations).filter(filter);
+    if(!treffer.length){ showToast("Nichts zum Aufräumen gefunden."); return; }
+    if(!confirm(frage(treffer.length))) return;
+    for(const c of treffer) delete conversations[c.id];
+    // Der gerade offene Chat darf nicht verschwinden -- sonst steht die App leer da.
+    if(!conversations[activeId]){
+      const rest = Object.keys(conversations);
+      if(rest.length){
+        switchConversation(rest[0]);
+      }else{
+        createConversation();
+      }
+    }
+    saveConversationsRaw(conversations);
+    renderSidebar();
+    renderStorage();
+    showToast(treffer.length + (treffer.length === 1 ? " Chat gelöscht." : " Chats gelöscht."));
+  }
+
+  function openUsage(){ renderUsage(); renderStorage(); usageBackdrop.classList.add("open"); }
   function closeUsage(){ usageBackdrop.classList.remove("open"); }
 
   // ---------- Einstellungen ----------
@@ -5499,6 +5608,15 @@
 
   $("#btn-usage").addEventListener("click", openUsage);
   usageBackdrop.addEventListener("click", (e) => { if(e.target === usageBackdrop) closeUsage(); });
+  $("#btn-clean-archived").addEventListener("click", () => {
+    chatsEntfernen(c => c.archived, n => `${n} archivierte ${n === 1 ? "Chat" : "Chats"} endgültig löschen?`);
+  });
+  $("#btn-clean-old").addEventListener("click", () => {
+    const grenze = Date.now() - 30 * 24 * 3600 * 1000;
+    chatsEntfernen(c => (c.updatedAt || 0) < grenze && c.id !== activeId,
+      n => `${n} ${n === 1 ? "Chat" : "Chats"} älter als 30 Tage löschen? Der aktuelle Chat bleibt erhalten.`);
+  });
+
   $("#btn-reset-usage").addEventListener("click", () => {
     if(confirm("Nutzungszähler wirklich zurücksetzen?")){
       localStorage.removeItem(STORAGE_USAGE);
