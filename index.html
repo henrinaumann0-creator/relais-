@@ -886,6 +886,81 @@
     body.sidebar-docked .sidebar-panel{ pointer-events: auto; width: 300px; }
   }
 
+  /* Vergleichsmodus: mehrere Anbieter nebeneinander */
+  .compare-grid{
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin: 4px 0 2px;
+  }
+  @media (min-width: 800px){
+    .compare-grid.cols-2{ grid-template-columns: 1fr 1fr; }
+    .compare-grid.cols-3{ grid-template-columns: repeat(3, 1fr); }
+  }
+  .compare-card{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+    transition: border-color .15s;
+  }
+  .compare-card.chosen{ border-color: var(--accent); }
+  .compare-card.failed{ opacity: .65; }
+  .compare-head{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .compare-provider{
+    display: flex; align-items: center; gap: 6px;
+    font-weight: 600;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .compare-body{
+    font-size: 14.5px;
+    line-height: 1.55;
+    max-height: 280px;
+    overflow-y: auto;
+    word-wrap: break-word;
+  }
+  .compare-body p:first-child{ margin-top: 0; }
+  .compare-actions{ display: flex; gap: 6px; }
+  .compare-pick{
+    flex: 1;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 999px;
+    padding: 7px 12px;
+    font-size: 12.5px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background .15s, color .15s, border-color .15s;
+  }
+  .compare-pick:hover{ color: var(--text); border-color: var(--text-dim); }
+  .compare-card.chosen .compare-pick{
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-color: var(--accent);
+  }
+  .compare-spinner{
+    width: 12px; height: 12px;
+    border: 2px solid var(--border);
+    border-top-color: var(--text-dim);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+
   .file-chip{
     display: flex;
     align-items: center;
@@ -1348,6 +1423,10 @@
       <div class="composer-bar-left">
         <button type="button" class="attach-btn" id="btn-attach" aria-label="Bild anhängen" title="Bild anhängen">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
+        </button>
+        <button type="button" class="team-toggle" id="btn-compare-toggle" aria-pressed="false" title="Mehrere Anbieter parallel fragen und vergleichen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h6v14H4zM14 5h6v14h-6z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Vergleich</span>
         </button>
         <button type="button" class="team-toggle" id="btn-team-toggle" aria-pressed="false">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2.5 20a5.5 5.5 0 0 1 11 0M10.5 20a5.5 5.5 0 0 1 11 0" stroke-linecap="round"/></svg>
@@ -2078,6 +2157,7 @@
   let pendingFileName = "";
   const teamToggleBtn = $("#btn-team-toggle");
   let teamMode = localStorage.getItem("relais.teamMode") === "1";
+  let compareMode = localStorage.getItem("relais.compareMode") === "1";
   const sheetBackdrop = $("#sheet-backdrop");
   const apiKeyField = $("#api-key");
   const modelSelect = $("#model-select");
@@ -2580,14 +2660,23 @@
       thumb.addEventListener("click", () => window.open(m.image, "_blank"));
       row.appendChild(thumb);
     }
-    if(m.role === "assistant" && !m.isError){
+    if(m.role === "assistant" && m.compare && m.compare.length){
+      // Vergleichskarten ueberleben Chatwechsel und Neuladen
+      renderCompareCards(m, bubble);
+    }else if(m.role === "assistant" && !m.isError){
       bubble.innerHTML = renderMarkdown(m.content);
     }else{
       bubble.textContent = m.content;
     }
     if(m.isError) bubble.classList.add("error");
-    if(m.content || m.role !== "user" || !m.image) row.appendChild(bubble);
+    if(m.content || m.compare || m.role !== "user" || !m.image) row.appendChild(bubble);
 
+    if(m.role === "assistant" && m.chosenFrom && !m.compare){
+      const hinweis = document.createElement("span");
+      hinweis.className = "model-pill";
+      hinweis.innerHTML = '<span class="dot"></span>aus Vergleich: ' + m.chosenFrom;
+      row.appendChild(hinweis);
+    }
     if(m.role === "assistant" && m.usedModel){
       const pill = document.createElement("span");
       pill.className = "model-pill";
@@ -3513,7 +3602,9 @@
 
     const assistantMsg = { role: "assistant", content: "", usedModel: "" };
     messages.push(assistantMsg);
-    if(teamMode && targets.length >= 2){
+    if(compareMode && targets.length >= 2){
+      await runCompareMode(versandText, assistantMsg, targets);
+    }else if(teamMode && targets.length >= 2){
       await runTeamMode(versandText, assistantMsg, targets);
     }else{
       await runCompletion(versandText, assistantMsg, targets, image);
@@ -3532,6 +3623,8 @@
     assistantMsg.usedModel = "";
     delete assistantMsg.isError;
     delete assistantMsg.teamSteps;
+    delete assistantMsg.compare;
+    delete assistantMsg.chosenFrom;
     const targets = buildTargets();
     const erneutText = userMsg.sendContent || userMsg.content;
     if(teamMode && targets.length >= 2){
@@ -3614,6 +3707,177 @@
   }
 
   // ---------- Team-Modus: Aufgabe aufteilen, parallel bearbeiten, zusammenfassen ----------
+  // ---------- Vergleichsmodus ----------
+  // Fragt mehrere Anbieter gleichzeitig und stellt die Antworten
+  // nebeneinander; die ausgewaehlte wird zur Antwort im Verlauf.
+  async function runCompareMode(text, assistantMsg, targets){
+    const auswahl = targets.slice(0, 3); // mehr als drei wird auf dem Handy unlesbar
+    render(); // erst zeichnen, dann die frisch entstandene Zeile greifen
+    const rows = thread.querySelectorAll(".row.assistant");
+    const lastRow = rows[rows.length - 1];
+    const bubbleEl = lastRow.querySelector(".bubble");
+
+    bubbleEl.classList.remove("streaming");
+    bubbleEl.innerHTML = "";
+
+    const grid = document.createElement("div");
+    grid.className = "compare-grid cols-" + auswahl.length;
+    bubbleEl.appendChild(grid);
+
+    assistantMsg.compare = auswahl.map(t => ({ provider: t.provider, content: "", status: "läuft" }));
+
+    sending = true;
+    currentController = new AbortController();
+    const signal = currentController.signal;
+    updateSendState();
+
+    const karten = auswahl.map((target, i) => {
+      const card = document.createElement("div");
+      card.className = "compare-card";
+
+      const head = document.createElement("div");
+      head.className = "compare-head";
+      const prov = document.createElement("span");
+      prov.className = "compare-provider";
+      prov.textContent = target.provider;
+      const status = document.createElement("span");
+      status.className = "compare-spinner";
+      head.append(prov, status);
+
+      const body = document.createElement("div");
+      body.className = "compare-body";
+
+      const actions = document.createElement("div");
+      actions.className = "compare-actions";
+      const pick = document.createElement("button");
+      pick.type = "button";
+      pick.className = "compare-pick";
+      pick.textContent = "Diese übernehmen";
+      pick.disabled = true;
+      pick.addEventListener("click", () => waehleAntwort(i));
+      actions.appendChild(pick);
+
+      card.append(head, body, actions);
+      grid.appendChild(card);
+      return { card, head, status, body, pick, target };
+    });
+
+    function waehleAntwort(index){
+      const gewaehlt = assistantMsg.compare[index];
+      if(!gewaehlt || !gewaehlt.content) return;
+      assistantMsg.content = gewaehlt.content;
+      assistantMsg.usedModel = gewaehlt.usedModel || gewaehlt.provider;
+      assistantMsg.chosenFrom = gewaehlt.provider;
+      delete assistantMsg.compare; // Karten werden durch die Antwort ersetzt
+      saveMessages();
+      render();
+      showToast("Antwort von " + gewaehlt.provider + " übernommen.");
+    }
+
+    await Promise.all(karten.map(async (k, i) => {
+      const eintrag = assistantMsg.compare[i];
+      let usageInfo = null;
+      let modelId = k.target.model;
+      try{
+        await streamCompletion(k.target, buildCompareMsgs(text), signal, {
+          onToken: (chunk) => {
+            eintrag.content += chunk;
+            k.body.innerHTML = renderMarkdown(eintrag.content);
+            k.body.scrollTop = k.body.scrollHeight;
+          },
+          onModel: (m) => { modelId = m || modelId; },
+          onUsage: (u) => { usageInfo = u; },
+          onReasoning: () => {},
+          tools: null // im Vergleich zaehlt die Textantwort, keine Werkzeuge
+        });
+        if(!eintrag.content) throw new Error("Leere Antwort");
+        eintrag.status = "fertig";
+        eintrag.usedModel = k.target.provider + " · " + shortModelName(modelId);
+        k.status.className = "";
+        k.status.textContent = shortModelName(modelId);
+        k.pick.disabled = false;
+        recordUsage(k.target.provider, modelId, usageInfo);
+      }catch(err){
+        eintrag.status = err?.name === "AbortError" ? "abgebrochen" : "fehlgeschlagen";
+        eintrag.content = eintrag.content || (err?.name === "AbortError" ? "Abgebrochen." : "Nicht erreichbar: " + err.message);
+        k.card.classList.add("failed");
+        k.status.className = "";
+        k.status.textContent = eintrag.status;
+        k.body.textContent = eintrag.content;
+      }
+    }));
+
+    sending = false;
+    currentController = null;
+    updateSendState();
+
+    const erfolgreiche = assistantMsg.compare.filter(c => c.status === "fertig");
+    if(!erfolgreiche.length){
+      assistantMsg.content = "Kein Anbieter hat geantwortet.";
+      assistantMsg.isError = true;
+      delete assistantMsg.compare;
+      render();
+    }else{
+      // Zwischenstand sichern, damit die Karten einen Chatwechsel ueberleben
+      saveMessages();
+    }
+  }
+
+  // Baut den Nachrichtenverlauf fuer den Vergleich (ohne die noch leere
+  // Assistenten-Nachricht, die gerade befuellt wird).
+  function buildCompareMsgs(text){
+    const ctx = messages
+      .filter(m => (m.content || m.sendContent) && m.role !== "assistant" || (m.role === "assistant" && m.content))
+      .slice(-MAX_CONTEXT_MESSAGES)
+      .map(m => ({ role: m.role, content: m.sendContent || m.content }));
+    const msgs = dedupeTrailingUser(ctx, text);
+    const sys = composeSystemPrompt();
+    if(sys) msgs.unshift({ role: "system", content: sys });
+    return msgs;
+  }
+
+  // Karten aus einer gespeicherten Nachricht wiederherstellen
+  function renderCompareCards(msg, bubbleEl){
+    const grid = document.createElement("div");
+    grid.className = "compare-grid cols-" + msg.compare.length;
+    msg.compare.forEach((eintrag, i) => {
+      const card = document.createElement("div");
+      card.className = "compare-card" + (eintrag.status === "fertig" ? "" : " failed");
+      const head = document.createElement("div");
+      head.className = "compare-head";
+      const prov = document.createElement("span");
+      prov.className = "compare-provider";
+      prov.textContent = eintrag.provider;
+      const status = document.createElement("span");
+      status.textContent = eintrag.status === "fertig" ? "" : eintrag.status;
+      head.append(prov, status);
+      const body = document.createElement("div");
+      body.className = "compare-body";
+      body.innerHTML = renderMarkdown(eintrag.content || "");
+      const actions = document.createElement("div");
+      actions.className = "compare-actions";
+      const pick = document.createElement("button");
+      pick.type = "button";
+      pick.className = "compare-pick";
+      pick.textContent = "Diese übernehmen";
+      pick.disabled = eintrag.status !== "fertig";
+      pick.addEventListener("click", () => {
+        msg.content = eintrag.content;
+        msg.usedModel = eintrag.usedModel || eintrag.provider;
+        msg.chosenFrom = eintrag.provider;
+        delete msg.compare;
+        saveMessages();
+        render();
+        showToast("Antwort von " + eintrag.provider + " übernommen.");
+      });
+      actions.appendChild(pick);
+      card.append(head, body, actions);
+      grid.appendChild(card);
+    });
+    bubbleEl.innerHTML = "";
+    bubbleEl.appendChild(grid);
+  }
+
   async function runTeamMode(text, assistantMsg, targets){
     render();
     const rows = thread.querySelectorAll(".row.assistant");
@@ -5480,9 +5744,13 @@
     });
   }
 
+  const compareToggleBtn = $("#btn-compare-toggle");
+
   function updateTeamToggleUI(){
     teamToggleBtn.setAttribute("aria-pressed", String(teamMode));
     teamToggleBtn.querySelector("span").textContent = teamMode ? "Team-Modus an" : "Team-Modus";
+    compareToggleBtn.setAttribute("aria-pressed", String(compareMode));
+    compareToggleBtn.querySelector("span").textContent = compareMode ? "Vergleich an" : "Vergleich";
   }
   updateTeamToggleUI();
   teamToggleBtn.addEventListener("click", () => {
@@ -5492,9 +5760,33 @@
       return;
     }
     teamMode = !teamMode;
+    // Team und Vergleich schliessen sich aus -- beide gleichzeitig waere
+    // weder sinnvoll noch bezahlbar.
+    if(teamMode && compareMode){
+      compareMode = false;
+      localStorage.setItem("relais.compareMode", "0");
+    }
     localStorage.setItem("relais.teamMode", teamMode ? "1" : "0");
     updateTeamToggleUI();
     showToast(teamMode ? "Team-Modus an — nächste Nachricht wird aufgeteilt." : "Team-Modus aus.");
+  });
+
+  compareToggleBtn.addEventListener("click", () => {
+    const targets = buildTargets();
+    if(!compareMode && targets.length < 2){
+      showToast("Vergleich braucht mindestens zwei eingerichtete Anbieter.");
+      return;
+    }
+    compareMode = !compareMode;
+    if(compareMode && teamMode){
+      teamMode = false;
+      localStorage.setItem("relais.teamMode", "0");
+    }
+    localStorage.setItem("relais.compareMode", compareMode ? "1" : "0");
+    updateTeamToggleUI();
+    showToast(compareMode
+      ? "Vergleich an — nächste Frage geht an mehrere Anbieter."
+      : "Vergleich aus.");
   });
 
   starterChips.addEventListener("click", (e) => {
