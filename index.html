@@ -961,6 +961,60 @@
     animation: spin .8s linear infinite;
   }
 
+  /* Suche im laufenden Chat */
+  .find-bar{
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    max-width: 720px;
+    margin: 0 auto 10px;
+    padding: 8px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+  }
+  .find-bar.open{ display: flex; }
+  .find-bar input{
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+    min-width: 0;
+  }
+  .find-bar input::placeholder{ color: var(--text-dim); }
+  .find-count{
+    font-size: 12.5px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .find-bar button{
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .find-bar button:hover{ color: var(--text); background: var(--surface-2); }
+  .find-bar button svg{ width: 16px; height: 16px; }
+  mark.find-hit{
+    background: var(--accent-soft);
+    color: inherit;
+    border-radius: 3px;
+    padding: 0 1px;
+  }
+  mark.find-hit.current{ background: var(--accent); color: var(--accent-ink); }
+
   .storage-bar{
     height: 8px;
     background: var(--surface-2);
@@ -1378,6 +1432,20 @@
 
 
 <main id="main">
+  <div class="find-bar" id="find-bar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15" style="color:var(--text-dim); flex-shrink:0"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3" stroke-linecap="round"/></svg>
+    <input type="text" id="find-input" placeholder="Im Chat suchen…" autocomplete="off" aria-label="Im Chat suchen">
+    <span class="find-count" id="find-count"></span>
+    <button type="button" id="find-prev" aria-label="Vorheriger Treffer" title="Vorheriger Treffer">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m18 15-6-6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button type="button" id="find-next" aria-label="Nächster Treffer" title="Nächster Treffer">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button type="button" id="find-close" aria-label="Suche schließen" title="Suche schließen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18" stroke-linecap="round"/></svg>
+    </button>
+  </div>
   <div class="thread" id="thread">
     <div class="empty-state" id="empty-state">
       <span class="wordmark">Relais</span>
@@ -2635,6 +2703,7 @@
     });
     scrollToBottom();
     renderSidebar();
+    findNachRender(); // Markierungen der Chat-Suche neu setzen
   }
 
   function renderRow(m, isLastAssistant, index){
@@ -3281,11 +3350,20 @@
     if(meta && e.key === "/"){
       e.preventDefault(); input.focus(); return;
     }
+    // Im Chat suchen -- nur wenn es auch etwas zu durchsuchen gibt,
+    // sonst bleibt die Browser-Suche sinnvollerweise erreichbar.
+    if(meta && e.key.toLowerCase() === "f" && !e.shiftKey){
+      if(messages.length){
+        e.preventDefault();
+        findOeffnen();
+        return;
+      }
+    }
     if(e.key === "Escape"){
       // Von innen nach aussen schliessen: erst Menue, dann Dialoge,
       // dann die Seitenleiste -- so wie man es von Dialogen erwartet.
       if(convMenu.classList.contains("open")){ closeConvMenu(); return; }
-      if(document.querySelector("#conv-menu.open")){ closeConvMenu(); return; }
+      if(findBar.classList.contains("open")){ findSchliessen(); return; }
       if(agentsBackdrop.classList.contains("open")){ closeAgentsSheet(); return; }
       if(projectBackdrop.classList.contains("open")){ closeProjectSheet(); return; }
       if(usageBackdrop.classList.contains("open")){ closeUsage(); return; }
@@ -4674,6 +4752,115 @@
     }
     usageBody.innerHTML = html;
   }
+  // ---------- Suche im laufenden Chat ----------
+  // Markiert Treffer im sichtbaren Verlauf und springt sie durch. Bewusst
+  // nur im Textinhalt der Blasen, damit Markdown-Auszeichnung heil bleibt.
+  const findBar = $("#find-bar");
+  const findInput = $("#find-input");
+  const findCount = $("#find-count");
+  let findTreffer = [];
+  let findIndex = -1;
+
+  // Nach einem Neuaufbau des Verlaufs zeigen die alten Markierungen ins
+  // Leere -- deshalb bei jeder Neuzeichnung neu suchen.
+  function findNachRender(){
+    if(!findBar.classList.contains("open")) return;
+    findTreffer = [];
+    findIndex = -1;
+    if(findInput.value.trim().length >= 2) findAusfuehren();
+  }
+
+  function findAufheben(){
+    for(const m of document.querySelectorAll("mark.find-hit")){
+      const eltern = m.parentNode;
+      eltern.replaceChild(document.createTextNode(m.textContent), m);
+      eltern.normalize();
+    }
+    findTreffer = [];
+    findIndex = -1;
+  }
+
+  function findAusfuehren(){
+    findAufheben();
+    const begriff = findInput.value.trim();
+    if(begriff.length < 2){
+      findCount.textContent = "";
+      return;
+    }
+    const gesucht = begriff.toLowerCase();
+
+    for(const blase of thread.querySelectorAll(".bubble")){
+      // Alle Textknoten einsammeln, bevor wir sie ersetzen -- sonst
+      // laeuft der Baumdurchlauf in die eigenen Aenderungen hinein.
+      const knoten = [];
+      const lauf = document.createTreeWalker(blase, NodeFilter.SHOW_TEXT);
+      let k;
+      while((k = lauf.nextNode())) knoten.push(k);
+
+      for(const tk of knoten){
+        const text = tk.nodeValue;
+        const klein = text.toLowerCase();
+        if(!klein.includes(gesucht)) continue;
+
+        const teile = document.createDocumentFragment();
+        let pos = 0, treffer;
+        while((treffer = klein.indexOf(gesucht, pos)) !== -1){
+          if(treffer > pos) teile.appendChild(document.createTextNode(text.slice(pos, treffer)));
+          const mark = document.createElement("mark");
+          mark.className = "find-hit";
+          mark.textContent = text.slice(treffer, treffer + gesucht.length);
+          teile.appendChild(mark);
+          findTreffer.push(mark);
+          pos = treffer + gesucht.length;
+        }
+        if(pos < text.length) teile.appendChild(document.createTextNode(text.slice(pos)));
+        tk.parentNode.replaceChild(teile, tk);
+      }
+    }
+
+    if(!findTreffer.length){
+      findCount.textContent = "0 Treffer";
+      return;
+    }
+    findIndex = 0;
+    findSpringe(0);
+  }
+
+  function findSpringe(richtung){
+    if(!findTreffer.length) return;
+    findTreffer[findIndex]?.classList.remove("current");
+    findIndex = (findIndex + richtung + findTreffer.length) % findTreffer.length;
+    const ziel = findTreffer[findIndex];
+    ziel.classList.add("current");
+    ziel.scrollIntoView({ block: "center", behavior: "smooth" });
+    findCount.textContent = (findIndex + 1) + " von " + findTreffer.length;
+  }
+
+  function findOeffnen(){
+    findBar.classList.add("open");
+    findInput.focus();
+    findInput.select();
+  }
+  function findSchliessen(){
+    findAufheben();
+    findBar.classList.remove("open");
+    findInput.value = "";
+    findCount.textContent = "";
+  }
+
+  let findVerzoegerung;
+  findInput.addEventListener("input", () => {
+    clearTimeout(findVerzoegerung);
+    findVerzoegerung = setTimeout(findAusfuehren, 180);
+  });
+  findInput.addEventListener("keydown", (e) => {
+    if(e.key === "Enter"){ e.preventDefault(); findSpringe(e.shiftKey ? -1 : 1); }
+    if(e.key === "Escape"){ e.preventDefault(); findSchliessen(); }
+  });
+  $("#find-next").addEventListener("click", () => findSpringe(1));
+  $("#find-prev").addEventListener("click", () => findSpringe(-1));
+  $("#find-close").addEventListener("click", findSchliessen);
+
   // ---------- Speicher-Uebersicht ----------
   // Der Browser-Speicher ist knapp; hier sieht man, was ihn belegt, und
   // kann gezielt aufraeumen, bevor Chats nicht mehr gesichert werden.
