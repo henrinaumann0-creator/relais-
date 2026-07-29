@@ -1250,6 +1250,24 @@
   }
   .lock-box .btn{ width: 100%; }
 
+  .mehr-laden{
+    display: block;
+    margin: 0 auto 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 999px;
+    padding: 9px 18px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: color var(--dauer-kurz) var(--kurve),
+                border-color var(--dauer-kurz) var(--kurve),
+                transform var(--dauer-tipp) var(--kurve);
+  }
+  .mehr-laden:hover{ color: var(--text); border-color: var(--text-dim); }
+  .mehr-laden:active{ transform: scale(.97); }
+
   .find-bar{
     position: sticky;
     top: 0;
@@ -3143,6 +3161,7 @@
 
   function switchConversation(id){
     if(!conversations[id]) return;
+    renderGrenze = RENDER_FENSTER; // jeder Chat startet am unteren Ende
     activeId = id;
     localStorage.setItem(STORAGE_ACTIVE_ID, activeId);
     messages = conversations[id].messages;
@@ -3200,8 +3219,16 @@
   const AVATAR_SVG = '<svg class="assistant-avatar" viewBox="0 0 24 24" fill="none"><path d="M12 4a8 8 0 1 1-6.2 2.9" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="12" r="2.3" fill="var(--text)"/></svg>';
 
   // ---------- Rendering ----------
+  // In langen Gespraechen wird nur der jüngste Teil dargestellt. Bei 1000
+  // Nachrichten lagen sonst ueber 14.000 Knoten im Dokument, was Laden,
+  // Neuzeichnen und Suche merklich bremst. Der Verlauf selbst bleibt
+  // vollstaendig -- es geht allein um die Darstellung.
+  const RENDER_FENSTER = 120;
+  const RENDER_NACHLADEN = 120;
+  let renderGrenze = RENDER_FENSTER;
+
   function render(){
-    thread.querySelectorAll(".row, .model-pill, .assistant-head").forEach(el => el.remove());
+    thread.querySelectorAll(".row, .model-pill, .assistant-head, .mehr-laden").forEach(el => el.remove());
     const isEmpty = messages.length === 0;
     emptyState.style.display = isEmpty ? "flex" : "none";
     if(isEmpty){
@@ -3209,11 +3236,35 @@
     }else{
       sheetBackdrop.before(composerWrapEl);
     }
+
+    const start = Math.max(0, messages.length - renderGrenze);
+    if(start > 0){
+      const knopf = document.createElement("button");
+      knopf.type = "button";
+      knopf.className = "mehr-laden";
+      const offen = start;
+      knopf.textContent = offen === 1
+        ? "1 ältere Nachricht anzeigen"
+        : offen + " ältere Nachrichten anzeigen";
+      knopf.addEventListener("click", () => {
+        // Scrollposition halten, damit der Blick nicht wegspringt
+        const vorherHoehe = main.scrollHeight;
+        const vorherPos = main.scrollTop;
+        renderGrenze += RENDER_NACHLADEN;
+        render();
+        main.scrollTop = main.scrollHeight - vorherHoehe + vorherPos;
+      });
+      thread.appendChild(knopf);
+    }
+
     const lastAssistantIdx = messages.map(m => m.role).lastIndexOf("assistant");
-    messages.forEach((m, i) => {
-      thread.appendChild(renderRow(m, i === lastAssistantIdx, i));
-    });
-    scrollToBottom();
+    for(let i = start; i < messages.length; i++){
+      thread.appendChild(renderRow(messages[i], i === lastAssistantIdx, i));
+    }
+
+    // Nur ans Ende springen, wenn wirklich der jüngste Teil gezeigt wird --
+    // beim Nachladen aelterer Nachrichten waere das störend.
+    if(renderGrenze === RENDER_FENSTER || start === 0) scrollToBottom();
     renderSidebar();
     findNachRender(); // Markierungen der Chat-Suche neu setzen
   }
