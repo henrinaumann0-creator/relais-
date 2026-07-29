@@ -962,6 +962,56 @@
   }
 
   /* Suche im laufenden Chat */
+  .lock-screen{
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .lock-box{
+    width: 100%;
+    max-width: 330px;
+    text-align: center;
+  }
+  .lock-title{
+    font-family: ui-serif, Georgia, serif;
+    font-size: 24px;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+  .lock-hint{
+    font-size: 13.5px;
+    color: var(--text-dim);
+    line-height: 1.55;
+    margin: 0 0 20px;
+  }
+  .lock-box input{
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 17px;
+    letter-spacing: .25em;
+    text-align: center;
+    padding: 13px 14px;
+    outline: none;
+    box-sizing: border-box;
+  }
+  .lock-box input:focus{ border-color: var(--text-dim); }
+  .lock-error{
+    min-height: 20px;
+    font-size: 13px;
+    color: var(--danger);
+    margin: 8px 0 4px;
+  }
+  .lock-box .btn{ width: 100%; }
+
   .find-bar{
     position: sticky;
     top: 0;
@@ -1816,6 +1866,23 @@
       <button type="button" class="btn btn-ghost" id="btn-forget-claude">Schlüssel entfernen</button>
     </details>
 
+    <details class="provider-section" id="section-lock">
+      <summary><span class="status-dot" id="status-lock"></span>Sperre</summary>
+      <div class="field">
+        <div class="hint">Mit einer PIN werden alle Zugangsschlüssel verschlüsselt gespeichert (AES-256). Ohne PIN liegen sie im Klartext im Browser-Speicher und wären für jeden lesbar, der dieses Gerät benutzt.</div>
+      </div>
+      <div id="lock-status-text" class="hint" style="margin-bottom:10px"></div>
+      <div class="field" id="lock-set-fields">
+        <label for="lock-new-pin">Neue PIN (mindestens 4 Zeichen)</label>
+        <input type="password" id="lock-new-pin" inputmode="numeric" autocomplete="new-password" placeholder="PIN">
+        <label for="lock-new-pin2" style="margin-top:8px">PIN wiederholen</label>
+        <input type="password" id="lock-new-pin2" inputmode="numeric" autocomplete="new-password" placeholder="PIN wiederholen">
+        <div class="hint" style="color:var(--danger); margin-top:8px">Wichtig: Ohne diese PIN sind die Schlüssel nicht mehr lesbar. Es gibt keinen Ersatzweg.</div>
+      </div>
+      <button type="button" class="btn btn-primary" id="btn-set-lock">PIN setzen</button>
+      <button type="button" class="btn btn-ghost" id="btn-remove-lock" style="margin-top:8px; display:none">Sperre entfernen</button>
+    </details>
+
     <details class="provider-section" id="section-memory">
       <summary><span class="status-dot" id="status-memory"></span>Gedächtnis</summary>
       <div class="field">
@@ -2263,26 +2330,210 @@
   const modelSelect = $("#model-select");
   const toastEl     = $("#toast");
 
-  let apiKey    = localStorage.getItem(STORAGE_KEY) || "";
+  // ---------- PIN-Sperre ----------
+  // Die API-Schlüssel liegen sonst im Klartext im Browser-Speicher: wer das
+  // Gerät in die Hand bekommt, kann sie auslesen und auf fremde Kosten
+  // Anfragen stellen. Mit gesetzter PIN werden sie mit AES-256-GCM
+  // verschlüsselt abgelegt; der Schlüssel dafür wird per PBKDF2 aus der PIN
+  // abgeleitet und existiert nur im Arbeitsspeicher.
+  const STORAGE_LOCK = "relais.lock";
+  const PBKDF2_RUNDEN = 250000;
+
+  // Alle Speicherorte, die einen Zugangsschlüssel enthalten
+  function schluesselOrte(){
+    return [STORAGE_KEY, STORAGE_GROQ_KEY, STORAGE_GEMINI_KEY, STORAGE_MISTRAL_KEY,
+            STORAGE_GHMODELS_KEY, STORAGE_COHERE_KEY, STORAGE_CLAUDE_KEY,
+            STORAGE_CUSTOM_PROVIDERS];
+  }
+
+  function b64(buf){ return btoa(String.fromCharCode(...new Uint8Array(buf))); }
+  function vonB64(s){ return Uint8Array.from(atob(s), c => c.charCodeAt(0)); }
+
+  async function schluesselAusPin(pin, salz){
+    const basis = await crypto.subtle.importKey(
+      "raw", new TextEncoder().encode(pin), "PBKDF2", false, ["deriveKey"]);
+    return crypto.subtle.deriveKey(
+      { name: "PBKDF2", salt: salz, iterations: PBKDF2_RUNDEN, hash: "SHA-256" },
+      basis, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+  }
+
+  async function verschluesseln(klartext, key){
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const daten = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv }, key, new TextEncoder().encode(klartext));
+    return b64(iv) + ":" + b64(daten);
+  }
+
+  async function entschluesseln(gepackt, key){
+    const [ivB64, datenB64] = String(gepackt).split(":");
+    if(!ivB64 || !datenB64) throw new Error("Format unbekannt");
+    const klar = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: vonB64(ivB64) }, key, vonB64(datenB64));
+    return new TextDecoder().decode(klar);
+  }
+
+  function sperreZustand(){
+    try{ return JSON.parse(localStorage.getItem(STORAGE_LOCK) || "null"); }
+    catch{ return null; }
+  }
+  function sperreAktiv(){ return !!sperreZustand(); }
+
+  // PIN setzen: Schlüssel verschlüsseln, Klartext entfernen
+  async function sperreEinrichten(pin){
+    const salz = crypto.getRandomValues(new Uint8Array(16));
+    const key = await schluesselAusPin(pin, salz);
+    const tresor = {};
+    for(const ort of schluesselOrte()){
+      const wert = localStorage.getItem(ort);
+      if(wert) tresor[ort] = await verschluesseln(wert, key);
+    }
+    // Prüfwert, damit eine falsche PIN erkannt wird, ohne etwas zu entpacken
+    const probe = await verschluesseln("relais-ok", key);
+    localStorage.setItem(STORAGE_LOCK, JSON.stringify({
+      salz: b64(salz), runden: PBKDF2_RUNDEN, probe, tresor
+    }));
+    for(const ort of Object.keys(tresor)) localStorage.removeItem(ort);
+  }
+
+  // Entsperren: Schlüssel in den Arbeitsspeicher zurückholen (nicht in den
+  // dauerhaften Speicher -- dort bleiben sie verschlüsselt).
+  async function sperreOeffnen(pin){
+    const z = sperreZustand();
+    if(!z) return true;
+    const key = await schluesselAusPin(pin, vonB64(z.salz));
+    try{
+      const probe = await entschluesseln(z.probe, key);
+      if(probe !== "relais-ok") throw new Error("falsch");
+    }catch{
+      return false; // falsche PIN -- nichts wird verändert
+    }
+    for(const [ort, wert] of Object.entries(z.tresor || {})){
+      try{
+        const klar = await entschluesseln(wert, key);
+        entsperrteWerte[ort] = klar;
+      }catch{ /* einzelner beschädigter Eintrag darf den Rest nicht blockieren */ }
+    }
+    sperreSchluessel = key;
+    return true;
+  }
+
+  let sperreSchluessel = null;
+  const entsperrteWerte = {};
+
+  // Bei aktiver Sperre kommen Schlüssel aus dem Arbeitsspeicher statt aus
+  // dem dauerhaften Speicher.
+  function leseSchluessel(ort){
+    if(sperreAktiv()) return entsperrteWerte[ort] || "";
+    return localStorage.getItem(ort) || "";
+  }
+  // Änderungen an Schlüsseln landen bei aktiver Sperre wieder verschlüsselt.
+  async function schreibeSchluessel(ort, wert){
+    if(!sperreAktiv()){
+      wert ? localStorage.setItem(ort, wert) : localStorage.removeItem(ort);
+      return;
+    }
+    entsperrteWerte[ort] = wert || "";
+    if(!sperreSchluessel) return;
+    const z = sperreZustand();
+    if(!z) return;
+    z.tresor = z.tresor || {};
+    if(wert) z.tresor[ort] = await verschluesseln(wert, sperreSchluessel);
+    else delete z.tresor[ort];
+    localStorage.setItem(STORAGE_LOCK, JSON.stringify(z));
+    localStorage.removeItem(ort);
+  }
+
+  async function sperreEntfernen(){
+    // Schlüssel wieder im Klartext ablegen, sonst wären sie nach dem
+    // Entfernen der PIN unerreichbar.
+    for(const ort of schluesselOrte()){
+      const wert = entsperrteWerte[ort];
+      if(wert) localStorage.setItem(ort, wert);
+    }
+    localStorage.removeItem(STORAGE_LOCK);
+    sperreSchluessel = null;
+  }
+
+  // Nach dem Entsperren stehen die Schluessel im Arbeitsspeicher -- jetzt in
+  // die Variablen holen, die der Rest der App benutzt.
+  function nachEntsperren(){
+    apiKey      = leseSchluessel(STORAGE_KEY);
+    groqKey     = leseSchluessel(STORAGE_GROQ_KEY);
+    geminiKey   = leseSchluessel(STORAGE_GEMINI_KEY);
+    mistralKey  = leseSchluessel(STORAGE_MISTRAL_KEY);
+    ghmodelsKey = leseSchluessel(STORAGE_GHMODELS_KEY);
+    cohereKey   = leseSchluessel(STORAGE_COHERE_KEY);
+    claudeKey   = leseSchluessel(STORAGE_CLAUDE_KEY);
+    try{ customProviders = JSON.parse(leseSchluessel(STORAGE_CUSTOM_PROVIDERS) || "[]"); }
+    catch{ customProviders = []; }
+    refreshProviderStatuses();
+    updateEmptyHint();
+    renderCustomProviderList(); // sonst zeigt die Liste den leeren Stand von vor dem Entsperren
+    loadFreeModels();
+    showToast("Entsperrt.");
+  }
+
+  // ---------- Sperr-Bildschirm ----------
+  function zeigeSperrschirm(){
+    const overlay = document.createElement("div");
+    overlay.className = "lock-screen";
+    overlay.innerHTML = `
+      <div class="lock-box">
+        <div class="lock-title">Relais ist gesperrt</div>
+        <p class="lock-hint">Gib deine PIN ein, um die Zugangsschlüssel zu entsperren.</p>
+        <input type="password" id="lock-pin" inputmode="numeric" autocomplete="current-password"
+               placeholder="PIN" aria-label="PIN eingeben">
+        <div class="lock-error" id="lock-error"></div>
+        <button type="button" class="btn btn-primary" id="lock-open">Entsperren</button>
+      </div>`;
+    document.body.appendChild(overlay);
+    const feld = overlay.querySelector("#lock-pin");
+    const fehler = overlay.querySelector("#lock-error");
+    const knopf = overlay.querySelector("#lock-open");
+    feld.focus();
+
+    async function versuchen(){
+      const pin = feld.value;
+      if(!pin) return;
+      knopf.disabled = true;
+      knopf.textContent = "Prüfe…";
+      fehler.textContent = "";
+      const ok = await sperreOeffnen(pin);
+      if(ok){
+        overlay.remove();
+        nachEntsperren();
+      }else{
+        knopf.disabled = false;
+        knopf.textContent = "Entsperren";
+        fehler.textContent = "Falsche PIN.";
+        feld.value = "";
+        feld.focus();
+      }
+    }
+    knopf.addEventListener("click", versuchen);
+    feld.addEventListener("keydown", (e) => { if(e.key === "Enter") versuchen(); });
+  }
+
+  let apiKey    = leseSchluessel(STORAGE_KEY);
   let model     = localStorage.getItem(STORAGE_MODEL) || "openrouter/free";
-  let groqKey   = localStorage.getItem(STORAGE_GROQ_KEY) || "";
+  let groqKey   = leseSchluessel(STORAGE_GROQ_KEY);
   let groqModel = localStorage.getItem(STORAGE_GROQ_MODEL) || "";
-  let geminiKey   = localStorage.getItem(STORAGE_GEMINI_KEY) || "";
+  let geminiKey   = leseSchluessel(STORAGE_GEMINI_KEY);
   let geminiModel = localStorage.getItem(STORAGE_GEMINI_MODEL) || "";
-  let mistralKey   = localStorage.getItem(STORAGE_MISTRAL_KEY) || "";
+  let mistralKey   = leseSchluessel(STORAGE_MISTRAL_KEY);
   let mistralModel = localStorage.getItem(STORAGE_MISTRAL_MODEL) || "";
-  let ghmodelsKey   = localStorage.getItem(STORAGE_GHMODELS_KEY) || "";
+  let ghmodelsKey   = leseSchluessel(STORAGE_GHMODELS_KEY);
   let ghmodelsModel = localStorage.getItem(STORAGE_GHMODELS_MODEL) || "";
-  let cohereKey   = localStorage.getItem(STORAGE_COHERE_KEY) || "";
+  let cohereKey   = leseSchluessel(STORAGE_COHERE_KEY);
   let cohereModel = localStorage.getItem(STORAGE_COHERE_MODEL) || "";
   let customProviders = [];
-  try{ customProviders = JSON.parse(localStorage.getItem(STORAGE_CUSTOM_PROVIDERS) || "[]"); }catch{ customProviders = []; }
+  try{ customProviders = JSON.parse(leseSchluessel(STORAGE_CUSTOM_PROVIDERS) || "[]"); }catch{ customProviders = []; }
   let editingCustomIndex = -1;
   let profileName  = localStorage.getItem(STORAGE_PROFILE_NAME) || "";
   let profileAbout = localStorage.getItem(STORAGE_PROFILE_ABOUT) || "";
   let profileStyle = localStorage.getItem(STORAGE_PROFILE_STYLE) || "";
   let currentTheme = localStorage.getItem(STORAGE_THEME) || "graphit";
-  let claudeKey     = localStorage.getItem(STORAGE_CLAUDE_KEY) || "";
+  let claudeKey     = leseSchluessel(STORAGE_CLAUDE_KEY);
   let claudeModel   = localStorage.getItem(STORAGE_CLAUDE_MODEL) || "claude-haiku-4-5-20251001";
   let claudeEnabled = localStorage.getItem(STORAGE_CLAUDE_ENABLED) === "1";
   // Bei den Gratis-Anbietern ist "an" der Normalfall (auch fuer bestehende Nutzer
@@ -4979,6 +5230,7 @@
 
   function refreshProviderStatuses(){
     updateEmptyHint();
+    renderLockUI();
     const set = (id, active) => document.getElementById(id)?.classList.toggle("ok", !!active);
     set("status-profile", profileName || profileAbout || profileStyle);
     set("status-openrouter", openrouterEnabled && apiKey);
@@ -5007,7 +5259,7 @@
 
   // ---------- Eigene Anbieter ----------
   function saveCustomProvidersRaw(){
-    try{ localStorage.setItem(STORAGE_CUSTOM_PROVIDERS, JSON.stringify(customProviders)); }catch{}
+    try{ schreibeSchluessel(STORAGE_CUSTOM_PROVIDERS, JSON.stringify(customProviders)); }catch{}
   }
 
   function renderCustomProviderList(){
@@ -5553,7 +5805,7 @@
     apiKey = apiKeyField.value.trim();
     model = modelSelect.value;
     openrouterEnabled = openrouterEnableToggle.getAttribute("aria-checked") === "true";
-    localStorage.setItem(STORAGE_KEY, apiKey);
+    schreibeSchluessel(STORAGE_KEY, apiKey);
     localStorage.setItem(STORAGE_MODEL, model);
     localStorage.setItem(STORAGE_OPENROUTER_ENABLED, openrouterEnabled ? "1" : "0");
     refreshProviderStatuses();
@@ -5563,7 +5815,7 @@
   $("#btn-forget").addEventListener("click", () => {
     apiKey = "";
     apiKeyField.value = "";
-    localStorage.removeItem(STORAGE_KEY);
+    schreibeSchluessel(STORAGE_KEY, "");
     refreshProviderStatuses();
     showToast("Schlüssel entfernt.");
   });
@@ -5582,7 +5834,7 @@
       groqModel = "";
       localStorage.removeItem(STORAGE_GROQ_MODEL);
     }
-    localStorage.setItem(STORAGE_GROQ_KEY, groqKey);
+    schreibeSchluessel(STORAGE_GROQ_KEY, groqKey);
     refreshProviderStatuses();
     showToast(groqKey ? "Groq gespeichert." : "Groq entfernt.");
   });
@@ -5597,7 +5849,7 @@
     groqModel = "";
     groqKeyField.value = "";
     groqModelField.style.display = "none";
-    localStorage.removeItem(STORAGE_GROQ_KEY);
+    schreibeSchluessel(STORAGE_GROQ_KEY, "");
     localStorage.removeItem(STORAGE_GROQ_MODEL);
     refreshProviderStatuses();
     showToast("Groq-Schlüssel entfernt.");
@@ -5617,7 +5869,7 @@
       geminiModel = "";
       localStorage.removeItem(STORAGE_GEMINI_MODEL);
     }
-    localStorage.setItem(STORAGE_GEMINI_KEY, geminiKey);
+    schreibeSchluessel(STORAGE_GEMINI_KEY, geminiKey);
     refreshProviderStatuses();
     showToast(geminiKey ? "Gemini gespeichert." : "Gemini entfernt.");
   });
@@ -5632,7 +5884,7 @@
     geminiModel = "";
     geminiKeyField.value = "";
     geminiModelField.style.display = "none";
-    localStorage.removeItem(STORAGE_GEMINI_KEY);
+    schreibeSchluessel(STORAGE_GEMINI_KEY, "");
     localStorage.removeItem(STORAGE_GEMINI_MODEL);
     refreshProviderStatuses();
     showToast("Gemini-Schlüssel entfernt.");
@@ -5652,7 +5904,7 @@
       mistralModel = "";
       localStorage.removeItem(STORAGE_MISTRAL_MODEL);
     }
-    localStorage.setItem(STORAGE_MISTRAL_KEY, mistralKey);
+    schreibeSchluessel(STORAGE_MISTRAL_KEY, mistralKey);
     refreshProviderStatuses();
     showToast(mistralKey ? "Mistral gespeichert." : "Mistral entfernt.");
   });
@@ -5667,7 +5919,7 @@
     mistralModel = "";
     mistralKeyField.value = "";
     mistralModelField.style.display = "none";
-    localStorage.removeItem(STORAGE_MISTRAL_KEY);
+    schreibeSchluessel(STORAGE_MISTRAL_KEY, "");
     localStorage.removeItem(STORAGE_MISTRAL_MODEL);
     refreshProviderStatuses();
     showToast("Mistral-Schlüssel entfernt.");
@@ -5687,7 +5939,7 @@
       ghmodelsModel = "";
       localStorage.removeItem(STORAGE_GHMODELS_MODEL);
     }
-    localStorage.setItem(STORAGE_GHMODELS_KEY, ghmodelsKey);
+    schreibeSchluessel(STORAGE_GHMODELS_KEY, ghmodelsKey);
     refreshProviderStatuses();
     showToast(ghmodelsKey ? "GitHub Models gespeichert." : "GitHub Models entfernt.");
   });
@@ -5702,7 +5954,7 @@
     ghmodelsModel = "";
     ghmodelsKeyField.value = "";
     ghmodelsModelField.style.display = "none";
-    localStorage.removeItem(STORAGE_GHMODELS_KEY);
+    schreibeSchluessel(STORAGE_GHMODELS_KEY, "");
     localStorage.removeItem(STORAGE_GHMODELS_MODEL);
     refreshProviderStatuses();
     showToast("GitHub-Models-Schlüssel entfernt.");
@@ -5722,7 +5974,7 @@
       cohereModel = "";
       localStorage.removeItem(STORAGE_COHERE_MODEL);
     }
-    localStorage.setItem(STORAGE_COHERE_KEY, cohereKey);
+    schreibeSchluessel(STORAGE_COHERE_KEY, cohereKey);
     refreshProviderStatuses();
     showToast(cohereKey ? "Cohere gespeichert." : "Cohere entfernt.");
   });
@@ -5737,7 +5989,7 @@
     cohereModel = "";
     cohereKeyField.value = "";
     cohereModelField.style.display = "none";
-    localStorage.removeItem(STORAGE_COHERE_KEY);
+    schreibeSchluessel(STORAGE_COHERE_KEY, "");
     localStorage.removeItem(STORAGE_COHERE_MODEL);
     refreshProviderStatuses();
     showToast("Cohere-Schlüssel entfernt.");
@@ -5763,7 +6015,7 @@
     claudeKey = claudeKeyField.value.trim();
     claudeModel = claudeModelSelect.value;
     claudeEnabled = claudeEnableToggle.getAttribute("aria-checked") === "true" && !!claudeKey;
-    localStorage.setItem(STORAGE_CLAUDE_KEY, claudeKey);
+    schreibeSchluessel(STORAGE_CLAUDE_KEY, claudeKey);
     localStorage.setItem(STORAGE_CLAUDE_MODEL, claudeModel);
     localStorage.setItem(STORAGE_CLAUDE_ENABLED, claudeEnabled ? "1" : "0");
     claudeEnableToggle.setAttribute("aria-checked", String(claudeEnabled));
@@ -5776,7 +6028,7 @@
     claudeEnabled = false;
     claudeKeyField.value = "";
     claudeEnableToggle.setAttribute("aria-checked", "false");
-    localStorage.removeItem(STORAGE_CLAUDE_KEY);
+    schreibeSchluessel(STORAGE_CLAUDE_KEY, "");
     localStorage.setItem(STORAGE_CLAUDE_ENABLED, "0");
     refreshProviderStatuses();
     showToast("Claude-Schlüssel entfernt.");
@@ -5795,6 +6047,69 @@
 
   $("#btn-usage").addEventListener("click", openUsage);
   usageBackdrop.addEventListener("click", (e) => { if(e.target === usageBackdrop) closeUsage(); });
+  // ---------- Sperre einrichten und entfernen ----------
+  function renderLockUI(){
+    const aktiv = sperreAktiv();
+    const text = $("#lock-status-text");
+    const felder = $("#lock-set-fields");
+    const setzen = $("#btn-set-lock");
+    const entfernen = $("#btn-remove-lock");
+    if(!text) return;
+
+    if(aktiv){
+      const offen = !!sperreSchluessel;
+      text.textContent = offen
+        ? "Sperre ist aktiv, gerade entsperrt."
+        : "Sperre ist aktiv. Die Schlüssel sind verschlüsselt.";
+      felder.style.display = "none";
+      setzen.style.display = "none";
+      entfernen.style.display = offen ? "" : "none";
+    }else{
+      text.textContent = "Keine PIN gesetzt — die Schlüssel liegen unverschlüsselt auf diesem Gerät.";
+      felder.style.display = "";
+      setzen.style.display = "";
+      entfernen.style.display = "none";
+    }
+    document.getElementById("status-lock")?.classList.toggle("ok", aktiv);
+  }
+
+  $("#btn-set-lock").addEventListener("click", async () => {
+    const a = $("#lock-new-pin").value;
+    const b = $("#lock-new-pin2").value;
+    if(a.length < 4){ showToast("Die PIN braucht mindestens 4 Zeichen."); return; }
+    if(a !== b){ showToast("Die beiden Eingaben stimmen nicht überein."); return; }
+    const hatSchluessel = schluesselOrte().some(o => leseSchluessel(o));
+    if(!hatSchluessel){ showToast("Erst einen Zugangsschlüssel eintragen."); return; }
+    if(!confirm("PIN setzen? Ohne diese PIN sind die Schlüssel nicht mehr lesbar — es gibt keinen Ersatzweg.")) return;
+
+    const knopf = $("#btn-set-lock");
+    knopf.disabled = true; knopf.textContent = "Verschlüssele…";
+    try{
+      await sperreEinrichten(a);
+      // Direkt im Arbeitsspeicher weiterarbeiten, ohne neu zu laden
+      sperreSchluessel = await schluesselAusPin(a, vonB64(sperreZustand().salz));
+      for(const ort of schluesselOrte()){
+        const z = sperreZustand();
+        if(z.tresor?.[ort]) entsperrteWerte[ort] = await entschluesseln(z.tresor[ort], sperreSchluessel);
+      }
+      $("#lock-new-pin").value = ""; $("#lock-new-pin2").value = "";
+      renderLockUI();
+      refreshProviderStatuses();
+      showToast("PIN gesetzt — die Schlüssel sind jetzt verschlüsselt.");
+    }catch(err){
+      showToast("Verschlüsseln fehlgeschlagen: " + (err.message || "unbekannt"));
+    }finally{
+      knopf.disabled = false; knopf.textContent = "PIN setzen";
+    }
+  });
+
+  $("#btn-remove-lock").addEventListener("click", async () => {
+    if(!confirm("Sperre entfernen? Die Schlüssel liegen danach wieder unverschlüsselt auf diesem Gerät.")) return;
+    await sperreEntfernen();
+    renderLockUI();
+    showToast("Sperre entfernt.");
+  });
+
   $("#btn-clean-archived").addEventListener("click", () => {
     chatsEntfernen(c => c.archived, n => `${n} archivierte ${n === 1 ? "Chat" : "Chats"} endgültig löschen?`);
   });
@@ -6196,6 +6511,11 @@
       emptyText.style.display = "none";
     }
   }
+  // Bei gesetzter PIN startet die App gesperrt: die Schluessel bleiben leer,
+  // bis entsperrt wurde. Der Rest der Oberflaeche ist schon aufgebaut, damit
+  // nach dem Entsperren nichts neu geladen werden muss.
+  if(sperreAktiv()) zeigeSperrschirm();
+
   updateEmptyHint();
   render();
   loadFreeModels();
