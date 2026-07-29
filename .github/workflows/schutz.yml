@@ -24,13 +24,26 @@ jobs:
         run: |
           set -e
 
-          if ! git rev-parse HEAD~1 >/dev/null 2>&1; then
-            echo "Erster Commit -- nichts zu vergleichen."
+          # Gegen den Stand VOR dem gesamten Push vergleichen, nicht nur gegen
+          # den letzten Commit -- sonst rutscht ein Verlust durch, sobald im
+          # selben Push noch ein weiterer Commit folgt.
+          BASIS="${{ github.event.before }}"
+          if [ -z "$BASIS" ] || [ "$BASIS" = "0000000000000000000000000000000000000000" ]; then
+            BASIS=$(git rev-parse HEAD~1 2>/dev/null || echo "")
+          fi
+          if [ -z "$BASIS" ]; then
+            echo "Kein Vergleichsstand vorhanden -- nichts zu pruefen."
+            exit 0
+          fi
+          git fetch -q --deepen=50 2>/dev/null || true
+          if ! git cat-file -e "$BASIS:index.html" 2>/dev/null; then
+            echo "Vergleichsstand $BASIS nicht erreichbar -- nichts zu pruefen."
             exit 0
           fi
 
+          echo "Vergleiche gegen $BASIS"
           NEU=$(wc -l < index.html)
-          git show HEAD~1:index.html > /tmp/alt.html 2>/dev/null || { echo "Kein Vorgaenger."; exit 0; }
+          git show "$BASIS:index.html" > /tmp/alt.html
           ALT=$(wc -l < /tmp/alt.html)
           DIFF=$((ALT - NEU))
 
@@ -68,7 +81,7 @@ jobs:
             echo "-------------------------------------------------------"
             echo "Vermutlich wurde eine aeltere Komplettdatei hochgeladen."
             echo "Der vorherige Stand liegt unveraendert in der Historie:"
-            echo "  git show HEAD~1:index.html > index.html"
+            echo "  git show $BASIS:index.html > index.html"
             echo "-------------------------------------------------------"
             exit 1
           fi
