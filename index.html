@@ -1808,6 +1808,7 @@
       <button type="button" class="filter-chip" data-filter="projekte">Projekte</button>
       <button type="button" class="filter-chip" data-filter="archiv">Archiv</button>
     </div>
+    <div class="sidebar-filters" id="project-filter-row"></div>
     <div id="conversation-list" style="overflow-y:auto; flex:1"></div>
   </div>
 </div>
@@ -3029,6 +3030,13 @@
 
   function renderSidebar(){
     conversationList.innerHTML = "";
+    // Die Projekt-Feinauswahl ist nur im Projekte-Filter sinnvoll.
+    const pfr = $("#project-filter-row");
+    if(pfr){
+      const zeigen = sidebarFilter === "projekte" && Object.keys(projects).length > 0;
+      pfr.style.display = zeigen ? "flex" : "none";
+      if(zeigen) renderProjectFilterRow();
+    }
     const query = (chatSearchInput.value || "").trim().toLowerCase();
 
     let ids = Object.keys(conversations);
@@ -3041,6 +3049,13 @@
 
     if(sidebarFilter === "angeheftet") ids = ids.filter(id => conversations[id].pinned);
     if(sidebarFilter === "projekte")   ids = ids.filter(id => conversations[id].projectId);
+
+    // Feinfilter auf ein einzelnes Projekt (Zeile erscheint nur unter "Projekte")
+    if(sidebarFilter === "projekte" && sidebarProjectFilter){
+      ids = sidebarProjectFilter === "none"
+        ? ids.filter(id => !conversations[id].projectId)
+        : ids.filter(id => conversations[id].projectId === sidebarProjectFilter);
+    }
 
     if(query){
       ids = ids.filter(id => {
@@ -3223,7 +3238,14 @@
       e.preventDefault(); input.focus(); return;
     }
     if(e.key === "Escape"){
+      // Von innen nach aussen schliessen: erst Menue, dann Dialoge,
+      // dann die Seitenleiste -- so wie man es von Dialogen erwartet.
       if(convMenu.classList.contains("open")){ closeConvMenu(); return; }
+      if(document.querySelector("#conv-menu.open")){ closeConvMenu(); return; }
+      if(agentsBackdrop.classList.contains("open")){ closeAgentsSheet(); return; }
+      if(projectBackdrop.classList.contains("open")){ closeProjectSheet(); return; }
+      if(usageBackdrop.classList.contains("open")){ closeUsage(); return; }
+      if(sheetBackdrop.classList.contains("open")){ closeSettings(); return; }
       if(sidebarBackdrop.classList.contains("open") && !isWide()){ closeSidebar(); return; }
       if(!imFeld) input.focus();
       return;
@@ -3277,6 +3299,7 @@
     const chip = e.target.closest(".filter-chip");
     if(!chip) return;
     sidebarFilter = chip.dataset.filter;
+    sidebarProjectFilter = ""; // Feinauswahl beim Wechsel zuruecksetzen
     [...$("#sidebar-filters").querySelectorAll(".filter-chip")]
       .forEach(c => c.classList.toggle("active", c === chip));
     renderSidebar();
@@ -4858,6 +4881,30 @@
     editingAgentId = null;
   }
 
+  function configuredProviderNames(){
+    const names = [];
+    if(groqKey) names.push("Groq");
+    if(geminiKey) names.push("Gemini");
+    if(mistralKey) names.push("Mistral");
+    if(ghmodelsKey) names.push("GitHub Models");
+    if(cohereKey) names.push("Cohere");
+    if(apiKey) names.push("OpenRouter");
+    for(const p of customProviders) names.push(p.name);
+    if(claudeEnabled && claudeKey) names.push("Claude");
+    return names;
+  }
+
+  function populateAgentProviderSelect(selected){
+    const sel = $("#agent-provider");
+    sel.innerHTML = '<option value="">Automatisch (Router entscheidet)</option>';
+    for(const name of configuredProviderNames()){
+      const opt = document.createElement("option");
+      opt.value = name; opt.textContent = name;
+      sel.appendChild(opt);
+    }
+    sel.value = selected || "";
+  }
+
   function openAgentForm(id){
     editingAgentId = id || "new";
     const a = id ? agents[id] : null;
@@ -5076,8 +5123,21 @@
       const id = newProjectId();
       projects[id] = { id, name, memory, defaultAgentId, todos: [], createdAt: Date.now(), updatedAt: Date.now() };
       saveProjectsRaw(projects);
-      showToast("Projekt angelegt.");
-      openProjectForm(id); // gleich im Formular bleiben, z. B. um ToDos zu ergaenzen
+      // Wer aus einem Chat heraus ein Projekt anlegt, will es fast immer
+      // genau diesem Chat zuordnen -- das passiert jetzt automatisch,
+      // statt dass man erst zurueck in die Liste muss.
+      let zugeordnet = false;
+      const conv = conversations[activeId];
+      if(conv && !conv.projectId){
+        conv.projectId = id;
+        if(defaultAgentId && !conv.agentId) conv.agentId = defaultAgentId;
+        saveConversationsRaw(conversations);
+        renderContextChips();
+        renderSidebar();
+        zugeordnet = true;
+      }
+      showToast(zugeordnet ? "Projekt angelegt und diesem Chat zugeordnet." : "Projekt angelegt.");
+      openProjectForm(id); // im Formular bleiben, z. B. um ToDos zu ergaenzen
     }
     renderProjectFilterRow();
   }
