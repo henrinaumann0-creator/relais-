@@ -1,0 +1,98 @@
+name: Schutz vor versehentlichem Ueberschreiben
+
+# Schlaegt Alarm, wenn ein Push die App stark schrumpfen laesst oder
+# bekannte Funktionen verschwinden. Das passiert typischerweise, wenn
+# eine komplette aeltere index.html hochgeladen wird -- fuer Git sieht
+# das wie eine normale Aenderung aus, obwohl Arbeit verlorengeht.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  pruefen:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repo holen (mit Vorgeschichte)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Groesse und Funktionen vergleichen
+        run: |
+          set -e
+
+          if ! git rev-parse HEAD~1 >/dev/null 2>&1; then
+            echo "Erster Commit -- nichts zu vergleichen."
+            exit 0
+          fi
+
+          NEU=$(wc -l < index.html)
+          git show HEAD~1:index.html > /tmp/alt.html 2>/dev/null || { echo "Kein Vorgaenger."; exit 0; }
+          ALT=$(wc -l < /tmp/alt.html)
+          DIFF=$((ALT - NEU))
+
+          echo "Zeilen vorher: $ALT"
+          echo "Zeilen jetzt:  $NEU"
+          echo "Differenz:     $DIFF"
+          echo ""
+
+          PROBLEM=0
+
+          # 1) Starker Zeilenverlust
+          if [ "$DIFF" -gt 150 ]; then
+            echo "WARNUNG: Die Datei hat $DIFF Zeilen verloren."
+            PROBLEM=1
+          fi
+
+          # 2) Verschwundene Funktionen
+          MARKER="TOOL_DEFINITIONS STORAGE_AGENTS STORAGE_PROJECTS STORAGE_MEMORY runTeamMode runCompareMode composeSystemPrompt renderSidebar find-bar storage-body"
+          VERLOREN=""
+          for M in $MARKER; do
+            VORHER=$(grep -c "$M" /tmp/alt.html || true)
+            JETZT=$(grep -c "$M" index.html || true)
+            if [ "$VORHER" -gt 0 ] && [ "$JETZT" -eq 0 ]; then
+              VERLOREN="$VERLOREN $M"
+              PROBLEM=1
+            fi
+          done
+
+          if [ -n "$VERLOREN" ]; then
+            echo "WARNUNG: Diese Funktionen sind verschwunden:$VERLOREN"
+          fi
+
+          if [ "$PROBLEM" -eq 1 ]; then
+            echo ""
+            echo "-------------------------------------------------------"
+            echo "Vermutlich wurde eine aeltere Komplettdatei hochgeladen."
+            echo "Der vorherige Stand liegt unveraendert in der Historie:"
+            echo "  git show HEAD~1:index.html > index.html"
+            echo "-------------------------------------------------------"
+            exit 1
+          fi
+
+          echo "Alles in Ordnung -- keine Funktion verloren."
+
+      - name: JavaScript-Syntax pruefen
+        run: |
+          python3 - <<'PY'
+          import re
+          quelle = open('index.html', encoding='utf-8').read()
+          skripte = re.findall(r'<script>(.*?)</script>', quelle, re.DOTALL)
+          open('/tmp/pruef.js', 'w', encoding='utf-8').write('\n'.join(skripte))
+          print(f'{len(skripte)} Skriptblock/-bloecke extrahiert')
+          PY
+          node --check /tmp/pruef.js
+          echo "Syntax in Ordnung."
+
+      - name: Doppelte IDs pruefen
+        run: |
+          DOPPELT=$(grep -oE 'id="[A-Za-z0-9_-]+"' index.html | sort | uniq -d || true)
+          if [ -n "$DOPPELT" ]; then
+            echo "WARNUNG: doppelte IDs gefunden:"
+            echo "$DOPPELT"
+            exit 1
+          fi
+          echo "Keine doppelten IDs."
