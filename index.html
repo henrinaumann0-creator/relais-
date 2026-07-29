@@ -2464,8 +2464,21 @@
       return raw ? JSON.parse(raw) : {};
     }catch{ return {}; }
   }
+  // Der Browser-Speicher ist begrenzt (meist 5-10 MB). Laeuft er voll,
+  // wuerde der Chat sonst still verlorengehen -- deshalb hier eine echte
+  // Warnung statt eines stummen Fehlschlags.
+  let speicherWarnungGezeigt = false;
   function saveConversationsRaw(convs){
-    try{ localStorage.setItem(STORAGE_CONVERSATIONS, JSON.stringify(convs)); }catch{}
+    try{
+      localStorage.setItem(STORAGE_CONVERSATIONS, JSON.stringify(convs));
+      speicherWarnungGezeigt = false;
+    }catch(err){
+      const istVoll = err && (err.name === "QuotaExceededError" || err.code === 22);
+      if(istVoll && !speicherWarnungGezeigt){
+        speicherWarnungGezeigt = true;
+        showToast("Speicher voll — dieser Chat wird nicht gesichert. Bitte alte Chats löschen oder eine Sicherung exportieren.");
+      }
+    }
   }
   function titleFromMessages(msgs){
     const firstUser = msgs.find(m => m.role === "user");
