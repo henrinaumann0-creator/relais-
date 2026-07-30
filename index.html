@@ -144,6 +144,8 @@
   .icon-btn{
     background: none;
     border: none;
+    min-width: 40px;
+    min-height: 40px;
     color: var(--text-dim);
     width: 36px;
     height: 36px;
@@ -821,7 +823,7 @@
     background: var(--surface-2);
     border: 1px solid var(--border);
     color: var(--text-dim);
-    width: 38px; height: 38px;
+    width: 42px; height: 42px;
     border-radius: 10px;
     display: flex;
     align-items: center;
@@ -1416,21 +1418,23 @@
   .mode-chip:hover{ color: var(--text); }
   .mode-chip.active{ background: var(--accent); color: var(--accent-ink); }
 
+  /* Fuenf Filter passen auf dem Handy nicht in eine Zeile -- vorher ragten
+     sie bis zu 133px unsichtbar heraus, "Archiv" war nie zu sehen. Umbruch
+     ist hier besser als seitliches Wischen: alles ist sofort auffindbar,
+     und es bleibt auch stimmig, falls noch ein Filter hinzukommt. */
   .sidebar-filters{
     display: flex;
+    flex-wrap: wrap;
     gap: 6px;
-    overflow-x: auto;
     padding: 0 2px 10px;
-    scrollbar-width: none;
   }
-  .sidebar-filters::-webkit-scrollbar{ display: none; }
   .filter-chip{
     flex-shrink: 0;
     background: none;
     border: 1px solid var(--border);
     color: var(--text-dim);
     border-radius: 999px;
-    padding: 5px 12px;
+    padding: 5px 11px;
     font-size: 12.5px;
     font-family: inherit;
     cursor: pointer;
@@ -1458,12 +1462,21 @@
     padding: 4px;
     border-radius: 6px;
     display: flex; align-items: center;
+    position: relative;
     opacity: 0;
     transition: opacity var(--dauer-kurz) var(--kurve), color var(--dauer-kurz) var(--kurve);
   }
   .conv-item:hover .conv-menu-btn,
   .conv-item.active .conv-menu-btn{ opacity: 1; }
   .conv-menu-btn:hover{ color: var(--text); background: var(--surface-2); }
+  /* Die sichtbare Groesse bleibt schlank, die Trefffläche wächst auf ein
+     fingerfreundliches Mass. Der Knopf steht allein am Zeilenende, deshalb
+     kann sie gefahrlos über den Rand hinausreichen. */
+  .conv-menu-btn::after{
+    content: "";
+    position: absolute;
+    inset: -10px;
+  }
   .conv-menu-btn svg{ width: 16px; height: 16px; }
   .conv-pin-dot{
     width: 6px; height: 6px;
@@ -1566,10 +1579,14 @@
   .conv-item .conv-time{ font-size: 11px; color: var(--text-dim); opacity: .7; margin-top: 1px; }
   .conv-item .conv-rename,
   .conv-item .conv-del{
-    opacity: .5;
-    padding: 4px;
-    border-radius: 6px;
+    opacity: .55;
+    padding: 9px;
+    margin-left: 2px;
+    border-radius: 8px;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   .conv-item .conv-rename:hover,
   .conv-item .conv-del:hover{ opacity: 1; background: var(--border); }
