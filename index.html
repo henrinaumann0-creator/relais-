@@ -23,7 +23,7 @@
     --surface-2: #202024;
     --border:    #2b2b31;
     --text:      #f0f0f2;
-    --text-dim:  #8b8b95;
+    --text-dim:  #a2a2ac;
     --accent:    #ececef;
     --accent-ink:#111113;
     --accent-soft: rgba(236,236,239,.14);
@@ -41,6 +41,47 @@
     --kurve:        cubic-bezier(.32, .72, 0, 1);
     --kurve-raus:   cubic-bezier(.4, 0, .9, 1);
     --kurve-feder:  cubic-bezier(.34, 1.32, .64, 1);
+
+    /* Typografische Skala: sechs Stufen mit klarem Abstand zueinander.
+       Vorher lagen neunzehn Groessen im Einsatz, acht davon innerhalb von
+       3,5px -- daraus entsteht keine Hierarchie, sondern Beliebigkeit. */
+    --schrift-mini:   11px;    /* Bereichs-Label, Grossbuchstaben */
+    --schrift-klein:  12.5px;  /* Nebeninfo, Chips, Zeitangaben */
+    --schrift-ui:     14px;    /* Bedienelemente, Listen */
+    --schrift-lesen:  15px;    /* Chat-Text, laengere Absaetze */
+    --schrift-feld:   16px;    /* Eingabefelder -- unter 16px zoomt iOS */
+    --schrift-titel:  21px;    /* Abschnitts- und Dialogtitel */
+
+    /* Abstandsraster auf Vielfachen von 2 und 4. Vorher einundzwanzig
+       Einzelwerte von 1 bis 28px, praktisch ohne Wiederholung. */
+    --raum-1: 2px;
+    --raum-2: 4px;
+    --raum-3: 6px;
+    --raum-4: 8px;
+    --raum-5: 12px;
+    --raum-6: 16px;
+    --raum-7: 20px;
+    --raum-8: 24px;
+    --raum-9: 32px;
+
+    /* Radien: fuenf Stufen statt neunzehn. */
+    --rund-1: 6px;    /* kleine Flaechen, Marker */
+    --rund-2: 10px;   /* Knoepfe, Listeneintraege */
+    --rund-3: 14px;   /* Karten, Blasen */
+    --rund-4: 20px;   /* Dialoge, Composer */
+    --rund-voll: 999px;
+
+    /* Hoehenstaffelung: drei Stufen statt fuenf Einzelwerte. Je hoeher ein
+       Element schwebt, desto weiter und weicher der Schatten. */
+    --schatten-1: 0 1px 3px rgba(0,0,0,.28);
+    --schatten-2: 0 6px 20px rgba(0,0,0,.34);
+    --schatten-3: 0 16px 44px rgba(0,0,0,.48);
+
+    /* Dritte Textstufe fuer sehr zurueckhaltende Angaben. Vorher musste
+       --text-dim alles Sekundaere tragen, von Zeitangaben bis Hinweistexten. */
+    --text-mute: #84848e;
+    /* Zweite Rahmenstufe fuer hervorgehobene Kanten */
+    --border-stark: #3a3a42;
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
   }
@@ -55,6 +96,8 @@
     --accent:    #5b8dd6;
     --accent-ink:#0a1420;
     --accent-soft: rgba(91,141,214,.20);
+    --text-mute: #5c6272;
+    --border-stark: #39404f;
     --ok:        #3fb950;
     --danger:    #f85149;
   }
@@ -69,6 +112,8 @@
     --accent:    #a8492a;
     --accent-ink:#fdf6ef;
     --accent-soft: rgba(168,73,42,.16);
+    --text-mute: #8a8175;
+    --border-stark: #c9bfae;
     --ok:        #2f7a3d;
     --danger:    #b3261e;
   }
@@ -83,6 +128,8 @@
     --accent:    #4560e8;
     --accent-ink:#ffffff;
     --accent-soft: rgba(69,96,232,.18);
+    --text-mute: #8b90a3;
+    --border-stark: #c2c6d4;
     --ok:        #1f9d55;
     --danger:    #e0392b;
   }
@@ -97,6 +144,8 @@
     --accent:    #5b7cf5;
     --accent-ink:#0c1220;
     --accent-soft: rgba(91,124,245,.20);
+    --text-mute: #666d80;
+    --border-stark: #3a4152;
     --ok:        #3ecf7a;
     --danger:    #f16a5c;
   }
@@ -123,7 +172,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: calc(14px + var(--safe-top)) 18px 14px;
+    padding: calc(var(--raum-6) + var(--safe-top)) var(--raum-7) var(--raum-6);
     border-bottom: 1px solid transparent;
     flex-shrink: 0;
     position: relative;
@@ -132,11 +181,11 @@
   }
   header.elevated{
     border-bottom-color: var(--border);
-    box-shadow: 0 4px 16px rgba(0,0,0,.22);
+    box-shadow: var(--schatten-2);
   }
   .wordmark{
     font-family: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
-    font-size: 21px;
+    font-size: var(--schrift-titel);
     letter-spacing: 0.02em;
     font-weight: 500;
     color: var(--text);
@@ -149,7 +198,7 @@
     color: var(--text-dim);
     width: 36px;
     height: 36px;
-    border-radius: 10px;
+    border-radius: var(--rund-2);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -164,13 +213,13 @@
   .model-pill{
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    font-size: 11.5px;
+    gap: var(--raum-3);
+    font-size: var(--schrift-mini);
     color: var(--text-dim);
-    padding: 4px 10px;
+    padding: var(--raum-2) var(--raum-5);
     border: 1px solid var(--border);
-    border-radius: 999px;
-    margin: 2px 0 10px;
+    border-radius: var(--rund-voll);
+    margin: var(--raum-1) 0 var(--raum-5);
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -190,7 +239,7 @@
   main{
     flex: 1;
     overflow-y: auto;
-    padding: 20px 16px 8px;
+    padding: var(--raum-7) var(--raum-6) var(--raum-4);
     -webkit-overflow-scrolling: touch;
     position: relative;
   }
@@ -213,7 +262,7 @@
     justify-content: center;
     text-align: center;
     color: var(--text-dim);
-    padding: 0 16px 24px;
+    padding: 0 var(--raum-6) var(--raum-8);
   }
   .empty-state > *{
     animation: hero-rein var(--dauer-ruhig) var(--kurve) both;
@@ -229,19 +278,21 @@
 
   .empty-state .wordmark{
     display: block;
+    /* Grosse Schrift wirkt bei etwas engerem Satz ruhiger */
+    font-feature-settings: "kern" 1;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     font-size: clamp(52px, 13vw, 96px);
     font-weight: 800;
     letter-spacing: .12em;
     line-height: 1;
     text-transform: uppercase;
-    margin: 0 0 28px;
+    margin: 0 0 var(--raum-9);
     color: var(--text);
   }
   .empty-state p{
-    font-size: 14.5px;
+    font-size: var(--schrift-ui);
     line-height: 1.6;
-    margin: 0 0 22px;
+    margin: 0 0 var(--raum-8);
     color: var(--text-dim);
   }
   .empty-state #empty-composer-slot:empty{ display: none; }
@@ -256,19 +307,19 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 8px;
-    margin-top: 24px;
+    gap: var(--raum-4);
+    margin-top: var(--raum-8);
   }
   .chip{
     display: inline-flex;
     align-items: center;
-    gap: 7px;
+    gap: var(--raum-4);
     background: none;
     border: 1px solid var(--border);
     color: var(--text-dim);
-    padding: 9px 15px;
-    border-radius: 999px;
-    font-size: 13.5px;
+    padding: var(--raum-4) var(--raum-6);
+    border-radius: var(--rund-voll);
+    font-size: var(--schrift-ui);
     text-align: left;
     cursor: pointer;
     font-family: inherit;
@@ -284,7 +335,7 @@
 
   .row{
     display: flex;
-    margin: 6px 0;
+    margin: var(--raum-3) 0;
     /* Animation nur fuer frisch dazugekommene Zeilen -- siehe .frisch unten.
        Vorher lief sie bei jedem Neuzeichnen fuer den ganzen Verlauf, was
        beim Senden alles aufflackern liess. */
@@ -297,14 +348,14 @@
   .assistant-head{
     display: flex;
     align-items: center;
-    gap: 7px;
-    margin-bottom: 4px;
-    padding-left: 2px;
+    gap: var(--raum-4);
+    margin-bottom: var(--raum-2);
+    padding-left: var(--raum-1);
   }
   .assistant-avatar{
     width: 22px; height: 22px;
     flex-shrink: 0;
-    padding: 4px;
+    padding: var(--raum-2);
     box-sizing: border-box;
     background: var(--surface);
     border: 1px solid var(--border);
@@ -313,9 +364,9 @@
 
   .bubble{
     max-width: 82%;
-    padding: 11px 15px;
-    border-radius: var(--radius);
-    font-size: 15.5px;
+    padding: var(--raum-5) var(--raum-6);
+    border-radius: var(--rund-3);
+    font-size: var(--schrift-lesen);
     line-height: 1.5;
     white-space: pre-wrap;
     word-wrap: break-word;
@@ -325,13 +376,13 @@
     color: var(--text);
     border: 1px solid var(--border);
     border-bottom-right-radius: 4px;
-    box-shadow: 0 2px 10px rgba(0,0,0,.22);
+    box-shadow: var(--schatten-1);
   }
   .row.assistant .bubble{
     background: var(--surface);
     border: 1px solid var(--border);
     border-bottom-left-radius: 4px;
-    box-shadow: 0 2px 10px rgba(0,0,0,.16);
+    box-shadow: var(--schatten-1);
   }
   .row.assistant .bubble.streaming::after{
     content: "▍";
@@ -350,7 +401,7 @@
     color: var(--text);
   }
 
-  .thinking-dots{ display: inline-flex; gap: 4px; padding: 4px 0; }
+  .thinking-dots{ display: inline-flex; gap: var(--raum-2); padding: var(--raum-2) 0; }
   .thinking-dots span{
     width: 6px; height: 6px; border-radius: 50%;
     background: var(--text-dim);
@@ -362,21 +413,21 @@
 
   .msg-actions{
     display: flex;
-    gap: 4px;
-    margin-top: 4px;
+    gap: var(--raum-2);
+    margin-top: var(--raum-2);
     opacity: .7;
   }
   .msg-actions button{
     background: none;
     border: none;
     color: var(--text-dim);
-    padding: 5px 7px;
-    border-radius: 7px;
+    padding: var(--raum-3) var(--raum-4);
+    border-radius: var(--rund-1);
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 4px;
-    font-size: 11.5px;
+    gap: var(--raum-2);
+    font-size: var(--schrift-mini);
     font-family: inherit;
   }
   .msg-actions button:hover{ background: var(--surface-2); color: var(--text); }
@@ -396,7 +447,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 2px 10px rgba(0,0,0,.3);
+    box-shadow: var(--schatten-1);
     z-index: 5;
   }
   .scroll-bottom-btn.show{ display: flex; }
@@ -406,7 +457,7 @@
   .composer-wrap{
     flex-shrink: 0;
     border-top: 1px solid var(--border);
-    padding: 12px 16px calc(12px + var(--safe-bottom));
+    padding: var(--raum-5) var(--raum-6) calc(var(--raum-5) + var(--safe-bottom));
     background: var(--bg);
   }
   .composer{
@@ -414,11 +465,11 @@
     margin: 0 auto;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--raum-5);
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 26px;
-    padding: 16px 16px 12px;
+    border-radius: var(--rund-4);
+    padding: var(--raum-6) var(--raum-6) var(--raum-5);
     transition: border-color var(--dauer-kurz) var(--kurve), box-shadow var(--dauer-kurz) var(--kurve);
   }
   .composer:focus-within{
@@ -432,7 +483,7 @@
     outline: none;
     resize: none;
     color: var(--text);
-    font-size: 16px; /* 16px verhindert Auto-Zoom in iOS Safari */
+    font-size: var(--schrift-feld); /* 16px verhindert Auto-Zoom in iOS Safari */
     font-family: inherit;
     line-height: 1.45;
     min-height: 26px;
@@ -446,13 +497,13 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
+    gap: var(--raum-4);
   }
   .composer-bar-left,
   .composer-bar-right{
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--raum-3);
   }
 
   .send-btn{
@@ -520,20 +571,20 @@
 
   .context-row{
     display: flex;
-    gap: 8px;
-    padding: 0 4px 8px;
+    gap: var(--raum-4);
+    padding: 0 var(--raum-2) var(--raum-4);
     overflow-x: auto;
   }
   .context-chip{
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    font-size: 12.5px;
+    gap: var(--raum-3);
+    font-size: var(--schrift-klein);
     color: var(--text-dim);
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 6px 13px;
+    border-radius: var(--rund-voll);
+    padding: var(--raum-3) var(--raum-5);
     white-space: nowrap;
     flex-shrink: 0;
     cursor: pointer;
@@ -543,12 +594,12 @@
   .context-chip:active{ background: var(--surface-2); }
   .context-chip.set{ color: var(--text); border-color: var(--accent); }
   .project-chip{
-    font-size: 12px;
+    font-size: var(--schrift-klein);
     color: var(--text-dim);
     background: none;
     border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 5px 11px;
+    border-radius: var(--rund-voll);
+    padding: var(--raum-3) var(--raum-5);
     white-space: nowrap;
     flex-shrink: 0;
     cursor: pointer;
@@ -558,29 +609,29 @@
   .todo-row{
     display: flex;
     align-items: center;
-    gap: 9px;
-    padding: 8px 2px;
+    gap: var(--raum-4);
+    padding: var(--raum-4) var(--raum-1);
     border-bottom: 1px solid var(--border);
-    font-size: 14px;
+    font-size: var(--schrift-ui);
   }
   .todo-row:last-child{ border-bottom: none; }
   .todo-row .todo-text{ flex: 1; }
   .todo-row.done .todo-text{ color: var(--text-dim); text-decoration: line-through; }
   .todo-row .todo-del{ color: var(--text-dim); opacity: .6; flex-shrink: 0; }
   .todo-row .todo-del:hover{ opacity: 1; }
-  .todo-add-row{ display: flex; gap: 8px; margin-top: 10px; }
+  .todo-add-row{ display: flex; gap: var(--raum-4); margin-top: var(--raum-5); }
   .todo-add-row input{ flex: 1; }
   /* ---------- Denkprozess ---------- */
   .team-toggle{
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 7px 13px;
-    border-radius: 999px;
+    gap: var(--raum-3);
+    padding: var(--raum-4) var(--raum-5);
+    border-radius: var(--rund-voll);
     border: 1px solid var(--border);
     background: none;
     color: var(--text-dim);
-    font-size: 13px;
+    font-size: var(--schrift-klein);
     font-family: inherit;
     cursor: pointer;
     width: fit-content;
@@ -597,67 +648,67 @@
 
   .team-box{
     max-width: 82%;
-    margin-bottom: 8px;
+    margin-bottom: var(--raum-4);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: var(--rund-3);
     overflow: hidden;
   }
   .team-box summary{
-    padding: 9px 13px;
-    font-size: 12px;
+    padding: var(--raum-4) var(--raum-5);
+    font-size: var(--schrift-klein);
     color: var(--text-dim);
     cursor: pointer;
     list-style: none;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--raum-3);
     user-select: none;
   }
   .team-box summary::-webkit-details-marker{ display: none; }
-  .team-box summary::before{ content: "▸"; font-size: 10px; transition: transform var(--dauer-kurz) var(--kurve); }
+  .team-box summary::before{ content: "▸"; font-size: var(--schrift-mini); transition: transform var(--dauer-kurz) var(--kurve); }
   .team-box[open] summary::before{ transform: rotate(90deg); }
   .team-step{
-    padding: 9px 13px;
+    padding: var(--raum-4) var(--raum-5);
     border-top: 1px solid var(--border);
-    font-size: 12.5px;
+    font-size: var(--schrift-klein);
   }
   .team-step-head{
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--raum-3);
     font-weight: 500;
     color: var(--text);
-    margin-bottom: 4px;
+    margin-bottom: var(--raum-2);
   }
-  .team-step-task{ color: var(--text-dim); font-style: italic; margin-bottom: 5px; }
+  .team-step-task{ color: var(--text-dim); font-style: italic; margin-bottom: var(--raum-3); }
   .team-step-result{ color: var(--text-dim); white-space: pre-wrap; }
   .team-step .status-dot{ margin-right: 0; }
   .team-step.error .team-step-result{ color: var(--danger); }
 
   .thinking-box{
     max-width: 82%;
-    margin-bottom: 6px;
+    margin-bottom: var(--raum-3);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: var(--rund-3);
     overflow: hidden;
   }
   .thinking-box summary{
-    padding: 8px 13px;
-    font-size: 12px;
+    padding: var(--raum-4) var(--raum-5);
+    font-size: var(--schrift-klein);
     color: var(--text-dim);
     cursor: pointer;
     list-style: none;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--raum-3);
     user-select: none;
   }
   .thinking-box summary::-webkit-details-marker{ display: none; }
-  .thinking-box summary::before{ content: "▸"; font-size: 10px; transition: transform var(--dauer-kurz) var(--kurve); }
+  .thinking-box summary::before{ content: "▸"; font-size: var(--schrift-mini); transition: transform var(--dauer-kurz) var(--kurve); }
   .thinking-box[open] summary::before{ transform: rotate(90deg); }
   .thinking-box .thinking-text{
-    padding: 0 13px 11px;
-    font-size: 13px;
+    padding: 0 var(--raum-5) var(--raum-5);
+    font-size: var(--schrift-klein);
     line-height: 1.55;
     color: var(--text-dim);
     white-space: pre-wrap;
@@ -673,24 +724,24 @@
     width: 100%;
     background: var(--surface);
     border: 1px solid var(--accent);
-    border-radius: var(--radius);
+    border-radius: var(--rund-3);
     color: var(--text);
-    font-size: 15.5px;
+    font-size: var(--schrift-lesen);
     font-family: inherit;
-    padding: 11px 15px;
+    padding: var(--raum-5) var(--raum-6);
     resize: vertical;
     min-height: 60px;
   }
   .edit-box .edit-actions{
     display: flex;
-    gap: 8px;
+    gap: var(--raum-4);
     justify-content: flex-end;
-    margin-top: 6px;
+    margin-top: var(--raum-3);
   }
   .edit-box .edit-actions button{
-    font-size: 12.5px;
-    padding: 6px 12px;
-    border-radius: 8px;
+    font-size: var(--schrift-klein);
+    padding: var(--raum-3) var(--raum-5);
+    border-radius: var(--rund-2);
     border: 1px solid var(--border);
     background: var(--surface-2);
     color: var(--text);
@@ -730,7 +781,7 @@
     left: 0; right: 0; bottom: 0;
     background: var(--surface);
     border-top: 1px solid var(--border);
-    border-radius: 20px 20px 0 0;
+    border-radius: var(--rund-4) var(--rund-4) 0 0;
     padding: 20px 20px calc(24px + var(--safe-bottom));
     transform: translateY(100%);
     transition: transform var(--dauer-ruhig) var(--kurve);
@@ -742,8 +793,9 @@
   .sheet h2{
     font-family: ui-serif, Georgia, serif;
     font-weight: 500;
-    font-size: 19px;
-    margin: 0 0 16px;
+    font-size: var(--schrift-titel);
+    margin: 0 0 var(--raum-6);
+      letter-spacing: -0.01em;
   }
 
   /* ---------- Aufklappbare Anbieter-Abschnitte ---------- */
@@ -752,8 +804,8 @@
   }
   .provider-section:first-of-type{ border-top: 1px solid var(--border); }
   .provider-section summary{
-    padding: 14px 2px;
-    font-size: 15px;
+    padding: var(--raum-6) var(--raum-1);
+    font-size: var(--schrift-lesen);
     font-weight: 500;
     color: var(--text);
     cursor: pointer;
@@ -767,36 +819,36 @@
     content: "▾";
     margin-left: auto;
     color: var(--text-dim);
-    font-size: 12px;
+    font-size: var(--schrift-klein);
     transition: transform var(--dauer-kurz) var(--kurve);
   }
   .provider-section[open] summary::after{ transform: rotate(180deg); }
-  .provider-section > .field:first-of-type{ margin-top: 6px; }
-  .provider-section > *:last-child{ margin-bottom: 20px; }
+  .provider-section > .field:first-of-type{ margin-top: var(--raum-3); }
+  .provider-section > *:last-child{ margin-bottom: var(--raum-7); }
 
   .status-dot{
     width: 7px; height: 7px;
     border-radius: 50%;
     background: var(--border);
     display: inline-block;
-    margin-right: 10px;
+    margin-right: var(--raum-5);
     flex-shrink: 0;
   }
   .status-dot.ok{ background: var(--ok); }
 
-  .key-field{ display: flex; gap: 6px; align-items: center; }
+  .key-field{ display: flex; gap: var(--raum-3); align-items: center; }
 
   .toggle-row{
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 14px;
+    font-size: var(--schrift-ui);
     color: var(--text);
   }
   .toggle-switch{
     width: 46px;
     height: 27px;
-    border-radius: 14px;
+    border-radius: var(--rund-3);
     background: var(--surface-2);
     border: 1px solid var(--border);
     position: relative;
@@ -824,7 +876,7 @@
     border: 1px solid var(--border);
     color: var(--text-dim);
     width: 42px; height: 42px;
-    border-radius: 10px;
+    border-radius: var(--rund-2);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -834,12 +886,12 @@
   .key-btn:hover{ color: var(--text); background: var(--border); }
   .key-btn svg{ width: 16px; height: 16px; }
 
-  .field{ margin-bottom: 16px; }
+  .field{ margin-bottom: var(--raum-6); }
   .field label{
     display: block;
-    font-size: 12.5px;
+    font-size: var(--schrift-klein);
     color: var(--text-dim);
-    margin-bottom: 6px;
+    margin-bottom: var(--raum-3);
   }
   .field input[type=password],
   .field input[type=text],
@@ -848,10 +900,10 @@
     width: 100%;
     background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 11px 12px;
+    border-radius: var(--rund-2);
+    padding: var(--raum-5) var(--raum-5);
     color: var(--text);
-    font-size: 15px;
+    font-size: var(--schrift-lesen);
     font-family: inherit;
   }
   .field textarea{ resize: vertical; min-height: 60px; line-height: 1.4; }
@@ -859,37 +911,37 @@
   .persona-chips{
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    margin-bottom: 8px;
+    gap: var(--raum-3);
+    margin-bottom: var(--raum-4);
   }
   .persona-chip{
     background: var(--surface-2);
     border: 1px solid var(--border);
     color: var(--text-dim);
-    font-size: 12.5px;
-    padding: 6px 12px;
-    border-radius: 20px;
+    font-size: var(--schrift-klein);
+    padding: var(--raum-3) var(--raum-5);
+    border-radius: var(--rund-4);
     cursor: pointer;
     font-family: inherit;
   }
   .persona-chip:hover{ border-color: var(--accent); color: var(--text); }
   .persona-chip.active{ background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
   .field input:focus, .field select:focus{ outline: 2px solid var(--accent); outline-offset: -1px; }
-  .field .hint{ font-size: 12px; color: var(--text-dim); margin-top: 6px; line-height: 1.5; }
+  .field .hint{ font-size: var(--schrift-klein); color: var(--text-dim); margin-top: var(--raum-3); line-height: 1.5; }
   .field .hint a{ color: var(--accent); }
 
   .btn{
     width: 100%;
-    padding: 12px;
-    border-radius: 10px;
+    padding: var(--raum-5);
+    border-radius: var(--rund-2);
     border: none;
-    font-size: 15px;
+    font-size: var(--schrift-lesen);
     font-weight: 500;
     cursor: pointer;
     font-family: inherit;
   }
   .btn-primary{ background: var(--accent); color: var(--accent-ink); }
-  .btn-ghost{ background: none; color: var(--danger); border: 1px solid var(--border); margin-top: 8px; }
+  .btn-ghost{ background: none; color: var(--danger); border: 1px solid var(--border); margin-top: var(--raum-4); }
 
   .toast{
     position: fixed;
@@ -899,9 +951,9 @@
     background: var(--surface-2);
     border: 1px solid var(--border);
     color: var(--text);
-    padding: 10px 16px;
-    border-radius: 10px;
-    font-size: 13.5px;
+    padding: var(--raum-5) var(--raum-6);
+    border-radius: var(--rund-2);
+    font-size: var(--schrift-ui);
     opacity: 0;
     pointer-events: none;
     transition: opacity var(--dauer-kurz) var(--kurve);
@@ -969,34 +1021,34 @@
   /* Bloecke in der Seitenleiste: eigene Anmutung, damit sie nicht wie eine
      weitere graue Liste wirken. */
   .sidebar-block{
-    margin: 0 0 12px;
-    padding: 0 2px;
+    margin: 0 0 var(--raum-5);
+    padding: 0 var(--raum-1);
   }
   .block-kopf{
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    font-size: 11px;
+    font-size: var(--schrift-mini);
     letter-spacing: .08em;
     text-transform: uppercase;
-    color: var(--text-dim);
+    color: var(--text-mute);
     font-weight: 600;
-    padding: 0 6px 7px;
+    padding: 0 var(--raum-3) var(--raum-4);
   }
   .block-mehr{
     background: none; border: none;
     color: var(--text-dim);
     font-family: inherit;
-    font-size: 10.5px;
+    font-size: var(--schrift-mini);
     letter-spacing: .04em;
     text-transform: none;
     cursor: pointer;
-    padding: 2px 4px;
-    border-radius: 6px;
+    padding: var(--raum-1) var(--raum-2);
+    border-radius: var(--rund-1);
   }
   .block-mehr:hover{ color: var(--text); background: var(--surface-2); }
   .block-zahl{
-    font-size: 11px;
+    font-size: var(--schrift-mini);
     color: var(--accent);
     font-variant-numeric: tabular-nums;
     letter-spacing: 0;
@@ -1006,18 +1058,18 @@
   .agent-start-row{
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: var(--raum-3);
   }
   .agent-start{
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--raum-3);
     background: var(--surface-2);
     border: 1px solid transparent;
     color: var(--text);
-    border-radius: 10px;
-    padding: 8px 11px;
-    font-size: 12.5px;
+    border-radius: var(--rund-2);
+    padding: var(--raum-4) var(--raum-5);
+    font-size: var(--schrift-klein);
     font-family: inherit;
     cursor: pointer;
     max-width: 100%;
@@ -1027,16 +1079,16 @@
   }
   .agent-start:hover{ border-color: var(--text-dim); }
   .agent-start:active{ transform: scale(.96); }
-  .agent-start .sym{ font-size: 14px; line-height: 1; }
+  .agent-start .sym{ font-size: var(--schrift-ui); line-height: 1; }
   .agent-start .nm{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* Aufgaben direkt abhaken, ohne ins Projekt zu wechseln */
   .todo-kurz{
     display: flex;
     align-items: flex-start;
-    gap: 9px;
-    padding: 7px 8px;
-    border-radius: 9px;
+    gap: var(--raum-4);
+    padding: var(--raum-4) var(--raum-4);
+    border-radius: var(--rund-2);
     cursor: pointer;
     transition: background var(--dauer-kurz) var(--kurve);
   }
@@ -1044,9 +1096,9 @@
   .todo-haken{
     width: 16px; height: 16px;
     border: 1.5px solid var(--text-dim);
-    border-radius: 5px;
+    border-radius: var(--rund-1);
     flex-shrink: 0;
-    margin-top: 1px;
+    margin-top: var(--raum-1);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1057,34 +1109,34 @@
   .todo-haken svg{ width: 11px; height: 11px; opacity: 0; }
   .todo-kurz:hover .todo-haken svg{ opacity: .5; }
   .todo-kurz-text{
-    font-size: 12.5px;
+    font-size: var(--schrift-klein);
     line-height: 1.35;
     color: var(--text);
     overflow: hidden;
   }
   .todo-kurz-projekt{
     display: block;
-    font-size: 10.5px;
-    color: var(--text-dim);
-    margin-top: 1px;
+    font-size: var(--schrift-mini);
+    color: var(--text-mute);
+    margin-top: var(--raum-1);
   }
 
   /* Anbieter auf einen Blick */
   .status-zeile{
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--raum-4);
     width: 100%;
     background: none;
     border: none;
-    padding: 9px 10px;
-    border-radius: 10px;
+    padding: var(--raum-4) var(--raum-5);
+    border-radius: var(--rund-2);
     cursor: pointer;
     font-family: inherit;
     text-align: left;
   }
   .status-zeile:hover{ background: var(--surface-2); }
-  .status-punkte{ display: flex; gap: 3px; flex-shrink: 0; }
+  .status-punkte{ display: flex; gap: var(--raum-1); flex-shrink: 0; }
   .status-punkt{
     width: 6px; height: 6px;
     border-radius: 50%;
@@ -1092,8 +1144,8 @@
   }
   .status-punkt.aus{ background: var(--border); }
   .status-text{
-    font-size: 11.5px;
-    color: var(--text-dim);
+    font-size: var(--schrift-mini);
+    color: var(--text-mute);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1102,38 +1154,39 @@
   .sidebar-foot{
     flex-shrink: 0;
     border-top: 1px solid var(--border);
-    padding-top: 10px;
-    margin-top: 8px;
+    padding-top: var(--raum-5);
+    margin-top: var(--raum-4);
   }
   .sidebar-quick{
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: var(--raum-1);
   }
   .quick-btn{
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--raum-5);
     width: 100%;
     background: none;
     border: none;
     color: var(--text-dim);
     font-family: inherit;
-    font-size: 13.5px;
+    font-size: var(--schrift-ui);
     text-align: left;
-    padding: 9px 10px;
-    border-radius: 10px;
+    padding: var(--raum-4) var(--raum-5);
+    border-radius: var(--rund-2);
     cursor: pointer;
   }
   .quick-btn:hover{ background: var(--surface-2); color: var(--text); }
   .quick-btn svg{ width: 16px; height: 16px; flex-shrink: 0; }
   .quick-btn span:nth-of-type(1){ flex: 1; }
   .quick-zahl{
-    font-size: 11.5px;
+    font-size: var(--schrift-mini);
+    font-variant-numeric: tabular-nums;
     color: var(--text-dim);
     background: var(--surface-2);
-    border-radius: 999px;
-    padding: 1px 7px;
+    border-radius: var(--rund-voll);
+    padding: var(--raum-1) var(--raum-4);
     min-width: 18px;
     text-align: center;
   }
@@ -1144,24 +1197,24 @@
     width: 100%;
     background: none;
     border: none;
-    padding: 10px 10px 4px;
+    padding: var(--raum-5) var(--raum-5) var(--raum-2);
     cursor: pointer;
     font-family: inherit;
     text-align: left;
-    border-radius: 10px;
+    border-radius: var(--rund-2);
   }
   .sidebar-speicher:hover{ background: var(--surface-2); }
   .speicher-text{
     display: block;
-    font-size: 11.5px;
-    color: var(--text-dim);
-    margin-bottom: 6px;
+    font-size: var(--schrift-mini);
+    color: var(--text-mute);
+    margin-bottom: var(--raum-3);
   }
   .speicher-bar{
     display: block;
     height: 4px;
     background: var(--surface-2);
-    border-radius: 999px;
+    border-radius: var(--rund-voll);
     overflow: hidden;
   }
   .speicher-bar > span{
@@ -1169,7 +1222,7 @@
     height: 100%;
     width: 0;
     background: var(--text-dim);
-    border-radius: 999px;
+    border-radius: var(--rund-voll);
     transition: width var(--dauer-ruhig) var(--kurve), background var(--dauer-kurz) var(--kurve);
   }
   .speicher-bar > span.warn{ background: var(--danger); }
@@ -1177,8 +1230,77 @@
   /* Zaehler an den Filtern */
   .filter-chip .zahl{
     opacity: .65;
-    margin-left: 5px;
+    margin-left: var(--raum-3);
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Wiederkehrende Abstände als Klassen statt als Inline-Angabe: vorher lagen
+     margin-Werte von 8 bis 26px verstreut im Markup, alle ausserhalb des
+     Rasters und jeder einzeln geraten. */
+  .hinweis-ui{ color: var(--text-dim); font-size: var(--schrift-ui); }
+  .warn-text{ color: var(--danger); }
+  .warn-block{ font-size: var(--schrift-klein); margin: var(--raum-2) 0 var(--raum-5); }
+  .dreht{ animation: spin .8s linear infinite; }
+  .icon-gedimmt{ color: var(--text-dim); flex-shrink: 0; }
+
+  .mb-klein{ margin-bottom: var(--raum-4); }
+  .knopf-reihe{ display: flex; gap: var(--raum-2); }
+  .knopf-reihe.eng{ gap: var(--raum-1); }
+  .conv-liste-flaeche{ overflow-y: auto; flex: 1; }
+  .sidebar-titel{ font-size: var(--schrift-titel); }
+
+  .mt-klein{ margin-top: var(--raum-4) !important; }
+  .mt-mittel{ margin-top: var(--raum-5) !important; }
+  .mt-gross{ margin-top: var(--raum-7) !important; }
+  .mt-xl{ margin-top: var(--raum-9) !important; }
+
+  /* Einstellungen sind nach Themen gruppiert statt flach aufgereiht:
+     vierzehn gleichrangige Abschnitte lassen niemanden etwas finden. */
+  .einst-gruppe{
+    font-size: var(--schrift-mini);
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--text-mute);
+    padding: var(--raum-7) var(--raum-1) var(--raum-3);
+    margin-top: var(--raum-2);
+  }
+  .einst-gruppe:first-of-type{ padding-top: var(--raum-3); margin-top: 0; }
+
+  /* ---------- Tastaturbedienung ---------- */
+  /* Vorher gab es 35 Hover-Zustaende, aber praktisch keinen sichtbaren
+     Fokus: wer mit der Tastatur navigiert, sah nicht, wo er steht.
+     focus-visible zeigt den Ring nur bei Tastaturbedienung, nicht beim
+     Klicken -- so stoert er niemanden, der die Maus benutzt. */
+  :where(button, a, input, textarea, select, summary, [tabindex]):focus-visible{
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: var(--rund-1);
+  }
+  /* Runde Elemente brauchen einen runden Ring */
+  .send-btn:focus-visible,
+  .attach-btn:focus-visible,
+  .mic-btn:focus-visible,
+  .icon-btn:focus-visible,
+  .key-btn:focus-visible{
+    border-radius: 50%;
+  }
+  .chip:focus-visible,
+  .filter-chip:focus-visible,
+  .mode-chip:focus-visible,
+  .team-toggle:focus-visible,
+  .agent-start:focus-visible,
+  .compare-pick:focus-visible,
+  .mehr-laden:focus-visible{
+    border-radius: var(--rund-voll);
+  }
+  /* Eingabefelder heben sich schon durch den eigenen Rahmen ab, dort waere
+     ein zweiter Ring zu viel. */
+  .composer:focus-within{ outline: none; }
+  #input:focus-visible,
+  .sidebar-search input:focus-visible,
+  .find-bar input:focus-visible{
+    outline: none;
   }
 
   /* ---------- Feinschliff Bewegung ---------- */
@@ -1295,8 +1417,8 @@
   .compare-grid{
     display: grid;
     grid-template-columns: 1fr;
-    gap: 10px;
-    margin: 4px 0 2px;
+    gap: var(--raum-5);
+    margin: var(--raum-2) 0 var(--raum-1);
   }
   @media (min-width: 800px){
     .compare-grid.cols-2{ grid-template-columns: 1fr 1fr; }
@@ -1305,11 +1427,11 @@
   .compare-card{
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 12px 14px;
+    border-radius: var(--rund-3);
+    padding: var(--raum-5) var(--raum-6);
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--raum-4);
     min-width: 0;
     transition: border-color var(--dauer-kurz) var(--kurve);
   }
@@ -1319,12 +1441,12 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
-    font-size: 12px;
+    gap: var(--raum-4);
+    font-size: var(--schrift-klein);
     color: var(--text-dim);
   }
   .compare-provider{
-    display: flex; align-items: center; gap: 6px;
+    display: flex; align-items: center; gap: var(--raum-3);
     font-weight: 600;
     color: var(--text);
     overflow: hidden;
@@ -1332,22 +1454,22 @@
     white-space: nowrap;
   }
   .compare-body{
-    font-size: 14.5px;
+    font-size: var(--schrift-ui);
     line-height: 1.55;
     max-height: 280px;
     overflow-y: auto;
     word-wrap: break-word;
   }
   .compare-body p:first-child{ margin-top: 0; }
-  .compare-actions{ display: flex; gap: 6px; }
+  .compare-actions{ display: flex; gap: var(--raum-3); }
   .compare-pick{
     flex: 1;
     background: none;
     border: 1px solid var(--border);
     color: var(--text-dim);
-    border-radius: 999px;
-    padding: 7px 12px;
-    font-size: 12.5px;
+    border-radius: var(--rund-voll);
+    padding: var(--raum-4) var(--raum-5);
+    font-size: var(--schrift-klein);
     font-family: inherit;
     cursor: pointer;
     transition: background var(--dauer-kurz) var(--kurve), color var(--dauer-kurz) var(--kurve), border-color var(--dauer-kurz) var(--kurve);
@@ -1375,7 +1497,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 24px;
+    padding: var(--raum-8);
   }
   .lock-box{
     width: 100%;
@@ -1384,48 +1506,48 @@
   }
   .lock-title{
     font-family: ui-serif, Georgia, serif;
-    font-size: 24px;
+    font-size: var(--schrift-titel);
     color: var(--text);
-    margin-bottom: 8px;
+    margin-bottom: var(--raum-4);
   }
   .lock-hint{
-    font-size: 13.5px;
+    font-size: var(--schrift-ui);
     color: var(--text-dim);
     line-height: 1.55;
-    margin: 0 0 20px;
+    margin: 0 0 var(--raum-7);
   }
   .lock-box input{
     width: 100%;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: var(--rund-3);
     color: var(--text);
     font-family: inherit;
-    font-size: 17px;
+    font-size: var(--schrift-feld);
     letter-spacing: .25em;
     text-align: center;
-    padding: 13px 14px;
+    padding: var(--raum-5) var(--raum-6);
     outline: none;
     box-sizing: border-box;
   }
   .lock-box input:focus{ border-color: var(--text-dim); }
   .lock-error{
     min-height: 20px;
-    font-size: 13px;
+    font-size: var(--schrift-klein);
     color: var(--danger);
-    margin: 8px 0 4px;
+    margin: var(--raum-4) 0 var(--raum-2);
   }
   .lock-box .btn{ width: 100%; }
 
   .mehr-laden{
     display: block;
-    margin: 0 auto 14px;
+    margin: 0 auto var(--raum-6);
     background: var(--surface);
     border: 1px solid var(--border);
     color: var(--text-dim);
-    border-radius: 999px;
-    padding: 9px 18px;
-    font-size: 13px;
+    border-radius: var(--rund-voll);
+    padding: var(--raum-4) var(--raum-7);
+    font-size: var(--schrift-klein);
     font-family: inherit;
     cursor: pointer;
     transition: color var(--dauer-kurz) var(--kurve),
@@ -1441,13 +1563,13 @@
     z-index: 5;
     display: none;
     align-items: center;
-    gap: 8px;
+    gap: var(--raum-4);
     max-width: 720px;
-    margin: 0 auto 10px;
-    padding: 8px 12px;
+    margin: 0 auto var(--raum-5);
+    padding: var(--raum-4) var(--raum-5);
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 999px;
+    border-radius: var(--rund-voll);
   }
   .find-bar.open{ display: flex; }
   .find-bar input{
@@ -1457,12 +1579,12 @@
     outline: none;
     color: var(--text);
     font-family: inherit;
-    font-size: 14px;
+    font-size: var(--schrift-ui);
     min-width: 0;
   }
   .find-bar input::placeholder{ color: var(--text-dim); }
   .find-count{
-    font-size: 12.5px;
+    font-size: var(--schrift-klein);
     color: var(--text-dim);
     white-space: nowrap;
     flex-shrink: 0;
@@ -1472,10 +1594,10 @@
     border: none;
     color: var(--text-dim);
     cursor: pointer;
-    padding: 4px;
+    padding: var(--raum-2);
     display: flex;
     align-items: center;
-    border-radius: 6px;
+    border-radius: var(--rund-1);
     flex-shrink: 0;
   }
   .find-bar button:hover{ color: var(--text); background: var(--surface-2); }
@@ -1483,45 +1605,67 @@
   mark.find-hit{
     background: var(--accent-soft);
     color: inherit;
-    border-radius: 3px;
-    padding: 0 1px;
+    border-radius: var(--rund-1);
+    padding: 0 var(--raum-1);
   }
   mark.find-hit.current{ background: var(--accent); color: var(--accent-ink); }
 
   .storage-bar{
     height: 8px;
     background: var(--surface-2);
-    border-radius: 999px;
+    border-radius: var(--rund-voll);
     overflow: hidden;
-    margin: 8px 0 6px;
+    margin: var(--raum-4) 0 var(--raum-3);
   }
   .storage-bar span{
     display: block;
     height: 100%;
     background: var(--accent);
-    border-radius: 999px;
+    border-radius: var(--rund-voll);
     transition: width var(--dauer-mittel) var(--kurve);
   }
   .storage-bar.warn span{ background: var(--danger); }
   .storage-actions{
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 12px;
+    gap: var(--raum-4);
+    margin-top: var(--raum-5);
   }
   .storage-actions .btn{ flex: 1; min-width: 190px; }
+
+  /* Anmerkung eines Mitglieds zu den Beitraegen der anderen */
+  .team-step-review{
+    margin-top: var(--raum-4);
+    padding: var(--raum-4) var(--raum-4);
+    border-left: 2px solid var(--accent);
+    background: var(--surface-2);
+    border-radius: 0 var(--rund-2) var(--rund-2) 0;
+    font-size: var(--schrift-klein);
+    line-height: 1.45;
+    color: var(--text);
+    white-space: pre-wrap;
+  }
+  .team-step-review::before{
+    content: "Anmerkung zu den anderen";
+    display: block;
+    font-size: var(--schrift-mini);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: var(--raum-1);
+  }
 
   .file-chip{
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--raum-4);
     max-width: 720px;
-    margin: 0 auto 8px;
-    padding: 8px 12px;
+    margin: 0 auto var(--raum-4);
+    padding: var(--raum-4) var(--raum-5);
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 12px;
-    font-size: 13px;
+    border-radius: var(--rund-3);
+    font-size: var(--schrift-klein);
     color: var(--text);
   }
   .file-chip span{
@@ -1535,17 +1679,17 @@
     color: var(--text-dim);
     cursor: pointer;
     display: flex; align-items: center;
-    padding: 2px;
+    padding: var(--raum-1);
   }
   .file-chip button:hover{ color: var(--text); }
 
   .mode-chip-group{
     display: inline-flex;
-    gap: 3px;
+    gap: var(--raum-1);
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 3px;
+    border-radius: var(--rund-voll);
+    padding: var(--raum-1);
     flex-shrink: 0;
   }
   .mode-chip{
@@ -1553,9 +1697,9 @@
     border: none;
     color: var(--text-dim);
     font-family: inherit;
-    font-size: 12px;
-    padding: 4px 11px;
-    border-radius: 999px;
+    font-size: var(--schrift-klein);
+    padding: var(--raum-2) var(--raum-5);
+    border-radius: var(--rund-voll);
     cursor: pointer;
     white-space: nowrap;
     transition: background var(--dauer-kurz) var(--kurve), color var(--dauer-kurz) var(--kurve);
@@ -1570,17 +1714,17 @@
   .sidebar-filters{
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    padding: 0 2px 10px;
+    gap: var(--raum-3);
+    padding: 0 var(--raum-1) var(--raum-5);
   }
   .filter-chip{
     flex-shrink: 0;
     background: none;
     border: 1px solid var(--border);
     color: var(--text-dim);
-    border-radius: 999px;
-    padding: 5px 11px;
-    font-size: 12.5px;
+    border-radius: var(--rund-voll);
+    padding: var(--raum-3) var(--raum-5);
+    font-size: var(--schrift-klein);
     font-family: inherit;
     cursor: pointer;
     white-space: nowrap;
@@ -1593,19 +1737,19 @@
     border-color: var(--accent);
   }
   .conv-group-label{
-    font-size: 11.5px;
+    font-size: var(--schrift-mini);
     text-transform: uppercase;
     letter-spacing: .07em;
-    color: var(--text-dim);
-    padding: 12px 6px 6px;
+    color: var(--text-mute);
+    padding: var(--raum-5) var(--raum-3) var(--raum-3);
     font-weight: 600;
   }
   .conv-menu-btn{
     background: none; border: none;
     color: var(--text-dim);
     cursor: pointer;
-    padding: 4px;
-    border-radius: 6px;
+    padding: var(--raum-2);
+    border-radius: var(--rund-1);
     display: flex; align-items: center;
     position: relative;
     opacity: 0;
@@ -1632,43 +1776,43 @@
     border-radius: 50%;
     background: var(--accent);
     flex-shrink: 0;
-    margin-right: 6px;
+    margin-right: var(--raum-3);
   }
   .ctx-menu{
     position: fixed;
     z-index: 60;
     background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 5px;
+    border-radius: var(--rund-3);
+    padding: var(--raum-3);
     min-width: 190px;
-    box-shadow: 0 12px 32px rgba(0,0,0,.45);
+    box-shadow: var(--schatten-3);
     display: none;
   }
   .ctx-menu.open{ display: block; }
   .ctx-item{
-    display: flex; align-items: center; gap: 9px;
+    display: flex; align-items: center; gap: var(--raum-4);
     width: 100%;
     background: none; border: none;
     color: var(--text);
     font-family: inherit;
-    font-size: 13.5px;
+    font-size: var(--schrift-ui);
     text-align: left;
-    padding: 9px 11px;
-    border-radius: 8px;
+    padding: var(--raum-4) var(--raum-5);
+    border-radius: var(--rund-2);
     cursor: pointer;
   }
   .ctx-item:hover{ background: var(--surface); }
   .ctx-item.danger{ color: var(--danger); }
   .ctx-item svg{ width: 15px; height: 15px; flex-shrink: 0; }
-  .ctx-sep{ height: 1px; background: var(--border); margin: 5px 4px; }
+  .ctx-sep{ height: 1px; background: var(--border); margin: var(--raum-3) var(--raum-2); }
   .sidebar-panel{
     position: fixed;
     top: 0; bottom: 0; left: 0;
     width: min(82vw, 320px);
     background: var(--surface);
     border-right: 1px solid var(--border);
-    padding: calc(16px + var(--safe-top)) 12px calc(16px + var(--safe-bottom));
+    padding: calc(var(--raum-6) + var(--safe-top)) var(--raum-5) calc(var(--raum-6) + var(--safe-bottom));
     transform: translateX(-100%);
     transition: transform var(--dauer-ruhig) var(--kurve);
     display: flex;
@@ -1679,17 +1823,17 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 4px 8px 14px;
+    padding: var(--raum-2) var(--raum-4) var(--raum-6);
   }
   .sidebar-search{
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--raum-4);
     background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 8px 10px;
-    margin: 0 4px 12px;
+    border-radius: var(--rund-2);
+    padding: var(--raum-4) var(--raum-5);
+    margin: 0 var(--raum-2) var(--raum-5);
   }
   .sidebar-search svg{ width: 15px; height: 15px; color: var(--text-dim); flex-shrink: 0; }
   .sidebar-search input{
@@ -1698,24 +1842,24 @@
     border: none;
     outline: none;
     color: var(--text);
-    font-size: 14px;
+    font-size: var(--schrift-ui);
     font-family: inherit;
   }
   .sidebar-search input::placeholder{ color: var(--text-dim); }
   .sidebar-empty{
-    padding: 20px 10px;
+    padding: var(--raum-7) var(--raum-5);
     text-align: center;
     color: var(--text-dim);
-    font-size: 13px;
+    font-size: var(--schrift-klein);
   }
   .conv-item{
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 10px;
-    border-radius: 10px;
+    gap: var(--raum-4);
+    padding: var(--raum-5) var(--raum-5);
+    border-radius: var(--rund-2);
     cursor: pointer;
-    font-size: 14px;
+    font-size: var(--schrift-ui);
     color: var(--text-dim);
     position: relative;
     border-left: 2px solid transparent;
@@ -1725,13 +1869,13 @@
   .conv-item.active{ background: var(--surface-2); color: var(--text); border-left-color: var(--accent); }
   .conv-item .conv-text{ flex: 1; overflow: hidden; }
   .conv-item .conv-title{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
-  .conv-item .conv-time{ font-size: 11px; color: var(--text-dim); opacity: .7; margin-top: 1px; }
+  .conv-item .conv-time{ font-size: var(--schrift-mini); color: var(--text-mute); opacity: .7; margin-top: var(--raum-1); }
   .conv-item .conv-rename,
   .conv-item .conv-del{
     opacity: .55;
-    padding: 9px;
-    margin-left: 2px;
-    border-radius: 8px;
+    padding: var(--raum-4);
+    margin-left: var(--raum-1);
+    border-radius: var(--rund-2);
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -1745,22 +1889,22 @@
     flex: 1;
     background: var(--surface);
     border: 1px solid var(--accent);
-    border-radius: 6px;
+    border-radius: var(--rund-1);
     color: var(--text);
-    font-size: 14px;
+    font-size: var(--schrift-ui);
     font-family: inherit;
-    padding: 4px 7px;
+    padding: var(--raum-2) var(--raum-4);
   }
 
   /* ---------- Markdown-Inhalte in Sprechblasen ---------- */
   .bubble pre{
     background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 10px 12px;
+    border-radius: var(--rund-2);
+    padding: var(--raum-5) var(--raum-5);
     overflow-x: auto;
-    margin: 8px 0;
-    font-size: 13.5px;
+    margin: var(--raum-4) 0;
+    font-size: var(--schrift-ui);
   }
   .bubble code{
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -1768,15 +1912,15 @@
   }
   .bubble :not(pre) > code{
     background: var(--surface-2);
-    padding: 1px 5px;
-    border-radius: 5px;
+    padding: var(--raum-1) var(--raum-3);
+    border-radius: var(--rund-1);
   }
-  .bubble ul{ margin: 6px 0; padding-left: 20px; }
-  .bubble li{ margin: 2px 0; }
+  .bubble ul{ margin: var(--raum-3) 0; padding-left: var(--raum-7); }
+  .bubble li{ margin: var(--raum-1) 0; }
   .bubble a{ color: var(--accent); }
 
-  .code-block{ margin: 8px 0; }
-  .code-block pre{ margin: 0; border-radius: 0 0 10px 10px; border-top: none; }
+  .code-block{ margin: var(--raum-4) 0; }
+  .code-block pre{ margin: 0; border-radius: 0 0 var(--rund-2) var(--rund-2); border-top: none; }
   .code-block-head{
     display: flex;
     align-items: center;
@@ -1784,17 +1928,17 @@
     background: var(--surface-2);
     border: 1px solid var(--border);
     border-bottom: none;
-    border-radius: 10px 10px 0 0;
-    padding: 6px 6px 6px 12px;
+    border-radius: var(--rund-2) var(--rund-2) 0 0;
+    padding: var(--raum-3) var(--raum-3) var(--raum-3) var(--raum-5);
   }
-  .code-lang{ font-size: 11.5px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .03em; }
+  .code-lang{ font-size: var(--schrift-mini); color: var(--text-dim); text-transform: uppercase; letter-spacing: .03em; }
   .code-run-btn{
     background: none;
     border: 1px solid var(--border);
     color: var(--text);
-    font-size: 12px;
-    padding: 4px 10px;
-    border-radius: 7px;
+    font-size: var(--schrift-klein);
+    padding: var(--raum-2) var(--raum-5);
+    border-radius: var(--rund-1);
     cursor: pointer;
     font-family: inherit;
   }
@@ -1804,10 +1948,10 @@
     background: var(--bg);
     border: 1px solid var(--border);
     border-top: none;
-    border-radius: 0 0 10px 10px;
-    padding: 10px 12px;
+    border-radius: 0 0 var(--rund-2) var(--rund-2);
+    padding: var(--raum-5) var(--raum-5);
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 13px;
+    font-size: var(--schrift-klein);
     white-space: pre-wrap;
     word-break: break-word;
     color: var(--text-dim);
@@ -1821,15 +1965,15 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: var(--raum-3);
     width: 100%;
     background: var(--surface-2);
     border: 1px solid var(--danger);
     border-top: none;
     color: var(--danger);
-    font-size: 12.5px;
-    padding: 9px;
-    border-radius: 0 0 10px 10px;
+    font-size: var(--schrift-klein);
+    padding: var(--raum-4);
+    border-radius: 0 0 var(--rund-2) var(--rund-2);
     cursor: pointer;
     font-family: inherit;
   }
@@ -1857,15 +2001,15 @@
 
   .attach-preview{
     max-width: 720px;
-    margin: 0 auto 8px;
+    margin: 0 auto var(--raum-4);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--raum-4);
   }
   .attach-preview img{
     width: 44px; height: 44px;
     object-fit: cover;
-    border-radius: 8px;
+    border-radius: var(--rund-2);
     border: 1px solid var(--border);
   }
   .attach-preview button{
@@ -1884,9 +2028,9 @@
   .msg-image{
     max-width: 220px;
     max-height: 220px;
-    border-radius: 12px;
+    border-radius: var(--rund-3);
     display: block;
-    margin-bottom: 6px;
+    margin-bottom: var(--raum-3);
     cursor: pointer;
   }
 
@@ -1894,9 +2038,9 @@
   .usage-row{
     display: flex;
     justify-content: space-between;
-    padding: 9px 0;
+    padding: var(--raum-4) 0;
     border-bottom: 1px solid var(--border);
-    font-size: 13.5px;
+    font-size: var(--schrift-ui);
   }
   .usage-row:last-child{ border-bottom: none; }
   .usage-row .usage-name{ color: var(--text); }
@@ -1909,7 +2053,7 @@
   <button class="icon-btn" id="btn-chats" title="Chats" aria-label="Chats">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h10" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </button>
-  <div style="display:flex; gap:4px">
+  <div class="knopf-reihe">
     <button class="icon-btn" id="btn-new-chat-header" title="Neuer Chat" aria-label="Neuer Chat">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
     </button>
@@ -1925,7 +2069,7 @@
 
 <main id="main">
   <div class="find-bar" id="find-bar">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15" style="color:var(--text-dim); flex-shrink:0"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3" stroke-linecap="round"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15" class="icon-gedimmt"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3" stroke-linecap="round"/></svg>
     <input type="text" id="find-input" placeholder="Im Chat suchen…" autocomplete="off" aria-label="Im Chat suchen">
     <span class="find-count" id="find-count"></span>
     <button type="button" id="find-prev" aria-label="Vorheriger Treffer" title="Vorheriger Treffer">
@@ -2038,39 +2182,7 @@
   <div class="sheet">
     <h2>Einstellungen</h2>
 
-    <details class="provider-section" id="section-profile" open>
-      <summary><span class="status-dot" id="status-profile"></span>Profil</summary>
-      <div class="field">
-        <label for="profile-name">Wie soll die KI dich nennen?</label>
-        <input type="text" id="profile-name" placeholder="z. B. Henri" autocomplete="off">
-      </div>
-      <div class="field">
-        <label for="profile-about">Was sollte die KI über dich wissen?</label>
-        <textarea id="profile-about" rows="3" placeholder="z. B. Interessen, Beruf, Kontext, der bei Antworten helfen könnte"></textarea>
-      </div>
-      <div class="field">
-        <label for="profile-style">Wie soll die KI antworten?</label>
-        <div class="persona-chips" id="persona-chips">
-          <button type="button" class="persona-chip" data-style="Kurz und direkt antworten, ohne Umschweife, keine unnötigen Einleitungen.">Kurz &amp; direkt</button>
-          <button type="button" class="persona-chip" data-style="Ausführlich erklären, mit Hintergrund und Beispielen, auch Zusammenhänge einordnen.">Ausführlich</button>
-          <button type="button" class="persona-chip" data-style="Locker und informell antworten, wie ein Freund, ruhig auch mal umgangssprachlich.">Locker</button>
-          <button type="button" class="persona-chip" data-style="Sachlich und formell antworten, präzise Fachsprache, keine Umgangssprache.">Formell</button>
-        </div>
-        <textarea id="profile-style" rows="3" placeholder="z. B. kurz und direkt, mit Beispielen, ohne Emojis"></textarea>
-      </div>
-      <div class="field">
-        <label for="theme-select">Erscheinungsbild</label>
-        <select id="theme-select">
-          <option value="graphit">Nachtschwarz (Standard)</option>
-          <option value="mitternacht">Mitternacht</option>
-          <option value="hell">Hell</option>
-          <option value="mondlicht">Mondlicht (hell, blau)</option>
-          <option value="mondlicht-dunkel">Mondlicht Dunkel (dunkel, blau)</option>
-        </select>
-      </div>
-      <button type="button" class="btn btn-primary" id="btn-save-profile">Speichern</button>
-    </details>
-
+    <div class="einst-gruppe">Zugang</div>
     <details class="provider-section" id="section-openrouter">
       <summary><span class="status-dot" id="status-openrouter"></span>OpenRouter</summary>
       <div class="field">
@@ -2105,7 +2217,43 @@
       <button type="button" class="btn btn-primary" id="btn-save">Speichern</button>
       <button type="button" class="btn btn-ghost" id="btn-forget">Schlüssel entfernen</button>
     </details>
-
+    <details class="provider-section" id="section-vercel">
+      <summary><span class="status-dot" id="status-vercel"></span>Vercel AI Gateway</summary>
+      <div class="field">
+        <div class="toggle-row">
+          <span>Anbieter nutzen</span>
+          <button type="button" class="toggle-switch" id="vercel-enable-toggle" aria-label="Vercel AI Gateway nutzen" role="switch" aria-checked="true"></button>
+        </div>
+      </div>
+      <div class="field">
+        <div class="hint">Ein Schlüssel, über 300 Modelle: GPT, Claude, Gemini, Llama, Qwen, Mistral und mehr über einen Zugang. Spart das Verwalten einzelner Schlüssel.</div>
+      </div>
+      <div class="field">
+        <label for="vercel-key">API-Schlüssel</label>
+        <div class="key-field">
+          <input type="password" id="vercel-key" placeholder="vck_…" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <button type="button" class="key-btn key-toggle" data-target="vercel-key" aria-label="Anzeigen/Verbergen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke-linejoin="round"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+          <button type="button" class="key-btn key-copy" data-target="vercel-key" aria-label="Kopieren">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V5a1 1 0 0 1 1-1h11" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div class="hint">
+          Schlüssel anlegen unter
+          <a href="https://vercel.com/d?to=/[team]/~/ai/api-keys" target="_blank" rel="noopener">vercel.com → AI Gateway → API Keys</a>.
+          Neue Konten haben ein Startguthaben.
+        </div>
+      </div>
+      <div class="field">
+        <label for="vercel-model">Modell</label>
+        <input type="text" id="vercel-model" list="vercel-model-list" placeholder="anthropic/claude-sonnet-4.6" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <datalist id="vercel-model-list"></datalist>
+        <div class="hint" id="vercel-model-hint">Beim Öffnen wird die aktuelle Modellliste geladen. Tippen filtert.</div>
+      </div>
+      <button type="button" class="btn btn-primary" id="btn-save-vercel">Speichern</button>
+      <button type="button" class="btn btn-ghost" id="btn-forget-vercel">Schlüssel entfernen</button>
+    </details>
     <details class="provider-section" id="section-groq">
       <summary><span class="status-dot" id="status-groq"></span>Groq</summary>
       <div class="field">
@@ -2137,7 +2285,6 @@
       <button type="button" class="btn btn-primary" id="btn-save-groq">Speichern</button>
       <button type="button" class="btn btn-ghost" id="btn-forget-groq">Schlüssel entfernen</button>
     </details>
-
     <details class="provider-section" id="section-gemini">
       <summary><span class="status-dot" id="status-gemini"></span>Google Gemini</summary>
       <div class="field">
@@ -2169,7 +2316,6 @@
       <button type="button" class="btn btn-primary" id="btn-save-gemini">Speichern</button>
       <button type="button" class="btn btn-ghost" id="btn-forget-gemini">Schlüssel entfernen</button>
     </details>
-
     <details class="provider-section" id="section-mistral">
       <summary><span class="status-dot" id="status-mistral"></span>Mistral</summary>
       <div class="field">
@@ -2201,7 +2347,6 @@
       <button type="button" class="btn btn-primary" id="btn-save-mistral">Speichern</button>
       <button type="button" class="btn btn-ghost" id="btn-forget-mistral">Schlüssel entfernen</button>
     </details>
-
     <details class="provider-section" id="section-ghmodels">
       <summary><span class="status-dot" id="status-ghmodels"></span>GitHub Models</summary>
       <div class="field">
@@ -2234,7 +2379,6 @@
       <button type="button" class="btn btn-primary" id="btn-save-ghmodels">Speichern</button>
       <button type="button" class="btn btn-ghost" id="btn-forget-ghmodels">Schlüssel entfernen</button>
     </details>
-
     <details class="provider-section" id="section-cohere">
       <summary><span class="status-dot" id="status-cohere"></span>Cohere</summary>
       <div class="field">
@@ -2266,7 +2410,6 @@
       <button type="button" class="btn btn-primary" id="btn-save-cohere">Speichern</button>
       <button type="button" class="btn btn-ghost" id="btn-forget-cohere">Schlüssel entfernen</button>
     </details>
-
     <details class="provider-section" id="section-claude">
       <summary><span class="status-dot" id="status-claude"></span>Claude (kostenpflichtig)</summary>
       <div class="field">
@@ -2307,24 +2450,73 @@
       <button type="button" class="btn btn-primary" id="btn-save-claude">Speichern</button>
       <button type="button" class="btn btn-ghost" id="btn-forget-claude">Schlüssel entfernen</button>
     </details>
-
-    <details class="provider-section" id="section-lock">
-      <summary><span class="status-dot" id="status-lock"></span>Sperre</summary>
+    <details class="provider-section" id="section-custom">
+      <summary><span class="status-dot" id="status-custom"></span>Eigene Anbieter</summary>
       <div class="field">
-        <div class="hint">Mit einer PIN werden alle Zugangsschlüssel verschlüsselt gespeichert (AES-256). Ohne PIN liegen sie im Klartext im Browser-Speicher und wären für jeden lesbar, der dieses Gerät benutzt.</div>
+        <div class="hint">
+          Für jeden OpenAI-kompatiblen Chat-Endpunkt (Bearer-Auth, streamt per SSE über <code>/chat/completions</code>).
+          Erlaubt der Dienst keine Browser-Anfragen (CORS), bekommst du eine klare Fehlermeldung statt eines stillen Ausfalls.
+        </div>
       </div>
-      <div id="lock-status-text" class="hint" style="margin-bottom:10px"></div>
-      <div class="field" id="lock-set-fields">
-        <label for="lock-new-pin">Neue PIN (mindestens 4 Zeichen)</label>
-        <input type="password" id="lock-new-pin" inputmode="numeric" autocomplete="new-password" placeholder="PIN">
-        <label for="lock-new-pin2" style="margin-top:8px">PIN wiederholen</label>
-        <input type="password" id="lock-new-pin2" inputmode="numeric" autocomplete="new-password" placeholder="PIN wiederholen">
-        <div class="hint" style="color:var(--danger); margin-top:8px">Wichtig: Ohne diese PIN sind die Schlüssel nicht mehr lesbar. Es gibt keinen Ersatzweg.</div>
-      </div>
-      <button type="button" class="btn btn-primary" id="btn-set-lock">PIN setzen</button>
-      <button type="button" class="btn btn-ghost" id="btn-remove-lock" style="margin-top:8px; display:none">Sperre entfernen</button>
-    </details>
+      <div id="custom-provider-list"></div>
 
+      <div class="field" id="custom-provider-form" class="mt-mittel" style="display:none">
+        <label for="custom-name">Name</label>
+        <input type="text" id="custom-name" placeholder="z. B. Cerebras" autocomplete="off">
+        <label for="custom-url" class="mt-klein">Endpunkt-URL</label>
+        <input type="text" id="custom-url" placeholder="https://api.beispiel.com/v1/chat/completions" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <label for="custom-key" class="mt-klein">API-Schlüssel</label>
+        <div class="key-field">
+          <input type="password" id="custom-key" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <button type="button" class="key-btn key-toggle" data-target="custom-key" aria-label="Anzeigen/Verbergen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke-linejoin="round"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+          <button type="button" class="key-btn key-copy" data-target="custom-key" aria-label="Kopieren">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V5a1 1 0 0 1 1-1h11" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <label for="custom-model" class="mt-klein">Modell-ID</label>
+        <input type="text" id="custom-model" placeholder="z. B. llama3.1-70b" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <div class="edit-actions mt-klein">
+          <button type="button" id="btn-cancel-custom">Abbrechen</button>
+          <button type="button" class="primary" id="btn-save-custom">Speichern</button>
+        </div>
+      </div>
+      <button type="button" class="btn btn-ghost" id="btn-add-custom-provider" style="color:var(--text); border-color:var(--border); margin-top:10px">+ Anbieter hinzufügen</button>
+    </details>
+    <div class="einst-gruppe">Verhalten</div>
+    <details class="provider-section" id="section-profile" open>
+      <summary><span class="status-dot" id="status-profile"></span>Profil</summary>
+      <div class="field">
+        <label for="profile-name">Wie soll die KI dich nennen?</label>
+        <input type="text" id="profile-name" placeholder="z. B. Henri" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="profile-about">Was sollte die KI über dich wissen?</label>
+        <textarea id="profile-about" rows="3" placeholder="z. B. Interessen, Beruf, Kontext, der bei Antworten helfen könnte"></textarea>
+      </div>
+      <div class="field">
+        <label for="profile-style">Wie soll die KI antworten?</label>
+        <div class="persona-chips" id="persona-chips">
+          <button type="button" class="persona-chip" data-style="Kurz und direkt antworten, ohne Umschweife, keine unnötigen Einleitungen.">Kurz &amp; direkt</button>
+          <button type="button" class="persona-chip" data-style="Ausführlich erklären, mit Hintergrund und Beispielen, auch Zusammenhänge einordnen.">Ausführlich</button>
+          <button type="button" class="persona-chip" data-style="Locker und informell antworten, wie ein Freund, ruhig auch mal umgangssprachlich.">Locker</button>
+          <button type="button" class="persona-chip" data-style="Sachlich und formell antworten, präzise Fachsprache, keine Umgangssprache.">Formell</button>
+        </div>
+        <textarea id="profile-style" rows="3" placeholder="z. B. kurz und direkt, mit Beispielen, ohne Emojis"></textarea>
+      </div>
+      <div class="field">
+        <label for="theme-select">Erscheinungsbild</label>
+        <select id="theme-select">
+          <option value="graphit">Nachtschwarz (Standard)</option>
+          <option value="mitternacht">Mitternacht</option>
+          <option value="hell">Hell</option>
+          <option value="mondlicht">Mondlicht (hell, blau)</option>
+          <option value="mondlicht-dunkel">Mondlicht Dunkel (dunkel, blau)</option>
+        </select>
+      </div>
+      <button type="button" class="btn btn-primary" id="btn-save-profile">Speichern</button>
+    </details>
     <details class="provider-section" id="section-memory">
       <summary><span class="status-dot" id="status-memory"></span>Gedächtnis</summary>
       <div class="field">
@@ -2338,41 +2530,33 @@
         </button>
       </div>
     </details>
-    <details class="provider-section" id="section-custom">
-      <summary><span class="status-dot" id="status-custom"></span>Eigene Anbieter</summary>
+    <details class="provider-section" id="section-team">
+      <summary><span class="status-dot" id="status-team"></span>Team-Modus</summary>
       <div class="field">
-        <div class="hint">
-          Für jeden OpenAI-kompatiblen Chat-Endpunkt (Bearer-Auth, streamt per SSE über <code>/chat/completions</code>).
-          Erlaubt der Dienst keine Browser-Anfragen (CORS), bekommst du eine klare Fehlermeldung statt eines stillen Ausfalls.
+        <div class="toggle-row">
+          <span>Mitglieder tauschen sich aus</span>
+          <button type="button" class="toggle-switch" id="team-austausch-toggle" aria-label="Austausch im Team" role="switch" aria-checked="true"></button>
         </div>
+        <div class="hint">Nach der ersten Runde liest jedes Mitglied die Beiträge der anderen und kann Fehler, Widersprüche oder Lücken benennen. Das macht die Zusammenfassung deutlich verlässlicher, kostet aber eine zweite Anfrage pro Mitglied — bei Anbietern mit knappem Limit relevant.</div>
       </div>
-      <div id="custom-provider-list"></div>
-
-      <div class="field" id="custom-provider-form" style="display:none; margin-top:14px">
-        <label for="custom-name">Name</label>
-        <input type="text" id="custom-name" placeholder="z. B. Cerebras" autocomplete="off">
-        <label for="custom-url" style="margin-top:10px">Endpunkt-URL</label>
-        <input type="text" id="custom-url" placeholder="https://api.beispiel.com/v1/chat/completions" autocomplete="off" autocapitalize="off" spellcheck="false">
-        <label for="custom-key" style="margin-top:10px">API-Schlüssel</label>
-        <div class="key-field">
-          <input type="password" id="custom-key" autocomplete="off" autocapitalize="off" spellcheck="false">
-          <button type="button" class="key-btn key-toggle" data-target="custom-key" aria-label="Anzeigen/Verbergen">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke-linejoin="round"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
-          <button type="button" class="key-btn key-copy" data-target="custom-key" aria-label="Kopieren">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V5a1 1 0 0 1 1-1h11" stroke-linecap="round"/></svg>
-          </button>
-        </div>
-        <label for="custom-model" style="margin-top:10px">Modell-ID</label>
-        <input type="text" id="custom-model" placeholder="z. B. llama3.1-70b" autocomplete="off" autocapitalize="off" spellcheck="false">
-        <div class="edit-actions" style="margin-top:10px">
-          <button type="button" id="btn-cancel-custom">Abbrechen</button>
-          <button type="button" class="primary" id="btn-save-custom">Speichern</button>
-        </div>
-      </div>
-      <button type="button" class="btn btn-ghost" id="btn-add-custom-provider" style="color:var(--text); border-color:var(--border); margin-top:10px">+ Anbieter hinzufügen</button>
     </details>
-
+    <div class="einst-gruppe">Daten und Sicherheit</div>
+    <details class="provider-section" id="section-lock">
+      <summary><span class="status-dot" id="status-lock"></span>Sperre</summary>
+      <div class="field">
+        <div class="hint">Mit einer PIN werden alle Zugangsschlüssel verschlüsselt gespeichert (AES-256). Ohne PIN liegen sie im Klartext im Browser-Speicher und wären für jeden lesbar, der dieses Gerät benutzt.</div>
+      </div>
+      <div id="lock-status-text" class="hint mb-klein"></div>
+      <div class="field" id="lock-set-fields">
+        <label for="lock-new-pin">Neue PIN (mindestens 4 Zeichen)</label>
+        <input type="password" id="lock-new-pin" inputmode="numeric" autocomplete="new-password" placeholder="PIN">
+        <label for="lock-new-pin2" class="mt-klein">PIN wiederholen</label>
+        <input type="password" id="lock-new-pin2" inputmode="numeric" autocomplete="new-password" placeholder="PIN wiederholen">
+        <div class="hint warn-text mt-klein">Wichtig: Ohne diese PIN sind die Schlüssel nicht mehr lesbar. Es gibt keinen Ersatzweg.</div>
+      </div>
+      <button type="button" class="btn btn-primary" id="btn-set-lock">PIN setzen</button>
+      <button type="button" class="btn btn-ghost" id="btn-remove-lock" class="mt-klein" style="display:none">Sperre entfernen</button>
+    </details>
     <details class="provider-section" id="section-backup">
       <summary><span class="status-dot ok" style="visibility:hidden"></span>Sicherung</summary>
       <div class="field">
@@ -2388,8 +2572,8 @@
 <div class="sidebar-backdrop" id="sidebar-backdrop">
   <div class="sidebar-panel">
     <div class="sidebar-header">
-      <span class="wordmark" style="font-size:19px">Chats</span>
-      <div style="display:flex; gap:2px">
+      <span class="wordmark sidebar-titel">Chats</span>
+      <div class="knopf-reihe eng">
         <button class="icon-btn" id="btn-new-chat" title="Neuer Chat" aria-label="Neuer Chat">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
         </button>
@@ -2426,7 +2610,7 @@
       <button type="button" class="filter-chip" data-filter="archiv">Archiv</button>
     </div>
     <div class="sidebar-filters" id="project-filter-row"></div>
-    <div id="conversation-list" style="overflow-y:auto; flex:1"></div>
+    <div id="conversation-list" class="conv-liste-flaeche"></div>
 
     <div class="sidebar-foot">
       <div class="sidebar-quick">
@@ -2498,17 +2682,17 @@
     </div>
     <div id="agents-list"></div>
 
-    <div class="field" id="agent-form" style="display:none; margin-top:14px">
+    <div class="field" id="agent-form" class="mt-mittel" style="display:none">
       <label for="agent-name">Name</label>
       <input type="text" id="agent-name" placeholder="z. B. Übersetzer" autocomplete="off">
-      <label for="agent-icon" style="margin-top:10px">Symbol (ein Emoji)</label>
+      <label for="agent-icon" class="mt-klein">Symbol (ein Emoji)</label>
       <input type="text" id="agent-icon" placeholder="🧭" maxlength="4" autocomplete="off">
-      <label for="agent-prompt" style="margin-top:10px">System-Prompt</label>
+      <label for="agent-prompt" class="mt-klein">System-Prompt</label>
       <textarea id="agent-prompt" rows="4" placeholder="Wie soll sich dieser Agent verhalten?"></textarea>
-      <label for="agent-provider" style="margin-top:10px">Bevorzugter Anbieter</label>
+      <label for="agent-provider" class="mt-klein">Bevorzugter Anbieter</label>
       <select id="agent-provider"><option value="">Automatisch (Router entscheidet)</option></select>
       <div class="hint">Wird zuerst versucht, bei Fehler oder Limit greift trotzdem die normale Fallback-Kette.</div>
-      <div class="edit-actions" style="margin-top:10px">
+      <div class="edit-actions mt-klein">
         <button type="button" id="btn-cancel-agent">Abbrechen</button>
         <button type="button" class="primary" id="btn-save-agent">Speichern</button>
       </div>
@@ -2563,13 +2747,13 @@
   <div class="sheet">
     <h2>In Ordner verschieben</h2>
     <div id="folder-list"></div>
-    <div class="todo-add-row" style="margin-top:12px">
+    <div class="todo-add-row mt-mittel">
       <input type="text" id="folder-new-name" placeholder="Neuer Ordner…" autocomplete="off" aria-label="Name des neuen Ordners">
       <button type="button" class="key-btn" id="btn-add-folder" aria-label="Ordner anlegen">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
       </button>
     </div>
-    <div class="hint" style="margin-top:10px">Ordner sind einfache Sammlungen. Sie verschwinden von selbst, sobald der letzte Chat sie verlässt.</div>
+    <div class="hint mt-klein">Ordner sind einfache Sammlungen. Sie verschwinden von selbst, sobald der letzte Chat sie verlässt.</div>
   </div>
 </div>
 
@@ -2578,14 +2762,14 @@
     <h2>Nutzung</h2>
     <div id="usage-body"></div>
 
-    <h2 style="margin-top:26px">Speicher</h2>
+    <h2 class="mt-xl">Speicher</h2>
     <div id="storage-body"></div>
     <div class="storage-actions">
       <button type="button" class="btn btn-ghost" id="btn-clean-archived">Archivierte Chats löschen</button>
       <button type="button" class="btn btn-ghost" id="btn-clean-old">Chats älter als 30 Tage löschen</button>
     </div>
 
-    <button type="button" class="btn btn-ghost" id="btn-reset-usage" style="margin-top:20px">Nutzungszähler zurücksetzen</button>
+    <button type="button" class="btn btn-ghost" id="btn-reset-usage" class="mt-gross">Nutzungszähler zurücksetzen</button>
   </div>
 </div>
 
@@ -2789,6 +2973,9 @@
   const STORAGE_GROQ_ENABLED = "relais.groqEnabled";
   const STORAGE_GEMINI_ENABLED = "relais.geminiEnabled";
   const STORAGE_MISTRAL_ENABLED = "relais.mistralEnabled";
+  const STORAGE_VERCEL_KEY     = "relais.vercelKey";
+  const STORAGE_VERCEL_MODEL   = "relais.vercelModel";
+  const STORAGE_VERCEL_ENABLED = "relais.vercelEnabled";
   const STORAGE_GHMODELS_ENABLED = "relais.ghmodelsEnabled";
   const STORAGE_COHERE_ENABLED = "relais.cohereEnabled";
   const MISTRAL_MODEL_PREFERENCE = ["mistral-small-latest", "open-mistral-nemo", "ministral-8b-latest"];
@@ -2829,6 +3016,11 @@
   const teamToggleBtn = $("#btn-team-toggle");
   let teamMode = localStorage.getItem("relais.teamMode") === "1";
   let compareMode = localStorage.getItem("relais.compareMode") === "1";
+  // Im Team-Modus sehen die Mitglieder standardmaessig die Beitraege der
+  // anderen und duerfen nachlegen. Das kostet eine zweite Anfragerunde,
+  // deshalb abschaltbar.
+  const STORAGE_TEAM_AUSTAUSCH = "relais.teamAustausch";
+  let teamAustausch = localStorage.getItem(STORAGE_TEAM_AUSTAUSCH) !== "0";
   const sheetBackdrop = $("#sheet-backdrop");
   const apiKeyField = $("#api-key");
   const modelSelect = $("#model-select");
@@ -2848,7 +3040,7 @@
   function schluesselOrte(){
     return [STORAGE_KEY, STORAGE_GROQ_KEY, STORAGE_GEMINI_KEY, STORAGE_MISTRAL_KEY,
             STORAGE_GHMODELS_KEY, STORAGE_COHERE_KEY, STORAGE_CLAUDE_KEY,
-            STORAGE_CUSTOM_PROVIDERS];
+            STORAGE_VERCEL_KEY, STORAGE_CUSTOM_PROVIDERS];
   }
 
   function b64(buf){ return btoa(String.fromCharCode(...new Uint8Array(buf))); }
@@ -2990,6 +3182,7 @@
     ghmodelsKey = leseSchluessel(STORAGE_GHMODELS_KEY);
     cohereKey   = leseSchluessel(STORAGE_COHERE_KEY);
     claudeKey   = leseSchluessel(STORAGE_CLAUDE_KEY);
+    vercelKey   = leseSchluessel(STORAGE_VERCEL_KEY);
     try{ customProviders = JSON.parse(leseSchluessel(STORAGE_CUSTOM_PROVIDERS) || "[]"); }
     catch{ customProviders = []; }
     refreshProviderStatuses();
@@ -3068,6 +3261,12 @@
   let groqEnabled = localStorage.getItem(STORAGE_GROQ_ENABLED) !== "0";
   let geminiEnabled = localStorage.getItem(STORAGE_GEMINI_ENABLED) !== "0";
   let mistralEnabled = localStorage.getItem(STORAGE_MISTRAL_ENABLED) !== "0";
+  // Vercel AI Gateway: ein Schluessel, ueber 300 Modelle. Die Schnittstelle ist
+  // OpenAI-kompatibel und erlaubt Browser-Anfragen, laesst sich also direkt
+  // ansprechen -- anders als die serverseitigen Agent-Frameworks von Vercel.
+  let vercelKey = leseSchluessel(STORAGE_VERCEL_KEY);
+  let vercelModel = localStorage.getItem(STORAGE_VERCEL_MODEL) || "anthropic/claude-sonnet-4.6";
+  let vercelEnabled = localStorage.getItem(STORAGE_VERCEL_ENABLED) !== "0";
   let ghmodelsEnabled = localStorage.getItem(STORAGE_GHMODELS_ENABLED) !== "0";
   let cohereEnabled = localStorage.getItem(STORAGE_COHERE_ENABLED) !== "0";
   let sending   = false;
@@ -3820,7 +4019,7 @@
 
     btn.disabled = true;
     const originalHTML = btn.innerHTML;
-    btn.innerHTML = '<svg class="icon-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin .8s linear infinite"><path d="M12 3a9 9 0 1 0 9 9" stroke-linecap="round"/></svg><span>Analysiere …</span>';
+    btn.innerHTML = '<svg class="icon-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="dreht"><path d="M12 3a9 9 0 1 0 9 9" stroke-linecap="round"/></svg><span>Analysiere …</span>';
 
     const langLabel = lang === "python" ? "Python" : "JavaScript";
     const prompt =
@@ -4541,6 +4740,23 @@
   });
   renderModeChips();
 
+  const teamAustauschToggle = $("#team-austausch-toggle");
+  function renderTeamAustauschUI(){
+    if(!teamAustauschToggle) return;
+    // Die Darstellung haengt an aria-checked, nicht an einer Klasse.
+    teamAustauschToggle.setAttribute("aria-checked", String(teamAustausch));
+    document.getElementById("status-team")?.classList.toggle("ok", teamAustausch);
+  }
+  teamAustauschToggle?.addEventListener("click", () => {
+    teamAustausch = !teamAustausch;
+    try{ localStorage.setItem(STORAGE_TEAM_AUSTAUSCH, teamAustausch ? "1" : "0"); }catch{}
+    renderTeamAustauschUI();
+    showToast(teamAustausch
+      ? "Mitglieder tauschen sich aus — verlässlicher, aber doppelte Anfragen."
+      : "Austausch aus — jedes Mitglied arbeitet für sich.");
+  });
+  renderTeamAustauschUI();
+
   $("#quickstart-mehr").addEventListener("click", () => {
     if(!isWide()) closeSidebar();
     openAgentsSheet();
@@ -4810,6 +5026,15 @@
         extraHeaders: {}
       });
     }
+    if(vercelEnabled && vercelKey){
+      targets.push({
+        provider: "Vercel AI Gateway",
+        url: "https://ai-gateway.vercel.sh/v1/chat/completions",
+        key: vercelKey,
+        model: vercelModel || "anthropic/claude-sonnet-4.6",
+        extraHeaders: {}
+      });
+    }
     if(ghmodelsEnabled && ghmodelsKey){
       targets.push({
         provider: "GitHub Models",
@@ -4984,7 +5209,9 @@
       if(s.status === "error") dot.style.background = "var(--danger)";
       head.appendChild(dot);
       const name = document.createElement("span");
-      name.textContent = s.provider + (s.status === "running" ? " (arbeitet …)" : "");
+      name.textContent = s.provider
+        + (s.status === "running" ? " (arbeitet …)" : "")
+        + (s.status === "reviewing" ? " (liest die anderen …)" : "");
       head.appendChild(name);
       div.appendChild(head);
       const task = document.createElement("div");
@@ -4996,6 +5223,13 @@
         result.className = "team-step-result";
         result.textContent = s.result.length > 400 ? s.result.slice(0, 400) + "…" : s.result;
         div.appendChild(result);
+      }
+      // Einwand aus der Austauschrunde -- nur wenn es wirklich einen gab.
+      if(s.review){
+        const einwand = document.createElement("div");
+        einwand.className = "team-step-review";
+        einwand.textContent = s.review.length > 300 ? s.review.slice(0, 300) + "…" : s.review;
+        div.appendChild(einwand);
       }
       teamBox.appendChild(div);
     }
@@ -5266,6 +5500,58 @@
     }));
 
     if(signal.aborted){ stopAborted(); return; }
+
+    // ---- 2b) Austausch: alle sehen die Beitraege der anderen ----
+    // Bisher arbeiteten die Mitglieder isoliert und wussten nichts
+    // voneinander -- Widersprueche und Luecken blieben unentdeckt und
+    // landeten unbemerkt in der Zusammenfassung. Jetzt liest jedes Mitglied
+    // die fremden Beitraege und darf ergaenzen oder widersprechen.
+    const fertige = assistantMsg.teamSteps.filter(s => s.status === "done");
+    if(teamAustausch && fertige.length >= 2){
+      summaryEl.textContent = "Team tauscht sich aus …";
+      for(const s of assistantMsg.teamSteps){
+        if(s.status === "done") s.status = "reviewing";
+      }
+      renderTeamSteps(teamBox, assistantMsg.teamSteps);
+
+      let ausgetauscht = 0;
+      await Promise.all(assistantMsg.teamSteps.map(async (s, i) => {
+        if(s.status !== "reviewing") return;
+        const target = targets.find(t => t.provider === s.provider) || targets[i % targets.length];
+        const fremde = assistantMsg.teamSteps
+          .filter((o, j) => j !== i && o.result && o.status !== "error")
+          .map(o => "[" + o.provider + "] Auftrag: " + o.task + "\n" + o.result)
+          .join("\n\n");
+
+        const austauschPrompt =
+          "Gemeinsame Aufgabe: " + text + "\n\n" +
+          "Dein eigener Beitrag war:\n" + s.result + "\n\n" +
+          "Die Beiträge der anderen Team-Mitglieder:\n\n" + fremde + "\n\n" +
+          "Lies die fremden Beiträge. Wenn du dabei einen Fehler, einen Widerspruch " +
+          "oder eine wichtige Lücke bemerkst, benenne das kurz und konkret. Ergänze " +
+          "höchstens das, was für die Gesamtantwort wirklich fehlt. Wiederhole nicht, " +
+          "was schon gesagt wurde. Wenn du nichts Wesentliches hinzuzufügen hast, " +
+          "antworte genau mit: PASST";
+
+        try{
+          const antwort = await simpleComplete(target, austauschPrompt, signal);
+          const sauber = (antwort || "").trim();
+          // "PASST" heisst: kein Einwand -- das braucht keinen Platz in der Anzeige.
+          s.review = /^passt\b/i.test(sauber) ? "" : sauber;
+          s.status = "done";
+        }catch(err){
+          // Ein gescheiterter Austausch darf den Ablauf nicht kippen;
+          // der Beitrag aus Runde 1 bleibt gueltig.
+          s.status = "done";
+        }
+        ausgetauscht++;
+        summaryEl.textContent = "Team tauscht sich aus (" + ausgetauscht + "/" + fertige.length + ")";
+        renderTeamSteps(teamBox, assistantMsg.teamSteps);
+      }));
+
+      if(signal.aborted){ stopAborted(); return; }
+    }
+
     teamBox.open = false;
 
     // ---- 3) Synthese ----
@@ -5279,8 +5565,11 @@
       const synthPrompt =
         "Ursprüngliche Aufgabe: " + text + "\n\n" +
         "Ergebnisse der einzelnen Team-Mitglieder:\n\n" +
-        assistantMsg.teamSteps.map(s => "[" + s.provider + "] Teilaufgabe: " + s.task + "\nErgebnis: " + s.result).join("\n\n") +
+        assistantMsg.teamSteps.map(s => "[" + s.provider + "] Teilaufgabe: " + s.task + "\nErgebnis: " + s.result
+          + (s.review ? "\nAnmerkung dieses Mitglieds zu den anderen Beiträgen: " + s.review : "")).join("\n\n") +
         "\n\nFasse das Ganze zu einer einzigen, klaren, gut strukturierten Antwort auf die ursprüngliche Aufgabe zusammen. " +
+        "Berücksichtige die Anmerkungen: wo sich Mitglieder widersprechen, entscheide begründet, statt beides " +
+        "unkommentiert nebeneinander stehen zu lassen. " +
         "Erwähne nicht ausdrücklich, dass mehrere KIs beteiligt waren -- liefere einfach die beste zusammengeführte Antwort.";
 
       let firstToken = true;
@@ -5451,6 +5740,11 @@
 
         if(!assistantMsg.content){
           throw new Error("Leere Antwort erhalten.");
+        }
+        // Manche Anbieter nennen das Modell nicht im Datenstrom -- dann bleibt
+        // sonst offen, wer geantwortet hat. Hier greift der eingestellte Wert.
+        if(!assistantMsg.usedModel){
+          assistantMsg.usedModel = target.provider + " · " + shortModelName(resolvedModelId || target.model);
         }
         succeeded = true;
         recordUsage(target.provider, resolvedModelId, usageInfo);
@@ -5887,12 +6181,12 @@
     const sinceStr = sinceDate.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
 
     if(!keys.length){
-      usageBody.innerHTML = '<p style="color:var(--text-dim); font-size:13.5px">Noch keine Anfragen aufgezeichnet.</p>';
+      usageBody.innerHTML = '<p class="hinweis-ui">Noch keine Anfragen aufgezeichnet.</p>';
       return;
     }
 
     let html = `<div class="usage-row"><span class="usage-name"><strong>Insgesamt</strong></span><span class="usage-count"><strong>${totalRequests} Anfragen</strong></span></div>`;
-    html += `<div class="usage-row"><span class="usage-name" style="color:var(--text-dim); font-size:12px">seit ${escapeHtml(sinceStr)}</span><span></span></div>`;
+    html += `<div class="usage-row"><span class="usage-name hint">seit ${escapeHtml(sinceStr)}</span><span></span></div>`;
     for(const k of keys){
       const e = usage.byKey[k];
       const tokenPart = e.hasTokenData
@@ -6057,14 +6351,14 @@
       + `<span class="usage-count"><strong>${formatBytes(gesamt)}</strong> von ca. ${formatBytes(SPEICHER_ANNAHME)}</span></div>`;
     html += `<div class="storage-bar${knapp ? " warn" : ""}"><span style="width:${anteil}%"></span></div>`;
     if(knapp){
-      html += `<p style="color:var(--danger); font-size:12.5px; margin:4px 0 10px">`
+      html += `<p class="warn-text warn-block">`
         + `Der Speicher wird knapp. Räum auf oder sichere die Daten, sonst können neue Chats nicht mehr gespeichert werden.</p>`;
     }
     for(const [bereich, gr] of Object.entries(nach).sort((a, b) => b[1] - a[1])){
       html += `<div class="usage-row"><span class="usage-name">${escapeHtml(bereich)}</span>`
         + `<span class="usage-count">${formatBytes(gr)}</span></div>`;
     }
-    html += `<div class="usage-row"><span class="usage-name" style="color:var(--text-dim); font-size:12px">`
+    html += `<div class="usage-row"><span class="usage-name hint">`
       + `${chats} Chats, davon ${archiviert} archiviert · ${alt} älter als 30 Tage</span><span></span></div>`;
     el.innerHTML = html;
   }
@@ -6136,6 +6430,7 @@
     set("status-groq", groqEnabled && groqKey);
     set("status-gemini", geminiEnabled && geminiKey);
     set("status-mistral", mistralEnabled && mistralKey);
+    set("status-vercel", vercelEnabled && vercelKey);
     set("status-ghmodels", ghmodelsEnabled && ghmodelsKey);
     set("status-cohere", cohereEnabled && cohereKey);
     set("status-claude", claudeEnabled && claudeKey);
@@ -6341,6 +6636,7 @@
     if(mistralKey) names.push("Mistral");
     if(ghmodelsKey) names.push("GitHub Models");
     if(cohereKey) names.push("Cohere");
+    if(vercelEnabled && vercelKey) names.push("Vercel AI Gateway");
     if(apiKey) names.push("OpenRouter");
     for(const p of customProviders) names.push(p.name);
     if(claudeEnabled && claudeKey) names.push("Claude");
@@ -6793,6 +7089,76 @@
     showToast("Gemini-Schlüssel entfernt.");
   });
 
+  // ---------- Vercel AI Gateway ----------
+  const vercelKeyField = $("#vercel-key");
+  const vercelModelField = $("#vercel-model");
+  const vercelEnableToggle = $("#vercel-enable-toggle");
+  let vercelModelleGeladen = false;
+
+  // Die Modellliste ist oeffentlich abrufbar -- sie laesst sich also schon
+  // vor dem Eintragen eines Schluessels anzeigen.
+  async function loadVercelModels(){
+    if(vercelModelleGeladen) return;
+    const liste = $("#vercel-model-list");
+    const hinweis = $("#vercel-model-hint");
+    try{
+      const res = await fetch("https://ai-gateway.vercel.sh/v1/models");
+      if(!res.ok) throw new Error("HTTP " + res.status);
+      const json = await res.json();
+      const ids = (json.data || []).map(m => m.id).filter(Boolean).sort();
+      if(!ids.length) throw new Error("leere Liste");
+      liste.innerHTML = "";
+      for(const id of ids){
+        const opt = document.createElement("option");
+        opt.value = id;
+        liste.appendChild(opt);
+      }
+      vercelModelleGeladen = true;
+      if(hinweis) hinweis.textContent = ids.length + " Modelle verfügbar. Tippen filtert, etwa nach claude oder gpt.";
+    }catch(err){
+      if(hinweis) hinweis.textContent = "Modellliste nicht erreichbar — der Name lässt sich trotzdem von Hand eintragen.";
+    }
+  }
+
+  function renderVercelUI(){
+    vercelKeyField.value = vercelKey || "";
+    vercelModelField.value = vercelModel || "";
+    vercelEnableToggle.setAttribute("aria-checked", String(vercelEnabled));
+  }
+
+  vercelEnableToggle.addEventListener("click", () => {
+    const an = vercelEnableToggle.getAttribute("aria-checked") === "true";
+    vercelEnableToggle.setAttribute("aria-checked", String(!an));
+  });
+
+  $("#btn-save-vercel").addEventListener("click", async () => {
+    vercelKey = vercelKeyField.value.trim();
+    vercelEnabled = vercelEnableToggle.getAttribute("aria-checked") === "true";
+    const gewaehlt = vercelModelField.value.trim();
+    vercelModel = gewaehlt || "anthropic/claude-sonnet-4.6";
+    await schreibeSchluessel(STORAGE_VERCEL_KEY, vercelKey);
+    localStorage.setItem(STORAGE_VERCEL_MODEL, vercelModel);
+    localStorage.setItem(STORAGE_VERCEL_ENABLED, vercelEnabled ? "1" : "0");
+    renderVercelUI();
+    refreshProviderStatuses();
+    showToast(vercelKey ? "Vercel AI Gateway gespeichert." : "Schlüssel geleert.");
+  });
+
+  $("#btn-forget-vercel").addEventListener("click", async () => {
+    vercelKey = "";
+    await schreibeSchluessel(STORAGE_VERCEL_KEY, "");
+    renderVercelUI();
+    refreshProviderStatuses();
+    showToast("Schlüssel entfernt.");
+  });
+
+  // Modellliste laden, sobald der Abschnitt geoeffnet wird
+  $("#section-vercel").addEventListener("toggle", () => {
+    if($("#section-vercel").open) loadVercelModels();
+  });
+
+  renderVercelUI();
+
   $("#btn-save-mistral").addEventListener("click", async () => {
     const newKey = mistralKeyField.value.trim();
     const keyChanged = newKey !== mistralKey;
@@ -7042,7 +7408,8 @@
     STORAGE_CUSTOM_PROVIDERS,
     STORAGE_PROFILE_NAME, STORAGE_PROFILE_ABOUT, STORAGE_PROFILE_STYLE, STORAGE_THEME,
     STORAGE_CONVERSATIONS, STORAGE_ACTIVE_ID, STORAGE_USAGE,
-    STORAGE_AGENTS, STORAGE_PROJECTS, STORAGE_MEMORY, STORAGE_FOLDERS
+    STORAGE_AGENTS, STORAGE_PROJECTS, STORAGE_MEMORY, STORAGE_FOLDERS,
+    STORAGE_VERCEL_KEY, STORAGE_VERCEL_MODEL, STORAGE_VERCEL_ENABLED
   ];
 
   function exportBackup(){
