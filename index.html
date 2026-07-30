@@ -71,6 +71,13 @@
     --rund-4: 20px;   /* Dialoge, Composer */
     --rund-voll: 999px;
 
+    /* Drei Hoehenstufen fuer Bedienelemente. Vorher gab es acht, von 23 bis
+       43px, bei Elementen mit gleicher Funktion -- das wirkt unruhig, auch
+       wenn man es nicht benennen kann. */
+    --hoehe-klein:  28px;   /* Filter, Antworttiefe, Kontext */
+    --hoehe-mittel: 34px;   /* Vorschlaege, Umschalter, Schnellstart */
+    --hoehe-gross:  42px;   /* Knoepfe mit klarer Handlung */
+
     /* Hoehenstaffelung: drei Stufen statt fuenf Einzelwerte. Je hoeher ein
        Element schwebt, desto weiter und weicher der Schatten. */
     --schatten-1: 0 1px 3px rgba(0,0,0,.28);
@@ -172,7 +179,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: calc(var(--raum-6) + var(--safe-top)) var(--raum-7) var(--raum-6);
+    padding: calc(var(--raum-4) + var(--safe-top)) var(--raum-6) var(--raum-4);
     border-bottom: 1px solid transparent;
     flex-shrink: 0;
     position: relative;
@@ -325,6 +332,9 @@
     font-family: inherit;
     white-space: nowrap;
     transition: border-color var(--dauer-kurz) var(--kurve), background var(--dauer-kurz) var(--kurve), color var(--dauer-kurz) var(--kurve);
+  
+    min-height: var(--hoehe-mittel);
+    box-sizing: border-box;
   }
   .chip svg{ width: 15px; height: 15px; flex-shrink: 0; }
   .chip:hover, .chip:active{
@@ -457,7 +467,7 @@
   .composer-wrap{
     flex-shrink: 0;
     border-top: 1px solid var(--border);
-    padding: var(--raum-5) var(--raum-6) calc(var(--raum-5) + var(--safe-bottom));
+    padding: var(--raum-4) var(--raum-6) calc(var(--raum-4) + var(--safe-bottom));
     background: var(--bg);
   }
   .composer{
@@ -469,7 +479,7 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--rund-4);
-    padding: var(--raum-6) var(--raum-6) var(--raum-5);
+    padding: var(--raum-5) var(--raum-5) var(--raum-4);
     transition: border-color var(--dauer-kurz) var(--kurve), box-shadow var(--dauer-kurz) var(--kurve);
   }
   .composer:focus-within{
@@ -571,8 +581,8 @@
 
   .context-row{
     display: flex;
-    gap: var(--raum-4);
-    padding: 0 var(--raum-2) var(--raum-4);
+    gap: var(--raum-3);
+    padding: 0 var(--raum-2) var(--raum-3);
     overflow-x: auto;
   }
   .context-chip{
@@ -590,6 +600,9 @@
     cursor: pointer;
     font-family: inherit;
     transition: border-color var(--dauer-kurz) var(--kurve), color var(--dauer-kurz) var(--kurve);
+  
+    min-height: var(--hoehe-klein);
+    box-sizing: border-box;
   }
   .context-chip:active{ background: var(--surface-2); }
   .context-chip.set{ color: var(--text); border-color: var(--accent); }
@@ -637,6 +650,9 @@
     width: fit-content;
     flex-shrink: 0;
     transition: color var(--dauer-kurz) var(--kurve), border-color var(--dauer-kurz) var(--kurve), background var(--dauer-kurz) var(--kurve);
+  
+    min-height: var(--hoehe-mittel);
+    box-sizing: border-box;
   }
   .team-toggle:hover{ color: var(--text); border-color: var(--text-dim); }
   .team-toggle svg{ width: 15px; height: 15px; }
@@ -939,8 +955,11 @@
     font-weight: 500;
     cursor: pointer;
     font-family: inherit;
+  
+    min-height: var(--hoehe-gross);
+    box-sizing: border-box;
   }
-  .btn-primary{ background: var(--accent); color: var(--accent-ink); }
+  .btn-primary{ background: var(--accent); color: var(--accent-ink); border: 1px solid transparent; }
   .btn-ghost{ background: none; color: var(--danger); border: 1px solid var(--border); margin-top: var(--raum-4); }
 
   .toast{
@@ -1076,6 +1095,9 @@
     transition: border-color var(--dauer-kurz) var(--kurve),
                 background var(--dauer-kurz) var(--kurve),
                 transform var(--dauer-tipp) var(--kurve);
+  
+    min-height: var(--hoehe-mittel);
+    box-sizing: border-box;
   }
   .agent-start:hover{ border-color: var(--text-dim); }
   .agent-start:active{ transform: scale(.96); }
@@ -1242,6 +1264,42 @@
   .warn-block{ font-size: var(--schrift-klein); margin: var(--raum-2) 0 var(--raum-5); }
   .dreht{ animation: spin .8s linear infinite; }
   .icon-gedimmt{ color: var(--text-dim); flex-shrink: 0; }
+
+  /* Bestaetigung am Knopf: kurzes Aufleuchten, dann zurueck in den Normalzustand */
+  .msg-actions button.bestaetigt{
+    color: var(--ok);
+    border-color: color-mix(in srgb, var(--ok) 45%, transparent);
+  }
+  .msg-actions button.fehlgeschlagen{ color: var(--danger); }
+  .msg-actions button.bestaetigt svg,
+  .msg-actions button.fehlgeschlagen svg{ display: none; }
+  .msg-actions button.bestaetigt::before{
+    content: "";
+    width: 13px; height: 13px;
+    background: currentColor;
+    flex-shrink: 0;
+    /* Haken als Maske, damit er die Textfarbe uebernimmt */
+    -webkit-mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"/></svg>') center/contain no-repeat;
+    mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"/></svg>') center/contain no-repeat;
+    animation: haken-rein var(--dauer-mittel) var(--kurve-feder) both;
+  }
+  @keyframes haken-rein{
+    from{ transform: scale(.4); opacity: 0; }
+    to{ transform: scale(1); opacity: 1; }
+  }
+
+  .sidebar-empty .leer-titel{
+    display: block;
+    color: var(--text-dim);
+    font-size: var(--schrift-ui);
+    margin-bottom: var(--raum-3);
+  }
+  .sidebar-empty .leer-hinweis{
+    display: block;
+    color: var(--text-mute);
+    font-size: var(--schrift-klein);
+    line-height: 1.5;
+  }
 
   .mb-klein{ margin-bottom: var(--raum-4); }
   .knopf-reihe{ display: flex; gap: var(--raum-2); }
@@ -1703,6 +1761,9 @@
     cursor: pointer;
     white-space: nowrap;
     transition: background var(--dauer-kurz) var(--kurve), color var(--dauer-kurz) var(--kurve);
+  
+    min-height: var(--hoehe-klein);
+    box-sizing: border-box;
   }
   .mode-chip:hover{ color: var(--text); }
   .mode-chip.active{ background: var(--accent); color: var(--accent-ink); }
@@ -1729,6 +1790,9 @@
     cursor: pointer;
     white-space: nowrap;
     transition: color var(--dauer-kurz) var(--kurve), border-color var(--dauer-kurz) var(--kurve), background var(--dauer-kurz) var(--kurve);
+  
+    min-height: var(--hoehe-klein);
+    box-sizing: border-box;
   }
   .filter-chip:hover{ color: var(--text); border-color: var(--text-dim); }
   .filter-chip.active{
@@ -3822,7 +3886,7 @@
       if(m.content && !m.isError){
         const copyBtn = document.createElement("button");
         copyBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V5a1 1 0 0 1 1-1h11" stroke-linecap="round"/></svg><span>Kopieren</span>';
-        copyBtn.addEventListener("click", () => copyToClipboard(m.content));
+        copyBtn.addEventListener("click", () => copyToClipboard(m.content, copyBtn));
         actions.appendChild(copyBtn);
 
         if("speechSynthesis" in window){
@@ -3856,10 +3920,26 @@
     return row;
   }
 
-  function copyToClipboard(text){
-    navigator.clipboard?.writeText(text)
-      .then(() => showToast("Kopiert."))
-      .catch(() => showToast("Kopieren nicht möglich."));
+  function copyToClipboard(text, knopf){
+    // Bestaetigung direkt am Knopf, nicht als Hinweis am Bildschirmrand:
+    // die Rueckmeldung gehoert dorthin, wo die Handlung stattfand.
+    const melde = (erfolg) => {
+      if(!knopf){
+        showToast(erfolg ? "Kopiert." : "Kopieren nicht möglich.");
+        return;
+      }
+      const beschriftung = knopf.querySelector("span");
+      const urText = beschriftung ? beschriftung.textContent : "";
+      knopf.classList.add(erfolg ? "bestaetigt" : "fehlgeschlagen");
+      if(beschriftung) beschriftung.textContent = erfolg ? "Kopiert" : "Nicht möglich";
+      clearTimeout(knopf._zurueck);
+      knopf._zurueck = setTimeout(() => {
+        knopf.classList.remove("bestaetigt", "fehlgeschlagen");
+        if(beschriftung) beschriftung.textContent = urText;
+      }, 1600);
+    };
+    if(!navigator.clipboard){ melde(false); return; }
+    navigator.clipboard.writeText(text).then(() => melde(true)).catch(() => melde(false));
   }
 
   // ---------- Code-Ausfuehrung im Browser ----------
@@ -4206,13 +4286,21 @@
     });
 
     if(!ids.length){
+      // Leere Zustaende sagen nicht nur, dass nichts da ist, sondern auch,
+      // wie es dort hinkommt -- sonst bleibt der Filter eine Sackgasse.
+      const texte = {
+        suche:      ["Keine Treffer", "Andere Schreibweise versuchen oder Suche leeren."],
+        archiv:     ["Nichts archiviert", "Über das Menü eines Chats kannst du ihn hier ablegen."],
+        angeheftet: ["Nichts angeheftet", "Wichtige Chats über das Chat-Menü anheften — sie stehen dann immer oben."],
+        ordner:     ["Keine Chats in Ordnern", "Über das Chat-Menü lassen sich Chats in Ordner einsortieren."],
+        projekte:   ["Keine Chats in Projekten", "Projekte geben einem Chat festen Kontext und Aufgaben."],
+        alle:       ["Noch keine Chats", "Schreib unten einfach los."]
+      };
+      const [titel, hinweis] = query ? texte.suche : (texte[sidebarFilter] || texte.alle);
       const empty = document.createElement("div");
       empty.className = "sidebar-empty";
-      empty.textContent = query ? "Keine Chats gefunden."
-        : sidebarFilter === "archiv" ? "Nichts archiviert."
-        : sidebarFilter === "angeheftet" ? "Nichts angeheftet."
-        : sidebarFilter === "projekte" ? "Keine Chats in Projekten."
-        : "Noch keine Chats.";
+      empty.innerHTML = '<span class="leer-titel">' + escapeHtml(titel) + '</span>'
+        + '<span class="leer-hinweis">' + escapeHtml(hinweis) + '</span>';
       conversationList.appendChild(empty);
       return;
     }
