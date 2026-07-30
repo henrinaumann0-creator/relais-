@@ -346,10 +346,15 @@
   .row{
     display: flex;
     margin: var(--raum-3) 0;
-    /* Animation nur fuer frisch dazugekommene Zeilen -- siehe .frisch unten.
-       Vorher lief sie bei jedem Neuzeichnen fuer den ganzen Verlauf, was
-       beim Senden alles aufflackern liess. */
   }
+  /* Nachrichten nach Sprecher gruppieren: beim Wechsel mehr Luft, innerhalb
+     eines Sprechers weniger. Vorher war jeder Abstand gleich, wodurch der
+     Verlauf als gleichfoermige Reihe erschien statt als Wechselrede. */
+  .row + .row{ margin-top: var(--raum-7); }
+  .row.user + .row.user,
+  .row.assistant + .row.assistant{ margin-top: var(--raum-2); }
+  .row:first-child{ margin-top: 0; }
+
   .row.frisch{ animation: row-in var(--dauer-mittel) var(--kurve) both; }
   @keyframes row-in{ from{ opacity: 0; transform: translateY(8px);} to{ opacity: 1; transform: none; } }
   .row.user{ justify-content: flex-end; }
@@ -806,6 +811,35 @@
     overflow-y: auto;
   }
   .sheet-backdrop.open .sheet{ transform: translateY(0); }
+
+  /* Ab Tablet-Breite ein echtes Dialogfenster statt einer Flaeche ueber die
+     volle Breite: bei 1280px lagen Beschriftung und Eingabefeld so weit
+     auseinander, dass der Blick zwischen ihnen wandern musste. Formulare
+     brauchen eine begrenzte Spalte. */
+  @media (min-width: 700px){
+    .sheet{
+      left: 50%;
+      right: auto;
+      top: 50%;
+      bottom: auto;
+      width: min(580px, calc(100vw - var(--raum-9) * 2));
+      max-height: min(78vh, 720px);
+      border: 1px solid var(--border);
+      border-radius: var(--rund-4);
+      padding: var(--raum-8) var(--raum-8) var(--raum-8);
+      box-shadow: var(--schatten-3);
+      /* Dialoge in der Mitte erscheinen aufziehend statt hereinfahrend --
+         von unten einzufahren ergibt nur am unteren Bildschirmrand Sinn. */
+      transform: translate(-50%, -50%) scale(.97);
+      opacity: 0;
+      transition: transform var(--dauer-mittel) var(--kurve),
+                  opacity var(--dauer-kurz) var(--kurve);
+    }
+    .sheet-backdrop.open .sheet{
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1;
+    }
+  }
   .sheet h2{
     font-family: ui-serif, Georgia, serif;
     font-weight: 500;
@@ -1016,10 +1050,14 @@
        Inhaltsbereich -- ohne diese Korrektur schoben sich Dialoge und
        Hinweise unter die angedockte Leiste und ihre linke Seite war
        nicht mehr erreichbar. */
-    body.sidebar-docked .sheet-backdrop,
-    body.sidebar-docked .sheet{
+    body.sidebar-docked .sheet-backdrop{
       left: var(--sidebar-w);
     }
+    /* Der Dialog braucht hier keine eigene Korrektur: die Blende traegt
+       backdrop-filter, und ein Filter erzeugt fuer fest positionierte
+       Kinder einen neuen Bezugsrahmen. Der Dialog rechnet also bereits
+       relativ zur verschobenen Blende -- eine zweite Verschiebung wuerde
+       ihn doppelt versetzen. */
     body.sidebar-docked .toast{
       left: calc(50% + var(--sidebar-w) / 2);
     }
@@ -1324,6 +1362,50 @@
     margin-top: var(--raum-2);
   }
   .einst-gruppe:first-of-type{ padding-top: var(--raum-3); margin-top: 0; }
+
+  /* ---------- Feindetails der Darstellung ---------- */
+
+  /* Die Textauswahl uebernahm bisher das Systemblau und stach aus der
+     Palette heraus. Jetzt greift sie die Akzentfarbe auf. */
+  ::selection{
+    background: color-mix(in srgb, var(--accent) 30%, transparent);
+    color: var(--text);
+  }
+
+  /* Schriftglaettung: auf dunklem Grund wirkt Text sonst etwas zu fett. */
+  body{
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Schlanke Bildlaufleisten, die sich einfuegen statt sich aufzudraengen.
+     Auf Beruehrungsgeraeten sind sie ohnehin unsichtbar. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-stark) transparent;
+  }
+  ::-webkit-scrollbar{ width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track{ background: transparent; }
+  ::-webkit-scrollbar-thumb{
+    background: var(--border-stark);
+    border-radius: var(--rund-voll);
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover{ background-clip: content-box; background-color: var(--text-mute); }
+
+  /* Beschriftungen und Symbole sind nicht zum Markieren gedacht -- wer im
+     Chat Text auswaehlt, will den Inhalt, nicht die Knopfbeschriftung. */
+  button, .conv-group-label, .block-kopf, .einst-gruppe, .model-pill{
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  /* Der Inhalt selbst bleibt selbstverstaendlich auswaehlbar. */
+  .bubble, .compare-body, input, textarea{
+    -webkit-user-select: text;
+    user-select: text;
+  }
 
   /* ---------- Tastaturbedienung ---------- */
   /* Vorher gab es 35 Hover-Zustaende, aber praktisch keinen sichtbaren
