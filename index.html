@@ -1477,6 +1477,10 @@
     position: absolute;
     inset: -10px;
   }
+  /* In den Verwaltungslisten (Agenten, Projekte, Anbieter) gibt es kein
+     Hover -- dort muss der Knopf von Anfang an sichtbar sein. */
+  .conv-menu-btn.immer-sichtbar{ opacity: .55; }
+  .conv-menu-btn.immer-sichtbar:hover{ opacity: 1; }
   .conv-menu-btn svg{ width: 16px; height: 16px; }
   .conv-pin-dot{
     width: 6px; height: 6px;
@@ -3953,6 +3957,73 @@
     }
   }
 
+  // ---------- Wiederverwendbares Listen-Menue ----------
+  // Die Verwaltungslisten (Agenten, Projekte, eigene Anbieter) hatten je zwei
+  // kleine Knoepfe pro Zeile -- nebeneinander liessen die sich nicht auf eine
+  // fingerfreundliche Groesse bringen, ohne dass sich die Trefffelder
+  // ueberlappen. Ein einzelner Menue-Knopf loest das und ist ausserdem
+  // dasselbe Muster wie in der Chatliste.
+  const listMenu = document.createElement("div");
+  listMenu.className = "ctx-menu";
+  document.body.appendChild(listMenu);
+
+  function closeListMenu(){ listMenu.classList.remove("open"); }
+
+  function oeffneListenMenu(anchorEl, aktionen){
+    listMenu.innerHTML = "";
+    for(const a of aktionen){
+      if(a.trenner){
+        const tr = document.createElement("div");
+        tr.className = "ctx-sep";
+        listMenu.appendChild(tr);
+        continue;
+      }
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "ctx-item" + (a.gefahr ? " danger" : "");
+      btn.innerHTML = (a.icon || "") + "<span>" + escapeHtml(a.text) + "</span>";
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        closeListMenu();
+        a.tun();
+      });
+      listMenu.appendChild(btn);
+    }
+    listMenu.classList.add("open");
+
+    // Im sichtbaren Bereich halten, auch wenn der Knopf unten am Rand sitzt
+    const r = anchorEl.getBoundingClientRect();
+    const mw = listMenu.offsetWidth || 190;
+    const mh = listMenu.offsetHeight || 150;
+    let left = Math.min(r.left, window.innerWidth - mw - 8);
+    let top = r.bottom + 6;
+    if(top + mh > window.innerHeight - 8) top = Math.max(8, r.top - mh - 6);
+    listMenu.style.left = Math.max(8, left) + "px";
+    listMenu.style.top = top + "px";
+  }
+
+  document.addEventListener("click", (e) => {
+    if(listMenu.classList.contains("open") && !listMenu.contains(e.target)) closeListMenu();
+  });
+
+  // Einheitlicher Menue-Knopf fuer eine Listenzeile
+  function listenMenuKnopf(aktionen){
+    const btn = document.createElement("button");
+    btn.className = "conv-menu-btn immer-sichtbar";
+    btn.type = "button";
+    btn.setAttribute("aria-label", "Optionen");
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>';
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      oeffneListenMenu(btn, typeof aktionen === "function" ? aktionen() : aktionen);
+    });
+    return btn;
+  }
+
+  const ICON_BEARBEITEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const ICON_KOPIE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8" stroke-linecap="round"/></svg>';
+  const ICON_LOESCHEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
   // ---------- Ordner zuweisen ----------
   const folderBackdrop = $("#folder-backdrop");
   let folderZielChat = null;
@@ -5826,26 +5897,18 @@
       textWrap.append(title, sub);
       item.appendChild(textWrap);
 
-      const editBtn = document.createElement("button");
-      editBtn.className = "conv-rename";
-      editBtn.setAttribute("aria-label", "Bearbeiten");
-      editBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-      editBtn.addEventListener("click", () => openCustomProviderForm(idx));
-      item.appendChild(editBtn);
-
-      const delBtn = document.createElement("button");
-      delBtn.className = "conv-del";
-      delBtn.setAttribute("aria-label", "Löschen");
-      delBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18" stroke-linecap="round"/></svg>';
-      delBtn.addEventListener("click", () => {
-        if(confirm("Diesen Anbieter entfernen?")){
-          customProviders.splice(idx, 1);
-          saveCustomProvidersRaw();
-          renderCustomProviderList();
-          refreshProviderStatuses();
-        }
-      });
-      item.appendChild(delBtn);
+      item.appendChild(listenMenuKnopf(() => [
+        { text: "Bearbeiten", icon: ICON_BEARBEITEN, tun: () => openCustomProviderForm(idx) },
+        { trenner: true },
+        { text: "Entfernen", icon: ICON_LOESCHEN, gefahr: true, tun: () => {
+            if(!confirm("Diesen Anbieter entfernen?")) return;
+            customProviders.splice(idx, 1);
+            saveCustomProvidersRaw();
+            renderCustomProviderList();
+            refreshProviderStatuses();
+            showToast("Anbieter entfernt.");
+          } }
+      ]));
 
       list.appendChild(item);
     });
@@ -5933,34 +5996,35 @@
       textWrap.append(title, sub);
       item.appendChild(textWrap);
 
-      const editBtn = document.createElement("button");
-      editBtn.className = "conv-rename";
-      editBtn.setAttribute("aria-label", "Bearbeiten");
-      editBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-      editBtn.addEventListener("click", (e) => { e.stopPropagation(); openAgentForm(id); });
-      item.appendChild(editBtn);
-
-      const delBtn = document.createElement("button");
-      delBtn.className = "conv-del";
-      delBtn.setAttribute("aria-label", "Löschen");
-      delBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18" stroke-linecap="round"/></svg>';
-      delBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if(!confirm("Diesen Agenten löschen?")) return;
-        delete agents[id];
-        saveAgentsRaw(agents);
-        for(const cid in conversations){
-          if(conversations[cid].agentId === id) conversations[cid].agentId = "";
-        }
-        saveConversationsRaw(conversations);
-        for(const pid in projects){
-          if(projects[pid].defaultAgentId === id) projects[pid].defaultAgentId = "";
-        }
-        saveProjectsRaw(projects);
-        renderAgentsList();
-        renderContextChips();
-      });
-      item.appendChild(delBtn);
+      item.appendChild(listenMenuKnopf(() => [
+        { text: "Bearbeiten", icon: ICON_BEARBEITEN, tun: () => openAgentForm(id) },
+        { text: "Duplizieren", icon: ICON_KOPIE, tun: () => {
+            const kopieId = newAgentId();
+            agents[kopieId] = {
+              ...a,
+              id: kopieId,
+              name: a.name + " (Kopie)",
+              createdAt: Date.now()
+            };
+            saveAgentsRaw(agents);
+            renderAgentsList();
+            showToast("Agent kopiert.");
+          } },
+        { trenner: true },
+        { text: "Löschen", icon: ICON_LOESCHEN, gefahr: true, tun: () => {
+            if(!confirm("Agent \"" + a.name + "\" löschen?")) return;
+            delete agents[id];
+            saveAgentsRaw(agents);
+            // Chats, die auf ihn zeigten, laufen sonst mit einem toten Verweis weiter
+            for(const c of Object.values(conversations)){
+              if(c.agentId === id) delete c.agentId;
+            }
+            saveConversationsRaw(conversations);
+            renderAgentsList();
+            renderContextChips();
+            showToast("Agent gelöscht.");
+          } }
+      ]));
 
       item.addEventListener("click", () => selectAgentForConversation(id));
       list.appendChild(item);
@@ -6116,12 +6180,23 @@
       textWrap.append(title, sub);
       item.appendChild(textWrap);
 
-      const editBtn = document.createElement("button");
-      editBtn.className = "conv-rename";
-      editBtn.setAttribute("aria-label", "Bearbeiten");
-      editBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-      editBtn.addEventListener("click", (e) => { e.stopPropagation(); openProjectForm(id); });
-      item.appendChild(editBtn);
+      item.appendChild(listenMenuKnopf(() => [
+        { text: "Bearbeiten", icon: ICON_BEARBEITEN, tun: () => openProjectForm(id) },
+        { trenner: true },
+        { text: "Löschen", icon: ICON_LOESCHEN, gefahr: true, tun: () => {
+            if(!confirm("Projekt \"" + p.name + "\" löschen? Die Chats bleiben erhalten.")) return;
+            delete projects[id];
+            saveProjectsRaw(projects);
+            for(const c of Object.values(conversations)){
+              if(c.projectId === id) delete c.projectId;
+            }
+            saveConversationsRaw(conversations);
+            renderProjectsList();
+            renderContextChips();
+            renderSidebar();
+            showToast("Projekt gelöscht.");
+          } }
+      ]));
 
       item.addEventListener("click", () => selectProjectForConversation(id));
       list.appendChild(item);
