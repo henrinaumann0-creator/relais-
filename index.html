@@ -2239,6 +2239,7 @@
     <div class="sidebar-filters" id="sidebar-filters">
       <button type="button" class="filter-chip active" data-filter="alle">Alle</button>
       <button type="button" class="filter-chip" data-filter="angeheftet">Angeheftet</button>
+      <button type="button" class="filter-chip" data-filter="ordner">Ordner</button>
       <button type="button" class="filter-chip" data-filter="projekte">Projekte</button>
       <button type="button" class="filter-chip" data-filter="archiv">Archiv</button>
     </div>
@@ -2279,6 +2280,10 @@
   <button type="button" class="ctx-item" data-act="rename">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
     Umbenennen
+  </button>
+  <button type="button" class="ctx-item" data-act="folder">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 0 1 2-2h3.5l2 2.5H19a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    In Ordner…
   </button>
   <button type="button" class="ctx-item" data-act="project">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -2368,6 +2373,20 @@
     </div>
   </div>
 </div>
+<div class="sheet-backdrop" id="folder-backdrop">
+  <div class="sheet">
+    <h2>In Ordner verschieben</h2>
+    <div id="folder-list"></div>
+    <div class="todo-add-row" style="margin-top:12px">
+      <input type="text" id="folder-new-name" placeholder="Neuer Ordner…" autocomplete="off" aria-label="Name des neuen Ordners">
+      <button type="button" class="key-btn" id="btn-add-folder" aria-label="Ordner anlegen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="hint" style="margin-top:10px">Ordner sind einfache Sammlungen. Sie verschwinden von selbst, sobald der letzte Chat sie verlässt.</div>
+  </div>
+</div>
+
 <div class="sheet-backdrop" id="usage-backdrop">
   <div class="sheet">
     <h2>Nutzung</h2>
@@ -2636,6 +2655,7 @@
   // verschlüsselt abgelegt; der Schlüssel dafür wird per PBKDF2 aus der PIN
   // abgeleitet und existiert nur im Arbeitsspeicher.
   const STORAGE_LOCK = "relais.lock";
+  const STORAGE_FOLDERS = "relais.folders";
   const PBKDF2_RUNDEN = 250000;
 
   // Alle Speicherorte, die einen Zugangsschlüssel enthalten
@@ -2718,6 +2738,27 @@
 
   let sperreSchluessel = null;
   const entsperrteWerte = {};
+
+  // Ordner sind freie Sammlungen fuer Chats -- unabhaengig von Projekten,
+  // die einen eigenen Kontext und ToDos mitbringen. Bewusst ohne eigene
+  // Verwaltungsoberflaeche: sie entstehen beim Einsortieren und
+  // verschwinden, sobald der letzte Chat sie verlaesst.
+  let folders = {};
+  try{ folders = JSON.parse(localStorage.getItem(STORAGE_FOLDERS) || "{}"); }catch{ folders = {}; }
+  function saveFoldersRaw(f){
+    try{ localStorage.setItem(STORAGE_FOLDERS, JSON.stringify(f)); }catch{}
+  }
+  function newFolderId(){ return "f" + Date.now() + Math.random().toString(36).slice(2, 6); }
+
+  // Ordner, die keinen Chat mehr enthalten, still aufraeumen.
+  function aufraeumenLeereOrdner(){
+    const genutzt = new Set(Object.values(conversations).map(c => c.folderId).filter(Boolean));
+    let geaendert = false;
+    for(const id of Object.keys(folders)){
+      if(!genutzt.has(id)){ delete folders[id]; geaendert = true; }
+    }
+    if(geaendert) saveFoldersRaw(folders);
+  }
 
   // Bei aktiver Sperre kommen Schlüssel aus dem Arbeitsspeicher statt aus
   // dem dauerhaften Speicher.
@@ -3753,6 +3794,7 @@
 
     if(sidebarFilter === "angeheftet") ids = ids.filter(id => conversations[id].pinned);
     if(sidebarFilter === "projekte")   ids = ids.filter(id => conversations[id].projectId);
+    if(sidebarFilter === "ordner")     ids = ids.filter(id => conversations[id].folderId);
 
     // Feinfilter auf ein einzelnes Projekt (Zeile erscheint nur unter "Projekte")
     if(sidebarFilter === "projekte" && sidebarProjectFilter){
@@ -3799,6 +3841,7 @@
       // Gruppenueberschrift: Angeheftet, sonst Projektname bzw. Zeitraum.
       let gruppe;
       if(conv.pinned && sidebarFilter !== "archiv") gruppe = "Angeheftet";
+      else if(sidebarFilter === "ordner") gruppe = folders[conv.folderId]?.name || "Ohne Ordner";
       else if(sidebarFilter === "projekte") gruppe = projects[conv.projectId]?.name || "Ohne Projekt";
       else gruppe = chatGroupLabel(conv.updatedAt);
 
@@ -3827,7 +3870,9 @@
       const time = document.createElement("span");
       time.className = "conv-time";
       const proj = conv.projectId ? projects[conv.projectId] : null;
-      time.textContent = (proj ? proj.name + " · " : "") + relativeTime(conv.updatedAt);
+      const ordner = conv.folderId ? folders[conv.folderId] : null;
+      const marke = proj ? proj.name : (ordner ? ordner.name : "");
+      time.textContent = (marke ? marke + " · " : "") + relativeTime(conv.updatedAt);
       textWrap.append(title, time);
       item.appendChild(textWrap);
 
@@ -3855,6 +3900,7 @@
     const zahlen = {
       alle:       alle.filter(c => !c.archived).length,
       angeheftet: alle.filter(c => c.pinned && !c.archived).length,
+      ordner:     alle.filter(c => c.folderId && !c.archived).length,
       projekte:   alle.filter(c => c.projectId && !c.archived).length,
       archiv:     alle.filter(c => c.archived).length,
     };
@@ -3889,6 +3935,83 @@
       fuell.classList.toggle("warn", anteil >= 80);
     }
   }
+
+  // ---------- Ordner zuweisen ----------
+  const folderBackdrop = $("#folder-backdrop");
+  let folderZielChat = null;
+
+  function renderFolderList(){
+    const liste = $("#folder-list");
+    liste.innerHTML = "";
+    const conv = conversations[folderZielChat];
+    const aktuell = conv?.folderId || "";
+
+    const eintrag = (id, name, aktiv) => {
+      const el = document.createElement("div");
+      el.className = "conv-item" + (aktiv ? " active" : "");
+      const text = document.createElement("div");
+      text.className = "conv-text";
+      const titel = document.createElement("span");
+      titel.className = "conv-title";
+      titel.textContent = name;
+      text.appendChild(titel);
+      if(id){
+        const zahl = Object.values(conversations).filter(c => c.folderId === id).length;
+        const unter = document.createElement("span");
+        unter.className = "conv-time";
+        unter.textContent = zahl === 1 ? "1 Chat" : zahl + " Chats";
+        text.appendChild(unter);
+      }
+      el.appendChild(text);
+      el.addEventListener("click", () => waehleOrdner(id));
+      liste.appendChild(el);
+    };
+
+    eintrag("", "Kein Ordner", !aktuell);
+    const sortiert = Object.values(folders).sort((a, b) => a.name.localeCompare(b.name, "de"));
+    for(const f of sortiert) eintrag(f.id, f.name, f.id === aktuell);
+  }
+
+  function waehleOrdner(id){
+    const conv = conversations[folderZielChat];
+    if(!conv) return;
+    if(id) conv.folderId = id;
+    else delete conv.folderId;
+    saveConversationsRaw(conversations);
+    aufraeumenLeereOrdner();
+    closeFolderSheet();
+    renderSidebar();
+    showToast(id ? "In \"" + folders[id].name + "\" verschoben." : "Aus dem Ordner genommen.");
+  }
+
+  function openFolderSheet(chatId){
+    folderZielChat = chatId;
+    renderFolderList();
+    $("#folder-new-name").value = "";
+    folderBackdrop.classList.add("open");
+  }
+  function closeFolderSheet(){
+    folderBackdrop.classList.remove("open");
+    folderZielChat = null;
+  }
+  folderBackdrop.addEventListener("click", (e) => {
+    if(e.target === folderBackdrop) closeFolderSheet();
+  });
+
+  function ordnerAnlegen(){
+    const name = $("#folder-new-name").value.trim().slice(0, 40);
+    if(!name){ showToast("Bitte einen Namen eingeben."); return; }
+    const schon = Object.values(folders).find(f => f.name.toLowerCase() === name.toLowerCase());
+    if(schon){ waehleOrdner(schon.id); return; }
+    const id = newFolderId();
+    folders[id] = { id, name, createdAt: Date.now() };
+    saveFoldersRaw(folders);
+    waehleOrdner(id);
+  }
+  $("#btn-add-folder").addEventListener("click", ordnerAnlegen);
+  $("#folder-new-name").addEventListener("keydown", (e) => {
+    if(e.key === "Enter"){ e.preventDefault(); ordnerAnlegen(); }
+  });
 
   // ---------- Kontextmenue eines Chats ----------
   const convMenu = $("#conv-menu");
@@ -3937,6 +4060,10 @@
       const item = menuTargetItem, textWrap = menuTargetTextWrap;
       closeConvMenu();
       startRename(id, item, textWrap);
+      return;
+    }else if(act === "folder"){
+      closeConvMenu();
+      openFolderSheet(id);
       return;
     }else if(act === "project"){
       closeConvMenu();
@@ -3998,6 +4125,7 @@
       // dann die Seitenleiste -- so wie man es von Dialogen erwartet.
       if(convMenu.classList.contains("open")){ closeConvMenu(); return; }
       if(findBar.classList.contains("open")){ findSchliessen(); return; }
+      if(folderBackdrop.classList.contains("open")){ closeFolderSheet(); return; }
       if(agentsBackdrop.classList.contains("open")){ closeAgentsSheet(); return; }
       if(projectBackdrop.classList.contains("open")){ closeProjectSheet(); return; }
       if(usageBackdrop.classList.contains("open")){ closeUsage(); return; }
@@ -6539,7 +6667,7 @@
     STORAGE_CUSTOM_PROVIDERS,
     STORAGE_PROFILE_NAME, STORAGE_PROFILE_ABOUT, STORAGE_PROFILE_STYLE, STORAGE_THEME,
     STORAGE_CONVERSATIONS, STORAGE_ACTIVE_ID, STORAGE_USAGE,
-    STORAGE_AGENTS, STORAGE_PROJECTS, STORAGE_MEMORY
+    STORAGE_AGENTS, STORAGE_PROJECTS, STORAGE_MEMORY, STORAGE_FOLDERS
   ];
 
   function exportBackup(){
