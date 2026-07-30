@@ -940,6 +940,18 @@
       -webkit-backdrop-filter: none;
       backdrop-filter: none;
     }
+
+    /* Fest positionierte Ebenen richten sich am Fenster aus, nicht am
+       Inhaltsbereich -- ohne diese Korrektur schoben sich Dialoge und
+       Hinweise unter die angedockte Leiste und ihre linke Seite war
+       nicht mehr erreichbar. */
+    body.sidebar-docked .sheet-backdrop,
+    body.sidebar-docked .sheet{
+      left: var(--sidebar-w);
+    }
+    body.sidebar-docked .toast{
+      left: calc(50% + var(--sidebar-w) / 2);
+    }
   }
 
   /* Ab Tablet-Breite dockt die Seitenleiste an, statt den Inhalt zu ueberlagern:
@@ -952,6 +964,139 @@
       pointer-events: none;
     }
     body.sidebar-docked .sidebar-panel{ pointer-events: auto; width: 300px; }
+  }
+
+  /* Bloecke in der Seitenleiste: eigene Anmutung, damit sie nicht wie eine
+     weitere graue Liste wirken. */
+  .sidebar-block{
+    margin: 0 0 12px;
+    padding: 0 2px;
+  }
+  .block-kopf{
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    font-size: 11px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    font-weight: 600;
+    padding: 0 6px 7px;
+  }
+  .block-mehr{
+    background: none; border: none;
+    color: var(--text-dim);
+    font-family: inherit;
+    font-size: 10.5px;
+    letter-spacing: .04em;
+    text-transform: none;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 6px;
+  }
+  .block-mehr:hover{ color: var(--text); background: var(--surface-2); }
+  .block-zahl{
+    font-size: 11px;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0;
+  }
+
+  /* Agenten als Startknoepfe: ein Tipp beginnt einen Chat mit diesem Agenten */
+  .agent-start-row{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .agent-start{
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface-2);
+    border: 1px solid transparent;
+    color: var(--text);
+    border-radius: 10px;
+    padding: 8px 11px;
+    font-size: 12.5px;
+    font-family: inherit;
+    cursor: pointer;
+    max-width: 100%;
+    transition: border-color var(--dauer-kurz) var(--kurve),
+                background var(--dauer-kurz) var(--kurve),
+                transform var(--dauer-tipp) var(--kurve);
+  }
+  .agent-start:hover{ border-color: var(--text-dim); }
+  .agent-start:active{ transform: scale(.96); }
+  .agent-start .sym{ font-size: 14px; line-height: 1; }
+  .agent-start .nm{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Aufgaben direkt abhaken, ohne ins Projekt zu wechseln */
+  .todo-kurz{
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 7px 8px;
+    border-radius: 9px;
+    cursor: pointer;
+    transition: background var(--dauer-kurz) var(--kurve);
+  }
+  .todo-kurz:hover{ background: var(--surface-2); }
+  .todo-haken{
+    width: 16px; height: 16px;
+    border: 1.5px solid var(--text-dim);
+    border-radius: 5px;
+    flex-shrink: 0;
+    margin-top: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color var(--dauer-kurz) var(--kurve),
+                background var(--dauer-kurz) var(--kurve);
+  }
+  .todo-kurz:hover .todo-haken{ border-color: var(--accent); }
+  .todo-haken svg{ width: 11px; height: 11px; opacity: 0; }
+  .todo-kurz:hover .todo-haken svg{ opacity: .5; }
+  .todo-kurz-text{
+    font-size: 12.5px;
+    line-height: 1.35;
+    color: var(--text);
+    overflow: hidden;
+  }
+  .todo-kurz-projekt{
+    display: block;
+    font-size: 10.5px;
+    color: var(--text-dim);
+    margin-top: 1px;
+  }
+
+  /* Anbieter auf einen Blick */
+  .status-zeile{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 9px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+  }
+  .status-zeile:hover{ background: var(--surface-2); }
+  .status-punkte{ display: flex; gap: 3px; flex-shrink: 0; }
+  .status-punkt{
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--ok);
+  }
+  .status-punkt.aus{ background: var(--border); }
+  .status-text{
+    font-size: 11.5px;
+    color: var(--text-dim);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .sidebar-foot{
@@ -2257,6 +2402,22 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3" stroke-linecap="round"/></svg>
       <input type="text" id="chat-search" placeholder="Chats durchsuchen…" autocomplete="off">
     </div>
+    <div class="sidebar-block" id="quickstart-block" style="display:none">
+      <div class="block-kopf">
+        <span>Schnellstart</span>
+        <button type="button" class="block-mehr" id="quickstart-mehr" title="Agenten verwalten">verwalten</button>
+      </div>
+      <div class="agent-start-row" id="quickstart-row"></div>
+    </div>
+
+    <div class="sidebar-block" id="todo-block" style="display:none">
+      <div class="block-kopf">
+        <span>Offene Aufgaben</span>
+        <span class="block-zahl" id="todo-offen-zahl"></span>
+      </div>
+      <div id="todo-kurzliste"></div>
+    </div>
+
     <div class="sidebar-filters" id="sidebar-filters">
       <button type="button" class="filter-chip active" data-filter="alle">Alle</button>
       <button type="button" class="filter-chip" data-filter="angeheftet">Angeheftet</button>
@@ -2284,6 +2445,10 @@
           <span>Einstellungen</span>
         </button>
       </div>
+      <button type="button" class="status-zeile" id="status-zeile" title="Nutzung ansehen">
+        <span class="status-punkte" id="status-punkte"></span>
+        <span class="status-text" id="status-text"></span>
+      </button>
       <button type="button" class="sidebar-speicher" id="sidebar-speicher" title="Speicher verwalten">
         <span class="speicher-text" id="sidebar-speicher-text"></span>
         <span class="speicher-bar"><span id="sidebar-speicher-fuell"></span></span>
@@ -3915,8 +4080,117 @@
     }
   }
 
+  // Schnellstart: ein Tipp legt einen neuen Chat mit diesem Agenten an.
+  // Sonst waere es jedes Mal: neuer Chat, Agent-Chip, Agent suchen, tippen.
+  function renderQuickstart(){
+    const block = $("#quickstart-block");
+    const row = $("#quickstart-row");
+    if(!block || !row) return;
+    const ids = Object.keys(agents);
+    if(!ids.length){ block.style.display = "none"; return; }
+    block.style.display = "";
+    row.innerHTML = "";
+    // Zuletzt genutzte zuerst -- was man oft braucht, soll vorn stehen.
+    const nutzung = {};
+    for(const c of Object.values(conversations)){
+      if(c.agentId) nutzung[c.agentId] = Math.max(nutzung[c.agentId] || 0, c.updatedAt || 0);
+    }
+    ids.sort((a, b) => (nutzung[b] || 0) - (nutzung[a] || 0));
+    for(const id of ids.slice(0, 6)){
+      const a = agents[id];
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "agent-start";
+      btn.title = "Neuer Chat mit " + a.name;
+      btn.innerHTML = (a.icon ? '<span class="sym">' + escapeHtml(a.icon) + '</span>' : "")
+        + '<span class="nm">' + escapeHtml(a.name) + '</span>';
+      btn.addEventListener("click", () => {
+        createConversation();
+        const conv = conversations[activeId];
+        if(conv){
+          conv.agentId = id;
+          saveConversationsRaw(conversations);
+          renderContextChips();
+        }
+        if(!isWide()) closeSidebar();
+        input.focus();
+        showToast("Neuer Chat mit " + a.name + ".");
+      });
+      row.appendChild(btn);
+    }
+  }
+
+  // Offene Aufgaben aus allen Projekten, direkt abhakbar. Vorher lagen sie
+  // im Projekt-Dialog begraben und gerieten in Vergessenheit.
+  function renderTodoKurzliste(){
+    const block = $("#todo-block");
+    const liste = $("#todo-kurzliste");
+    const zahl = $("#todo-offen-zahl");
+    if(!block || !liste) return;
+
+    const offen = [];
+    for(const pr of Object.values(projects)){
+      for(const t of (pr.todos || [])){
+        if(!t.done) offen.push({ projekt: pr, todo: t });
+      }
+    }
+    if(!offen.length){ block.style.display = "none"; return; }
+    block.style.display = "";
+    zahl.textContent = offen.length;
+    liste.innerHTML = "";
+
+    for(const { projekt, todo } of offen.slice(0, 4)){
+      const el = document.createElement("div");
+      el.className = "todo-kurz";
+      el.innerHTML = '<span class="todo-haken">'
+        + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m5 13 4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        + '</span><span class="todo-kurz-text">' + escapeHtml(todo.text)
+        + '<span class="todo-kurz-projekt">' + escapeHtml(projekt.name) + '</span></span>';
+      el.addEventListener("click", () => {
+        todo.done = true;
+        todo.doneAt = Date.now();
+        saveProjectsRaw(projects);
+        renderTodoKurzliste();
+        showToast("Erledigt: " + todo.text.slice(0, 40));
+      });
+      liste.appendChild(el);
+    }
+  }
+
+  // Anbieter auf einen Blick: wie viele sind einsatzbereit.
+  function renderStatusZeile(){
+    const punkte = $("#status-punkte");
+    const text = $("#status-text");
+    if(!punkte || !text) return;
+    const namen = configuredProviderNames();
+    punkte.innerHTML = "";
+    // Höchstens fünf Punkte, damit die Zeile nicht ausufert
+    const zeigen = Math.min(namen.length, 5);
+    for(let i = 0; i < Math.max(zeigen, 1); i++){
+      const s = document.createElement("span");
+      s.className = "status-punkt" + (namen.length ? "" : " aus");
+      punkte.appendChild(s);
+    }
+    if(!namen.length){
+      text.textContent = "Kein Anbieter eingerichtet";
+      return;
+    }
+    const heute = new Date(); heute.setHours(0, 0, 0, 0);
+    let anfragen = 0;
+    const u = loadUsage();
+    for(const eintrag of Object.values(u.byKey || {})){
+      anfragen += eintrag.requests || 0;
+    }
+    const mehr = namen.length > 5 ? " +" + (namen.length - 5) : "";
+    text.textContent = namen.length + " Anbieter" + mehr
+      + (anfragen ? " · " + anfragen + " Anfragen" : "");
+  }
+
   // Zaehler an den Filtern und die Fusszeile mit Schnellzugriff pflegen.
   function renderSidebarFoot(){
+    renderQuickstart();
+    renderTodoKurzliste();
+    renderStatusZeile();
     const alle = Object.values(conversations);
     const zahlen = {
       alle:       alle.filter(c => !c.archived).length,
@@ -4266,6 +4540,15 @@
     renderModeChips();
   });
   renderModeChips();
+
+  $("#quickstart-mehr").addEventListener("click", () => {
+    if(!isWide()) closeSidebar();
+    openAgentsSheet();
+  });
+  $("#status-zeile").addEventListener("click", () => {
+    if(!isWide()) closeSidebar();
+    openUsage();
+  });
 
   $("#quick-agents").addEventListener("click", () => {
     if(!isWide()) closeSidebar();
