@@ -1392,6 +1392,52 @@
     animation: haken-rein var(--dauer-mittel) var(--kurve-feder) both;
   }
 
+  /* Belege unter der Antwort */
+  .quellen-box{
+    max-width: 720px;
+    margin: var(--raum-3) 0 0;
+    padding: var(--raum-5);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--rund-3);
+  }
+  .quellen-kopf{
+    font-size: var(--schrift-mini);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--text-mute);
+    margin-bottom: var(--raum-4);
+  }
+  .quellen-liste{ display: flex; flex-direction: column; gap: var(--raum-1); }
+  .quelle{
+    display: flex;
+    align-items: baseline;
+    gap: var(--raum-4);
+    padding: var(--raum-3) var(--raum-3);
+    border-radius: var(--rund-1);
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: var(--schrift-klein);
+    transition: background var(--dauer-kurz) var(--kurve), color var(--dauer-kurz) var(--kurve);
+  }
+  .quelle:hover{ background: var(--surface-2); color: var(--text); }
+  .quelle-nr{
+    flex-shrink: 0;
+    color: var(--text-mute);
+    font-variant-numeric: tabular-nums;
+    min-width: 12px;
+  }
+  .quelle-titel{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Der Recherche-Schritt ist kein Team-Mitglied, sondern die gemeinsame
+     Faktenbasis -- er hebt sich deshalb ab. */
+  .team-step.recherche-step{
+    border-left: 2px solid var(--accent);
+    padding-left: var(--raum-5);
+  }
+  .team-step.recherche-step .team-step-name{ color: var(--accent); }
+
   /* ---------- Feindetails der Darstellung ---------- */
 
   /* Die Textauswahl uebernahm bisher das Systemblau und stach aus der
@@ -3143,6 +3189,28 @@
           required: ["owner", "repo", "path"]
         }
       }
+    },
+    {
+      type: "function",
+      function: {
+        name: "recherchiere_web",
+        description: "Sucht im Web und liefert eine belegte Antwort mit Quellenangaben. Nutzen bei Fragen zu aktuellen Ereignissen, Preisen, Terminen, Personen oder allem, was sich seit dem Trainingsstand geändert haben könnte -- also immer dann, wenn eine Antwort aus dem Gedächtnis veraltet sein könnte. Nicht nutzen für zeitlose Zusammenhänge, Rechenaufgaben oder Fragen zum Gesprächsverlauf.",
+        parameters: {
+          type: "object",
+          properties: {
+            frage: {
+              type: "string",
+              description: "Die Rechercheaufgabe als vollständige, eigenständig verständliche Frage -- ohne Bezug auf den bisherigen Verlauf, da die Suche den Kontext nicht kennt."
+            },
+            aktualitaet: {
+              type: "string",
+              enum: ["egal", "jahr", "monat", "woche", "tag"],
+              description: "Wie frisch die Quellen sein müssen. Bei Nachrichten oder Kursen eng wählen, bei Hintergrundwissen 'egal'."
+            }
+          },
+          required: ["frage"]
+        }
+      }
     }
   ];
   const STORAGE_CLAUDE_KEY     = "relais.claudeKey";
@@ -3545,6 +3613,114 @@
 
   const GITHUB_FILE_CHAR_LIMIT = 6000;
 
+  // ---------- Web-Recherche ----------
+  // Eine eigene Such-API scheiterte an zwei Punkten: die frei erreichbaren
+  // Dienste liefern entweder nichts Brauchbares (DuckDuckGo antwortet auf
+  // normale Fragen leer) oder ganze Seiten in einer Groesse, die das
+  // Kontextfenster sprengt. Stattdessen uebernimmt ein Modell mit
+  // eingebauter Suche die Recherche und liefert eine belegte Antwort --
+  // ueber denselben Gateway-Zugang, der ohnehin schon eingerichtet ist.
+  const RECHERCHE_MODELL = "perplexity/sonar";
+  const RECHERCHE_MODELL_TIEF = "perplexity/sonar-pro";
+
+  function rechercheVerfuegbar(){
+    return !!(vercelEnabled && vercelKey);
+  }
+
+  async function recherchiereWeb(frage, aktualitaet, optionen){
+    if(!rechercheVerfuegbar()){
+      return {
+        ok: false,
+        message: "Für die Web-Recherche fehlt der Zugang: In den Einstellungen unter "
+          + "\"Vercel AI Gateway\" einen Schlüssel eintragen und den Anbieter einschalten."
+      };
+    }
+
+    const tief = !!optionen?.tief;
+    const filter = { jahr: "year", monat: "month", woche: "week", tag: "day" }[aktualitaet];
+    const koerper = {
+      model: tief ? RECHERCHE_MODELL_TIEF : RECHERCHE_MODELL,
+      messages: [
+        {
+          role: "system",
+          content: "Antworte knapp und sachlich auf Deutsch. Nenne konkrete Zahlen, Daten und Namen, "
+            + "wenn sie belegt sind. Wenn die Quellenlage unklar oder widersprüchlich ist, sage das "
+            + "ausdrücklich, statt dich auf eine Version festzulegen."
+        },
+        { role: "user", content: frage }
+      ],
+      stream: false,
+      max_tokens: tief ? 1200 : 700,
+      ...(filter ? { search_recency_filter: filter } : {})
+    };
+
+    try{
+      const res = await fetch("https://ai-gateway.vercel.sh/v1/chat/completions", {
+        method: "POST",
+        signal: optionen?.signal,
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + vercelKey },
+        body: JSON.stringify(koerper)
+      });
+
+      if(!res.ok){
+        let detail = "";
+        try{ detail = (await res.json())?.error?.message || ""; }catch{}
+        // Der haeufigste Fall ist ein aufgebrauchtes Guthaben -- das soll
+        // nicht als technischer Fehler erscheinen.
+        if(res.status === 402 || /credit|quota|balance/i.test(detail)){
+          return { ok: false, message: "Die Recherche ist fehlgeschlagen: Das Gateway-Guthaben reicht nicht aus." };
+        }
+        if(res.status === 401 || res.status === 403){
+          return { ok: false, message: "Die Recherche ist fehlgeschlagen: Der Gateway-Schlüssel wurde abgelehnt." };
+        }
+        return { ok: false, message: "Die Recherche ist fehlgeschlagen (" + res.status + (detail ? ": " + detail : "") + ")." };
+      }
+
+      const json = await res.json();
+      const text = (json.choices?.[0]?.message?.content || "").trim();
+      if(!text) return { ok: false, message: "Die Recherche lieferte keine Antwort." };
+
+      // Sonar liefert die Belege je nach Modellstand unter verschiedenen
+      // Feldern -- beide Formen einsammeln und vereinheitlichen.
+      const rohQuellen = json.citations
+        || json.search_results
+        || json.choices?.[0]?.message?.citations
+        || [];
+      const quellen = [];
+      for(const q of rohQuellen){
+        if(typeof q === "string"){
+          quellen.push({ url: q, titel: kurzeDomain(q) });
+        }else if(q && typeof q === "object"){
+          const url = q.url || q.link || "";
+          if(url) quellen.push({ url, titel: (q.title || kurzeDomain(url)).slice(0, 90) });
+        }
+        if(quellen.length >= 6) break;
+      }
+
+      recordUsage("Vercel AI Gateway", koerper.model, json.usage);
+
+      return {
+        ok: true,
+        message: text,
+        quellen,
+        // Fuer das Modell mitgeliefert, damit es die Belege in seiner
+        // Antwort nennen kann statt sie zu erfinden.
+        quellenListe: quellen.map((q, i) => (i + 1) + ". " + q.titel + " — " + q.url).join("\n")
+      };
+    }catch(err){
+      if(err?.name === "AbortError") return { ok: false, message: "Recherche abgebrochen." };
+      return { ok: false, message: "Die Recherche ist fehlgeschlagen: " + (err.message || "keine Verbindung") };
+    }
+  }
+
+  function kurzeDomain(url){
+    try{
+      return new URL(url).hostname.replace(/^www\./, "");
+    }catch{
+      return url.slice(0, 40);
+    }
+  }
+
   async function executeToolCall(name, args){
     if(name === "delete_current_chat"){
       const title = conversations[activeId]?.title || "Dieser Chat";
@@ -3553,6 +3729,12 @@
       }
       deleteConversation(activeId);
       return { terminal: true, ok: true, message: `"${title}" wurde gelöscht.` };
+    }
+
+    if(name === "recherchiere_web"){
+      const frage = (args?.frage || "").trim();
+      if(!frage) return { ok: false, message: "Keine Rechercheaufgabe erhalten." };
+      return recherchiereWeb(frage, args?.aktualitaet);
     }
 
     if(name === "remember"){
@@ -3948,6 +4130,32 @@
       txt.textContent = m.reasoning;
       box.appendChild(txt);
       row.appendChild(box);
+    }
+
+    // Belege unter der Antwort: recherchierte Aussagen ohne sichtbare Quelle
+    // sind wertlos, weil sie sich nicht nachpruefen lassen.
+    if(m.role === "assistant" && m.quellen && m.quellen.length){
+      const qbox = document.createElement("div");
+      qbox.className = "quellen-box";
+      const kopf = document.createElement("div");
+      kopf.className = "quellen-kopf";
+      kopf.textContent = m.quellen.length === 1 ? "Quelle" : m.quellen.length + " Quellen";
+      qbox.appendChild(kopf);
+      const liste = document.createElement("div");
+      liste.className = "quellen-liste";
+      m.quellen.forEach((q, idx) => {
+        const a = document.createElement("a");
+        a.className = "quelle";
+        a.href = q.url;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.title = q.url;
+        a.innerHTML = '<span class="quelle-nr">' + (idx + 1) + '</span>'
+          + '<span class="quelle-titel">' + escapeHtml(q.titel || q.url) + '</span>';
+        liste.appendChild(a);
+      });
+      qbox.appendChild(liste);
+      row.appendChild(qbox);
     }
 
     if(m.role === "assistant" && m.agentSteps && m.agentSteps.length){
@@ -5417,7 +5625,7 @@
     teamBox.querySelectorAll(".team-step").forEach(el => el.remove());
     for(const s of steps){
       const div = document.createElement("div");
-      div.className = "team-step" + (s.status === "error" ? " error" : "");
+      div.className = "team-step" + (s.status === "error" ? " error" : "") + (s.istRecherche ? " recherche-step" : "");
       const head = document.createElement("div");
       head.className = "team-step-head";
       const dot = document.createElement("span");
@@ -5425,8 +5633,9 @@
       if(s.status === "error") dot.style.background = "var(--danger)";
       head.appendChild(dot);
       const name = document.createElement("span");
+      name.className = "team-step-name";
       name.textContent = s.provider
-        + (s.status === "running" ? " (arbeitet …)" : "")
+        + (s.status === "running" ? (s.istRecherche ? " (sucht …)" : " (arbeitet …)") : "")
         + (s.status === "reviewing" ? " (liest die anderen …)" : "");
       head.appendChild(name);
       div.appendChild(head);
@@ -5473,6 +5682,7 @@
       case "add_todo":            return "legt eine Aufgabe an: " + kurz(args.text);
       case "complete_todo":       return "hakt eine Aufgabe ab: " + kurz(args.text);
       case "get_current_datetime":return "sieht auf die Uhr";
+      case "recherchiere_web":    return "recherchiert: " + kurz(args.frage, 46);
       case "list_github_repo":    return "sieht sich das Repo an: " + kurz(args.repo);
       case "read_github_file":    return "liest eine Datei: " + kurz(args.path);
       default:                    return "nutzt " + name;
@@ -5620,7 +5830,16 @@
 
           const res = await executeToolCall(tc.function.name, args);
           schritt.status = res?.ok === false ? "fehlgeschlagen" : "ok";
-          schritt.ergebnis = res?.message || "";
+          // Bei der Recherche steht im Ergebnis die ganze Antwort -- die
+          // gehoert nicht in die Schrittzeile, sondern in die Belegliste.
+          schritt.ergebnis = tc.function.name === "recherchiere_web" && res?.ok
+            ? (res.quellen?.length ? res.quellen.length + " Quellen ausgewertet" : "recherchiert")
+            : (res?.message || "");
+          if(res?.quellen?.length){
+            assistantMsg.quellen = [...(assistantMsg.quellen || []), ...res.quellen]
+              .filter((q, i, alle) => alle.findIndex(x => x.url === q.url) === i)
+              .slice(0, 8);
+          }
           renderAgentSchritte(box, assistantMsg.agentSteps);
 
           if(res?.terminal){
@@ -5866,16 +6085,29 @@
       render();
     }
 
-    // ---- 1) Orchestrator: Aufgabe aufteilen ----
+    // ---- 1) Orchestrator: aufteilen und Faktenbedarf klaeren ----
+    // Beides in einem Aufruf: ob recherchiert werden muss, haengt an
+    // derselben Einschaetzung wie die Aufteilung -- ein zweiter Aufruf waere
+    // eine zusaetzliche Wartezeit ohne zusaetzliche Erkenntnis.
     const providerNames = targets.map(t => t.provider);
+    const kannRecherchieren = rechercheVerfuegbar();
     const splitPrompt =
       "Du bist Projekt-Koordinator für ein Team aus " + targets.length + " KI-Assistenten: " + providerNames.join(", ") + ".\n" +
       "Teile die folgende Aufgabe in genau " + targets.length + " sinnvolle, unterschiedliche Teilaufgaben auf, eine pro Assistent.\n" +
+      (kannRecherchieren
+        ? "Entscheide ausserdem, ob für eine belastbare Antwort aktuelle Fakten aus dem Web nötig sind "
+          + "(Ereignisse, Preise, Termine, Personen, alles was sich ändert). Wenn ja, formuliere unter "
+          + "\"recherche\" eine eigenständig verständliche Suchfrage. Wenn die Aufgabe ohne aktuelle "
+          + "Fakten auskommt -- etwa bei Textarbeit, Erklärungen oder Programmierung -- setze null.\n"
+        : "") +
       "Antworte NUR mit gültigem JSON, ohne Erklärung, ohne Markdown-Codeblock, in genau diesem Format:\n" +
-      '{"subtasks":[{"provider":"NAME","task":"konkrete Teilaufgabe"}]}\n\n' +
+      (kannRecherchieren
+        ? '{"recherche":"Suchfrage oder null","subtasks":[{"provider":"NAME","task":"konkrete Teilaufgabe"}]}\n\n'
+        : '{"subtasks":[{"provider":"NAME","task":"konkrete Teilaufgabe"}]}\n\n') +
       "Aufgabe: " + text;
 
     let subtasks = null;
+    let rechercheFrage = null;
     try{
       const raw = await simpleComplete(targets[0], splitPrompt, signal);
       const jsonMatch = raw.match(/\{[\s\S]*\}/);
@@ -5886,6 +6118,10 @@
           task: String(s.task || text)
         }));
       }
+      const r = parsed.recherche;
+      if(kannRecherchieren && typeof r === "string" && r.trim() && r.trim().toLowerCase() !== "null"){
+        rechercheFrage = r.trim();
+      }
     }catch(err){
       if(err?.name === "AbortError"){ stopAborted(); return; }
       // Aufteilung fehlgeschlagen -- unten greift der Rueckfall
@@ -5895,21 +6131,71 @@
       subtasks = targets.map(t => ({ provider: t.provider, task: text }));
     }
 
+    // ---- 1b) Recherche: einmal zentral fuer das ganze Team ----
+    // Jedes Mitglied einzeln suchen zu lassen waere teurer und brächte
+    // widersprüchliche Faktenlagen. Eine gemeinsame Grundlage haelt die
+    // Beiträge konsistent.
+    let faktenBlock = "";
+    if(rechercheFrage){
+      summaryEl.textContent = "Team recherchiert …";
+      const rechercheSchritt = {
+        provider: "Recherche",
+        task: rechercheFrage,
+        result: "",
+        status: "running",
+        // Kennzeichnung, damit die spaeteren Phasen ihn nicht als Beitrag
+        // eines Team-Mitglieds behandeln -- er wuerde sonst kritisiert und
+        // in die Zusammenfassung eingerechnet.
+        istRecherche: true
+      };
+      assistantMsg.teamSteps = [rechercheSchritt];
+      renderTeamSteps(teamBox, assistantMsg.teamSteps);
+
+      const res = await recherchiereWeb(rechercheFrage, "monat", { signal, tief: true });
+      if(signal.aborted){ stopAborted(); return; }
+
+      if(res.ok){
+        rechercheSchritt.status = "done";
+        rechercheSchritt.result = res.message;
+        faktenBlock = "\n\nRecherchierte Fakten (Stand heute) -- nutze sie als Grundlage und "
+          + "widersprich ihnen nicht aus dem Gedächtnis:\n" + res.message
+          + (res.quellenListe ? "\n\nQuellen:\n" + res.quellenListe : "");
+        if(res.quellen?.length){
+          assistantMsg.quellen = res.quellen.slice(0, 8);
+        }
+      }else{
+        // Eine gescheiterte Recherche darf das Team nicht aufhalten --
+        // die Mitglieder arbeiten dann eben ohne die Fakten weiter.
+        rechercheSchritt.status = "error";
+        rechercheSchritt.result = res.message;
+      }
+      renderTeamSteps(teamBox, assistantMsg.teamSteps);
+    }
+
     // ---- 2) Parallel ausfuehren ----
-    assistantMsg.teamSteps = subtasks.map(s => ({ provider: s.provider, task: s.task, result: "", status: "running" }));
+    // Der Recherche-Schritt bleibt oben stehen, damit nachvollziehbar ist,
+    // worauf die Beiträge fussen.
+    const vorlauf = assistantMsg.teamSteps ? assistantMsg.teamSteps.slice() : [];
+    const arbeitsSchritte = subtasks.map(s => ({ provider: s.provider, task: s.task, result: "", status: "running" }));
+    assistantMsg.teamSteps = [...vorlauf, ...arbeitsSchritte];
+    const versatz = vorlauf.length;
     summaryEl.textContent = "Team arbeitet … (0/" + subtasks.length + ")";
     renderTeamSteps(teamBox, assistantMsg.teamSteps);
 
     let doneCount = 0;
     await Promise.all(subtasks.map(async (s, i) => {
       const target = targets.find(t => t.provider === s.provider) || targets[i % targets.length];
+      const schritt = assistantMsg.teamSteps[versatz + i];
       try{
-        const result = await simpleComplete(target, s.task, signal);
-        assistantMsg.teamSteps[i].result = result;
-        assistantMsg.teamSteps[i].status = "done";
+        // Die recherchierten Fakten gehen an jedes Mitglied mit -- sonst
+        // arbeiten sie weiter aus dem Gedaechtnis und widersprechen der
+        // eigenen Recherche.
+        const result = await simpleComplete(target, s.task + faktenBlock, signal);
+        schritt.result = result;
+        schritt.status = "done";
       }catch(err){
-        assistantMsg.teamSteps[i].result = err?.name === "AbortError" ? "Abgebrochen" : "Nicht erreichbar: " + err.message;
-        assistantMsg.teamSteps[i].status = "error";
+        schritt.result = err?.name === "AbortError" ? "Abgebrochen" : "Nicht erreichbar: " + err.message;
+        schritt.status = "error";
       }
       doneCount++;
       summaryEl.textContent = "Team hat gearbeitet (" + doneCount + "/" + subtasks.length + ")";
@@ -5923,11 +6209,11 @@
     // voneinander -- Widersprueche und Luecken blieben unentdeckt und
     // landeten unbemerkt in der Zusammenfassung. Jetzt liest jedes Mitglied
     // die fremden Beitraege und darf ergaenzen oder widersprechen.
-    const fertige = assistantMsg.teamSteps.filter(s => s.status === "done");
+    const fertige = assistantMsg.teamSteps.filter(s => s.status === "done" && !s.istRecherche);
     if(teamAustausch && fertige.length >= 2){
       summaryEl.textContent = "Team tauscht sich aus …";
       for(const s of assistantMsg.teamSteps){
-        if(s.status === "done") s.status = "reviewing";
+        if(s.status === "done" && !s.istRecherche) s.status = "reviewing";
       }
       renderTeamSteps(teamBox, assistantMsg.teamSteps);
 
@@ -5936,7 +6222,7 @@
         if(s.status !== "reviewing") return;
         const target = targets.find(t => t.provider === s.provider) || targets[i % targets.length];
         const fremde = assistantMsg.teamSteps
-          .filter((o, j) => j !== i && o.result && o.status !== "error")
+          .filter((o, j) => j !== i && o.result && o.status !== "error" && !o.istRecherche)
           .map(o => "[" + o.provider + "] Auftrag: " + o.task + "\n" + o.result)
           .join("\n\n");
 
@@ -5972,7 +6258,7 @@
     teamBox.open = false;
 
     // ---- 3) Synthese ----
-    const successSteps = assistantMsg.teamSteps.filter(s => s.status === "done");
+    const successSteps = assistantMsg.teamSteps.filter(s => s.status === "done" && !s.istRecherche);
     if(!successSteps.length){
       assistantMsg.content = "Keiner der Anbieter im Team-Modus war erreichbar.";
       assistantMsg.isError = true;
@@ -5981,12 +6267,18 @@
     }else{
       const synthPrompt =
         "Ursprüngliche Aufgabe: " + text + "\n\n" +
+        // Nur die echten Beitraege, nicht der Recherche-Schritt -- der steht
+        // als Faktenbasis darunter und ist kein Team-Ergebnis.
         "Ergebnisse der einzelnen Team-Mitglieder:\n\n" +
-        assistantMsg.teamSteps.map(s => "[" + s.provider + "] Teilaufgabe: " + s.task + "\nErgebnis: " + s.result
+        successSteps.map(s => "[" + s.provider + "] Teilaufgabe: " + s.task + "\nErgebnis: " + s.result
           + (s.review ? "\nAnmerkung dieses Mitglieds zu den anderen Beiträgen: " + s.review : "")).join("\n\n") +
+        (faktenBlock ? "\n\nGemeinsame Faktenbasis aus der Recherche:" + faktenBlock : "") +
         "\n\nFasse das Ganze zu einer einzigen, klaren, gut strukturierten Antwort auf die ursprüngliche Aufgabe zusammen. " +
         "Berücksichtige die Anmerkungen: wo sich Mitglieder widersprechen, entscheide begründet, statt beides " +
         "unkommentiert nebeneinander stehen zu lassen. " +
+        (faktenBlock
+          ? "Wo die recherchierten Fakten einem Beitrag widersprechen, gelten die Fakten. "
+          : "") +
         "Erwähne nicht ausdrücklich, dass mehrere KIs beteiligt waren -- liefere einfach die beste zusammengeführte Antwort.";
 
       let firstToken = true;
