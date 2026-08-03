@@ -1363,6 +1363,35 @@
   }
   .einst-gruppe:first-of-type{ padding-top: var(--raum-3); margin-top: 0; }
 
+  /* Agent-Schritte: die Runde als Ziffer, dann was getan wurde, dann der
+     Ausgang. Bei selbstaendiger Arbeit ist Nachvollziehbarkeit wichtiger
+     als bei einer blossen Antwort. */
+  .agent-step .team-step-head{ display: flex; align-items: center; gap: var(--raum-4); }
+  .agent-runde{
+    flex-shrink: 0;
+    width: 18px; height: 18px;
+    border-radius: var(--rund-voll);
+    background: var(--surface-2);
+    color: var(--text-mute);
+    font-size: var(--schrift-mini);
+    font-variant-numeric: tabular-nums;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .agent-titel{ flex: 1; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .agent-ergebnis{ color: var(--text-mute); padding-left: calc(18px + var(--raum-4)); }
+  .mini-spinner{
+    display: inline-block; width: 11px; height: 11px;
+    border: 2px solid var(--border); border-top-color: var(--text-dim);
+    border-radius: 50%; animation: spin .8s linear infinite;
+  }
+  .agent-haken{
+    display: inline-block; width: 12px; height: 12px;
+    background: var(--ok);
+    -webkit-mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"/></svg>') center/contain no-repeat;
+    mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"/></svg>') center/contain no-repeat;
+    animation: haken-rein var(--dauer-mittel) var(--kurve-feder) both;
+  }
+
   /* ---------- Feindetails der Darstellung ---------- */
 
   /* Die Textauswahl uebernahm bisher das Systemblau und stach aus der
@@ -2297,6 +2326,10 @@
         <button type="button" class="attach-btn" id="btn-attach" aria-label="Bild anhängen" title="Bild anhängen">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
         </button>
+        <button type="button" class="team-toggle" id="btn-agent-toggle" aria-pressed="false" title="Mehrschrittig arbeiten: Werkzeuge nutzen, Ergebnis prüfen, weitermachen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" stroke-linecap="round"/><circle cx="12" cy="12" r="3.2"/></svg>
+          <span>Agent</span>
+        </button>
         <button type="button" class="team-toggle" id="btn-compare-toggle" aria-pressed="false" title="Mehrere Anbieter parallel fragen und vergleichen">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h6v14H4zM14 5h6v14h-6z" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span>Vergleich</span>
@@ -3162,6 +3195,7 @@
   const teamToggleBtn = $("#btn-team-toggle");
   let teamMode = localStorage.getItem("relais.teamMode") === "1";
   let compareMode = localStorage.getItem("relais.compareMode") === "1";
+  let agentMode = localStorage.getItem("relais.agentMode") === "1";
   // Im Team-Modus sehen die Mitglieder standardmaessig die Beitraege der
   // anderen und duerfen nachlegen. Das kostet eine zweite Anfragerunde,
   // deshalb abschaltbar.
@@ -3916,6 +3950,16 @@
       row.appendChild(box);
     }
 
+    if(m.role === "assistant" && m.agentSteps && m.agentSteps.length){
+      const abox = document.createElement("details");
+      abox.className = "team-box agent-box";
+      const anzahl = m.agentSteps.length;
+      abox.innerHTML = '<summary><span class="team-summary-text">'
+        + anzahl + (anzahl === 1 ? ' Arbeitsschritt' : ' Arbeitsschritte')
+        + '</span></summary><div class="team-steps"></div>';
+      row.appendChild(abox);
+      renderAgentSchritte(abox, m.agentSteps);
+    }
     if(m.role === "assistant" && m.teamSteps && m.teamSteps.length){
       const teamBox = document.createElement("details");
       teamBox.className = "team-box";
@@ -5292,7 +5336,9 @@
 
     const assistantMsg = { role: "assistant", content: "", usedModel: "" };
     messages.push(assistantMsg);
-    if(compareMode && targets.length >= 2){
+    if(agentMode){
+      await runAgentMode(versandText, assistantMsg, targets);
+    }else if(compareMode && targets.length >= 2){
       await runCompareMode(versandText, assistantMsg, targets);
     }else if(teamMode && targets.length >= 2){
       await runTeamMode(versandText, assistantMsg, targets);
@@ -5406,6 +5452,207 @@
   }
 
   // ---------- Team-Modus: Aufgabe aufteilen, parallel bearbeiten, zusammenfassen ----------
+  // ---------- Agent-Modus ----------
+  // Der Unterschied zu einer Persona: ein Agent arbeitet in Runden. Er ruft
+  // ein Werkzeug auf, sieht das Ergebnis, entscheidet daraufhin neu und macht
+  // weiter, bis das Ziel erreicht ist. Bisher war nach genau einem
+  // Werkzeugaufruf Schluss, weil im Zweitaufruf keine Werkzeuge mehr
+  // mitgeschickt wurden.
+  const AGENT_MAX_RUNDEN = 8;
+
+  function agentSchrittText(name, args){
+    const kurz = (v, n = 42) => {
+      const s = String(v ?? "");
+      return s.length > n ? s.slice(0, n) + "…" : s;
+    };
+    switch(name){
+      case "remember":            return "merkt sich: " + kurz(args.fact);
+      case "rename_current_chat": return "benennt den Chat um: " + kurz(args.title);
+      case "delete_current_chat": return "löscht diesen Chat";
+      case "assign_project":      return "ordnet dem Projekt zu: " + kurz(args.project_name);
+      case "add_todo":            return "legt eine Aufgabe an: " + kurz(args.text);
+      case "complete_todo":       return "hakt eine Aufgabe ab: " + kurz(args.text);
+      case "get_current_datetime":return "sieht auf die Uhr";
+      case "list_github_repo":    return "sieht sich das Repo an: " + kurz(args.repo);
+      case "read_github_file":    return "liest eine Datei: " + kurz(args.path);
+      default:                    return "nutzt " + name;
+    }
+  }
+
+  function renderAgentSchritte(box, schritte){
+    const liste = box.querySelector(".team-steps");
+    liste.innerHTML = "";
+    schritte.forEach((s, i) => {
+      const el = document.createElement("div");
+      el.className = "team-step agent-step";
+      const kopf = document.createElement("div");
+      kopf.className = "team-step-head";
+      const nummer = document.createElement("span");
+      nummer.className = "agent-runde";
+      nummer.textContent = s.runde;
+      const titel = document.createElement("span");
+      titel.className = "agent-titel";
+      titel.textContent = s.text;
+      const status = document.createElement("span");
+      status.className = "team-step-status";
+      status.textContent = s.status === "laeuft" ? "läuft" : s.status === "ok" ? "" : s.status;
+      if(s.status === "laeuft") status.innerHTML = '<span class="mini-spinner"></span>';
+      if(s.status === "ok") status.innerHTML = '<span class="agent-haken"></span>';
+      kopf.append(nummer, titel, status);
+      el.appendChild(kopf);
+      if(s.ergebnis){
+        const erg = document.createElement("div");
+        erg.className = "team-step-result agent-ergebnis";
+        erg.textContent = s.ergebnis;
+        el.appendChild(erg);
+      }
+      liste.appendChild(el);
+    });
+  }
+
+  async function runAgentMode(text, assistantMsg, targets){
+    render();
+    const rows = thread.querySelectorAll(".row.assistant");
+    const lastRow = rows[rows.length - 1];
+    const bubbleEl = lastRow.querySelector(".bubble");
+    const target = targets[0];
+
+    bubbleEl.classList.add("streaming");
+    bubbleEl.innerHTML = '<span class="thinking-dots"><span></span><span></span><span></span></span>';
+
+    let box = lastRow.querySelector(".team-box");
+    if(!box){
+      box = document.createElement("details");
+      box.className = "team-box agent-box";
+      box.open = true;
+      box.innerHTML = '<summary><span class="team-summary-text">Agent arbeitet…</span></summary><div class="team-steps"></div>';
+      lastRow.insertBefore(box, bubbleEl);
+    }
+    const summaryEl = box.querySelector(".team-summary-text");
+
+    assistantMsg.agentSteps = [];
+    sending = true;
+    currentController = new AbortController();
+    const signal = currentController.signal;
+    updateSendState();
+
+    // Ausstieg, der den Zwischenstand behält statt ihn zu verwerfen
+    function beenden(nachricht, alsFehler){
+      bubbleEl.classList.remove("streaming");
+      if(nachricht){
+        assistantMsg.content = assistantMsg.content
+          ? assistantMsg.content + "\n\n" + nachricht
+          : nachricht;
+      }
+      if(alsFehler) assistantMsg.isError = true;
+      bubbleEl.innerHTML = assistantMsg.content
+        ? renderMarkdown(assistantMsg.content)
+        : "";
+      box.open = false;
+      sending = false;
+      currentController = null;
+      updateSendState();
+      saveMessages();
+      render();
+    }
+
+    const msgs = [...buildCompareMsgs(text)];
+    let runde = 0;
+    let letzterFehler = null;
+
+    try{
+      while(runde < AGENT_MAX_RUNDEN){
+        runde++;
+        summaryEl.textContent = "Agent arbeitet — Runde " + runde;
+        assistantMsg.content = "";
+        let ersterToken = true;
+
+        const ergebnis = await streamCompletion(target, msgs, signal, {
+          onToken: (chunk) => {
+            if(ersterToken){ bubbleEl.innerHTML = ""; ersterToken = false; }
+            assistantMsg.content += chunk;
+            bubbleEl.innerHTML = renderMarkdown(assistantMsg.content);
+            maybeAutoScroll();
+          },
+          onModel: (m) => {
+            assistantMsg.usedModel = target.provider + " · " + shortModelName(m || target.model);
+          },
+          onUsage: (u) => recordUsage(target.provider, target.model, u),
+          onReasoning: () => {},
+          // Der entscheidende Unterschied: die Werkzeuge bleiben in jeder
+          // Runde verfügbar, nicht nur in der ersten.
+          tools: target.kind === "anthropic" ? null : TOOL_DEFINITIONS
+        });
+
+        const aufrufe = ergebnis?.toolCalls || [];
+        if(!aufrufe.length){
+          // Keine Werkzeuge mehr gewünscht: der Agent ist fertig.
+          summaryEl.textContent = runde === 1
+            ? "Ohne Werkzeuge beantwortet"
+            : "Fertig nach " + runde + " Runden";
+          beenden(null, false);
+          return;
+        }
+
+        const assistantToolMsg = {
+          role: "assistant",
+          content: assistantMsg.content || null,
+          tool_calls: aufrufe.map((tc, i) => ({
+            id: tc.id || ("call_" + Date.now() + i),
+            type: "function",
+            function: { name: tc.name, arguments: tc.arguments || "{}" }
+          }))
+        };
+        const ergebnisMsgs = [];
+
+        for(const tc of assistantToolMsg.tool_calls){
+          let args = {};
+          try{ args = JSON.parse(tc.function.arguments || "{}"); }catch{}
+          const schritt = {
+            runde,
+            text: agentSchrittText(tc.function.name, args),
+            status: "laeuft",
+            ergebnis: ""
+          };
+          assistantMsg.agentSteps.push(schritt);
+          renderAgentSchritte(box, assistantMsg.agentSteps);
+          maybeAutoScroll();
+
+          const res = await executeToolCall(tc.function.name, args);
+          schritt.status = res?.ok === false ? "fehlgeschlagen" : "ok";
+          schritt.ergebnis = res?.message || "";
+          renderAgentSchritte(box, assistantMsg.agentSteps);
+
+          if(res?.terminal){
+            // z. B. Chat gelöscht -- hier darf nichts mehr nachlaufen
+            showToast(res.message || "Erledigt.");
+            sending = false;
+            currentController = null;
+            updateSendState();
+            return;
+          }
+          ergebnisMsgs.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(res) });
+        }
+
+        msgs.push(assistantToolMsg, ...ergebnisMsgs);
+      }
+
+      // Rundenlimit erreicht: lieber sauber abbrechen als endlos weiterlaufen
+      summaryEl.textContent = "Nach " + AGENT_MAX_RUNDEN + " Runden angehalten";
+      beenden("_Der Agent wurde nach " + AGENT_MAX_RUNDEN
+        + " Runden angehalten, um Endlosschleifen zu vermeiden._", false);
+    }catch(err){
+      if(err?.name === "AbortError"){
+        summaryEl.textContent = "Abgebrochen";
+        beenden(assistantMsg.content ? null : "Abgebrochen.", false);
+        return;
+      }
+      letzterFehler = err;
+      summaryEl.textContent = "Fehlgeschlagen";
+      beenden("Der Agent konnte nicht weiterarbeiten: " + (letzterFehler.message || "unbekannter Fehler"), true);
+    }
+  }
+
   // ---------- Vergleichsmodus ----------
   // Fragt mehrere Anbieter gleichzeitig und stellt die Antworten
   // nebeneinander; die ausgewaehlte wird zur Antwort im Verlauf.
@@ -7878,12 +8125,29 @@
   }
 
   const compareToggleBtn = $("#btn-compare-toggle");
+  const agentToggleBtn = $("#btn-agent-toggle");
+
+  // Die drei Betriebsarten schliessen sich aus -- gleichzeitig waere weder
+  // sinnvoll noch bezahlbar.
+  function setzeBetriebsart(welche){
+    teamMode = welche === "team";
+    compareMode = welche === "vergleich";
+    agentMode = welche === "agent";
+    try{
+      localStorage.setItem("relais.teamMode", teamMode ? "1" : "0");
+      localStorage.setItem("relais.compareMode", compareMode ? "1" : "0");
+      localStorage.setItem("relais.agentMode", agentMode ? "1" : "0");
+    }catch{}
+    updateTeamToggleUI();
+  }
 
   function updateTeamToggleUI(){
     teamToggleBtn.setAttribute("aria-pressed", String(teamMode));
     teamToggleBtn.querySelector("span").textContent = teamMode ? "Team-Modus an" : "Team-Modus";
     compareToggleBtn.setAttribute("aria-pressed", String(compareMode));
     compareToggleBtn.querySelector("span").textContent = compareMode ? "Vergleich an" : "Vergleich";
+    agentToggleBtn.setAttribute("aria-pressed", String(agentMode));
+    agentToggleBtn.querySelector("span").textContent = agentMode ? "Agent an" : "Agent";
   }
   updateTeamToggleUI();
   teamToggleBtn.addEventListener("click", () => {
@@ -7892,16 +8156,19 @@
       showToast("Team-Modus braucht mindestens zwei eingerichtete Anbieter.");
       return;
     }
-    teamMode = !teamMode;
-    // Team und Vergleich schliessen sich aus -- beide gleichzeitig waere
-    // weder sinnvoll noch bezahlbar.
-    if(teamMode && compareMode){
-      compareMode = false;
-      localStorage.setItem("relais.compareMode", "0");
-    }
-    localStorage.setItem("relais.teamMode", teamMode ? "1" : "0");
-    updateTeamToggleUI();
+    setzeBetriebsart(teamMode ? "" : "team");
     showToast(teamMode ? "Team-Modus an — nächste Nachricht wird aufgeteilt." : "Team-Modus aus.");
+  });
+
+  agentToggleBtn.addEventListener("click", () => {
+    if(!agentMode && !buildTargets().length){
+      showToast("Erst einen Anbieter einrichten.");
+      return;
+    }
+    setzeBetriebsart(agentMode ? "" : "agent");
+    showToast(agentMode
+      ? "Agent an — arbeitet mehrschrittig mit Werkzeugen."
+      : "Agent aus.");
   });
 
   compareToggleBtn.addEventListener("click", () => {
@@ -7910,13 +8177,7 @@
       showToast("Vergleich braucht mindestens zwei eingerichtete Anbieter.");
       return;
     }
-    compareMode = !compareMode;
-    if(compareMode && teamMode){
-      teamMode = false;
-      localStorage.setItem("relais.teamMode", "0");
-    }
-    localStorage.setItem("relais.compareMode", compareMode ? "1" : "0");
-    updateTeamToggleUI();
+    setzeBetriebsart(compareMode ? "" : "vergleich");
     showToast(compareMode
       ? "Vergleich an — nächste Frage geht an mehrere Anbieter."
       : "Vergleich aus.");
