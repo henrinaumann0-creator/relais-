@@ -1430,6 +1430,47 @@
   }
   .quelle-titel{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+  /* Ungespeicherte Aenderung: ein Punkt am Knopf reicht als Hinweis --
+     eine Warnleiste waere fuer diesen kleinen Sachverhalt zu laut. */
+  .btn.ungespeichert{
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+
+
+  /* Eine flache Liste aus ueber 300 Modellen hilft niemandem bei der Wahl.
+     Diese Handvoll deckt die ueblichen Faelle ab; alles Weitere bleibt ueber
+     das Textfeld erreichbar. */
+  .modell-vorschlaege{
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--raum-3);
+    margin-bottom: var(--raum-4);
+  }
+  .modell-vorschlag{
+    background: var(--surface-2);
+    border: 1px solid transparent;
+    color: var(--text-dim);
+    border-radius: var(--rund-2);
+    padding: var(--raum-3) var(--raum-5);
+    font-size: var(--schrift-klein);
+    font-family: inherit;
+    cursor: pointer;
+    text-align: left;
+    line-height: 1.3;
+    transition: border-color var(--dauer-kurz) var(--kurve),
+                color var(--dauer-kurz) var(--kurve),
+                transform var(--dauer-tipp) var(--kurve);
+  }
+  .modell-vorschlag:hover{ color: var(--text); border-color: var(--text-dim); }
+  .modell-vorschlag:active{ transform: scale(.97); }
+  .modell-vorschlag.aktiv{ border-color: var(--accent); color: var(--text); }
+  .modell-vorschlag .rolle{
+    display: block;
+    font-size: var(--schrift-mini);
+    color: var(--text-mute);
+    margin-top: var(--raum-1);
+  }
+
   /* Der Recherche-Schritt ist kein Team-Mitglied, sondern die gemeinsame
      Faktenbasis -- er hebt sich deshalb ab. */
   .team-step.recherche-step{
@@ -2472,9 +2513,11 @@
       </div>
       <div class="field">
         <label for="vercel-model">Modell</label>
+        <div class="modell-vorschlaege" id="vercel-empfehlungen"></div>
         <input type="text" id="vercel-model" list="vercel-model-list" placeholder="anthropic/claude-sonnet-4.6" autocomplete="off" autocapitalize="off" spellcheck="false">
         <datalist id="vercel-model-list"></datalist>
         <div class="hint" id="vercel-model-hint">Beim Öffnen wird die aktuelle Modellliste geladen. Tippen filtert.</div>
+        <div class="hint mt-klein">Der Gateway-Schlüssel schaltet zugleich die <strong>Web-Recherche</strong> frei: Im Agent-Modus und im Team-Modus können damit aktuelle Fakten mit Quellenangabe geholt werden.</div>
       </div>
       <button type="button" class="btn btn-primary" id="btn-save-vercel">Speichern</button>
       <button type="button" class="btn btn-ghost" id="btn-forget-vercel">Schlüssel entfernen</button>
@@ -7806,6 +7849,62 @@
 
   // Die Modellliste ist oeffentlich abrufbar -- sie laesst sich also schon
   // vor dem Eintragen eines Schluessels anzeigen.
+  // Alle Anbieter-Abschnitte uebernehmen Aenderungen erst per Speichern-Knopf.
+  // Wer ein Feld aendert, sieht sonst nicht, dass die Auswahl noch nicht gilt --
+  // besonders beim Anklicken einer Modell-Empfehlung, das sich wie eine
+  // fertige Auswahl anfuehlt.
+  function markiereUngespeichert(abschnitt){
+    const knopf = abschnitt?.querySelector(".btn-primary");
+    if(!knopf || knopf.dataset.ungespeichert === "1") return;
+    knopf.dataset.ungespeichert = "1";
+    knopf.classList.add("ungespeichert");
+    knopf.dataset.urText = knopf.dataset.urText || knopf.textContent;
+    knopf.textContent = knopf.dataset.urText + " •";
+  }
+  function markiereGespeichert(abschnitt){
+    const knopf = abschnitt?.querySelector(".btn-primary");
+    if(!knopf) return;
+    knopf.dataset.ungespeichert = "0";
+    knopf.classList.remove("ungespeichert");
+    if(knopf.dataset.urText) knopf.textContent = knopf.dataset.urText;
+  }
+  // Einmal zentral verdrahten statt in jedem Abschnitt einzeln.
+  document.addEventListener("input", (e) => {
+    const abschnitt = e.target.closest?.(".provider-section");
+    if(abschnitt) markiereUngespeichert(abschnitt);
+  });
+
+  // Eine kuratierte Auswahl statt einer Liste aus ueber dreihundert Namen.
+  // Gewaehlt nach Rolle, nicht nach Rangliste: fuer die meisten Fragen, fuer
+  // schwierige Faelle, fuer schnelle Antworten, fuer aktuelle Fakten.
+  const VERCEL_EMPFEHLUNGEN = [
+    { id: "anthropic/claude-sonnet-5",     name: "Claude Sonnet 5",  rolle: "ausgewogen, guter Standard" },
+    { id: "openai/gpt-5.5",                name: "GPT-5.5",          rolle: "stark bei komplexen Aufgaben" },
+    { id: "google/gemini-3.6-flash",       name: "Gemini 3.6 Flash", rolle: "sehr schnell, grosser Kontext" },
+    { id: "anthropic/claude-haiku-4.5",    name: "Claude Haiku 4.5", rolle: "guenstig fuer Alltagsfragen" },
+    { id: "perplexity/sonar-pro",          name: "Sonar Pro",        rolle: "antwortet mit Quellen" }
+  ];
+
+  function renderVercelEmpfehlungen(){
+    const box = $("#vercel-empfehlungen");
+    if(!box) return;
+    const feld = $("#vercel-model");
+    box.innerHTML = "";
+    for(const m of VERCEL_EMPFEHLUNGEN){
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "modell-vorschlag" + (feld.value.trim() === m.id ? " aktiv" : "");
+      btn.title = m.id;
+      btn.innerHTML = escapeHtml(m.name) + '<span class="rolle">' + escapeHtml(m.rolle) + '</span>';
+      btn.addEventListener("click", () => {
+        feld.value = m.id;
+        feld.dispatchEvent(new Event("input", { bubbles: true }));
+        renderVercelEmpfehlungen();
+      });
+      box.appendChild(btn);
+    }
+  }
+
   async function loadVercelModels(){
     if(vercelModelleGeladen) return;
     const liste = $("#vercel-model-list");
@@ -7849,7 +7948,9 @@
     localStorage.setItem(STORAGE_VERCEL_MODEL, vercelModel);
     localStorage.setItem(STORAGE_VERCEL_ENABLED, vercelEnabled ? "1" : "0");
     renderVercelUI();
+    renderVercelEmpfehlungen();
     refreshProviderStatuses();
+    markiereGespeichert($("#section-vercel"));
     showToast(vercelKey ? "Vercel AI Gateway gespeichert." : "Schlüssel geleert.");
   });
 
@@ -7863,7 +7964,7 @@
 
   // Modellliste laden, sobald der Abschnitt geoeffnet wird
   $("#section-vercel").addEventListener("toggle", () => {
-    if($("#section-vercel").open) loadVercelModels();
+    if($("#section-vercel").open){ renderVercelEmpfehlungen(); loadVercelModels(); }
   });
 
   renderVercelUI();
