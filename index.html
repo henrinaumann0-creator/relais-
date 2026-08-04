@@ -357,7 +357,9 @@
 
   .row.frisch{ animation: row-in var(--dauer-mittel) var(--kurve) both; }
   @keyframes row-in{ from{ opacity: 0; transform: translateY(8px);} to{ opacity: 1; transform: none; } }
-  .row.user{ justify-content: flex-end; }
+  /* Als Spalte wie die Assistenten-Zeile: sonst landet der Bearbeiten-Knopf
+     neben der Blase statt darunter und schwebt frei im Raum. */
+  .row.user{ flex-direction: column; align-items: flex-end; }
   .row.assistant{ justify-content: flex-start; flex-direction: column; align-items: flex-start; }
 
   .assistant-head{
@@ -1437,6 +1439,57 @@
   }
 
 
+  .chip-symbol{ display: inline-flex; align-items: center; }
+  .chip-symbol svg{ width: 14px; height: 14px; }
+
+
+  /* Modus-Menue: eine Auswahl mit Erlaeuterung, keine Knopfleiste. Wer
+     "Agent" oder "Vergleich" liest, weiss ohne Beschreibung nicht, was
+     passiert -- im Menue ist Platz fuer einen Halbsatz. */
+  .modus-menu{
+    min-width: 260px;
+    max-width: min(320px, calc(100vw - 32px));
+    max-height: min(70vh, 520px);
+    overflow-y: auto;
+  }
+  .modus-menu .ctx-item{ align-items: flex-start; gap: var(--raum-4); }
+  .modus-menu .ctx-item em{
+    display: block;
+    font-style: normal;
+    font-size: var(--schrift-mini);
+    color: var(--text-mute);
+    margin-top: 1px;
+    line-height: 1.35;
+    white-space: normal;
+  }
+  .modus-menu .menu-gruppe{
+    font-size: var(--schrift-mini);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--text-mute);
+    padding: var(--raum-4) var(--raum-5) var(--raum-2);
+  }
+  .modus-menu .haken{
+    width: 14px; height: 14px;
+    flex-shrink: 0;
+    margin-top: 2px;
+    border-radius: var(--rund-1);
+  }
+  .modus-menu .gewaehlt .haken{
+    background: var(--accent);
+    -webkit-mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"/></svg>') center/contain no-repeat;
+    mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"/></svg>') center/contain no-repeat;
+  }
+  .modus-menu .gewaehlt{ color: var(--text); }
+  /* Der Knopf zeigt an, wenn eine besondere Betriebsart laeuft. */
+  #btn-modus.aktiv{
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-color: var(--accent);
+  }
+
+
   /* Eine flache Liste aus ueber 300 Modellen hilft niemandem bei der Wahl.
      Diese Handvoll deckt die ueblichen Faelle ab; alles Weitere bleibt ueber
      das Textfeld erreichbar. */
@@ -2380,16 +2433,12 @@
 
 <div class="composer-wrap" id="composer-wrap">
   <div class="context-row" id="context-row">
-    <div class="mode-chip-group" id="mode-chips" role="group" aria-label="Antworttiefe">
-      <button type="button" class="mode-chip active" data-mode="schnell" title="Kurz und direkt">Schnell</button>
-      <button type="button" class="mode-chip" data-mode="tief" title="Ausführlich mit Begründung">Tief</button>
-      <button type="button" class="mode-chip" data-mode="experte" title="Fachlich, präzise, mit Details">Experte</button>
-    </div>
+    
     <button type="button" class="context-chip" id="chip-project">
       <span id="chip-project-label">Kein Projekt</span>
     </button>
     <button type="button" class="context-chip" id="chip-agent">
-      <span id="chip-agent-icon">🤖</span><span id="chip-agent-label">Kein Agent</span>
+      <span id="chip-agent-icon" class="chip-symbol"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0M16 11a3 3 0 1 0 0-6M17 20a5.5 5.5 0 0 0-2-4.3" stroke-linecap="round"/></svg></span><span id="chip-agent-label">Kein Agent</span>
     </button>
   </div>
   <div class="file-chip" id="file-chip" style="display:none">
@@ -2413,17 +2462,9 @@
         <button type="button" class="attach-btn" id="btn-attach" aria-label="Bild anhängen" title="Bild anhängen">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
         </button>
-        <button type="button" class="team-toggle" id="btn-agent-toggle" aria-pressed="false" title="Mehrschrittig arbeiten: Werkzeuge nutzen, Ergebnis prüfen, weitermachen">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" stroke-linecap="round"/><circle cx="12" cy="12" r="3.2"/></svg>
-          <span>Agent</span>
-        </button>
-        <button type="button" class="team-toggle" id="btn-compare-toggle" aria-pressed="false" title="Mehrere Anbieter parallel fragen und vergleichen">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h6v14H4zM14 5h6v14h-6z" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <span>Vergleich</span>
-        </button>
-        <button type="button" class="team-toggle" id="btn-team-toggle" aria-pressed="false">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2.5 20a5.5 5.5 0 0 1 11 0M10.5 20a5.5 5.5 0 0 1 11 0" stroke-linecap="round"/></svg>
-          <span>Team-Modus</span>
+        <button type="button" class="team-toggle" id="btn-modus" aria-haspopup="true" aria-expanded="false" title="Betriebsart und Antworttiefe">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round"/><circle cx="9" cy="6" r="2" fill="var(--surface)"/><circle cx="15" cy="12" r="2" fill="var(--surface)"/><circle cx="8" cy="18" r="2" fill="var(--surface)"/></svg>
+          <span id="modus-label">Schnell</span>
         </button>
       </div>
       <div class="composer-bar-right">
@@ -2910,6 +2951,19 @@
 </div>
 
 
+<div class="ctx-menu modus-menu" id="modus-menu">
+  <div class="menu-gruppe">Antworttiefe</div>
+  <button type="button" class="ctx-item" data-tiefe="schnell"><span class="haken"></span><span>Schnell<em>kurz und direkt</em></span></button>
+  <button type="button" class="ctx-item" data-tiefe="tief"><span class="haken"></span><span>Tief<em>ausführlich mit Begründung</em></span></button>
+  <button type="button" class="ctx-item" data-tiefe="experte"><span class="haken"></span><span>Experte<em>fachlich, mit Randfällen</em></span></button>
+  <div class="ctx-sep"></div>
+  <div class="menu-gruppe">Betriebsart</div>
+  <button type="button" class="ctx-item" data-art=""><span class="haken"></span><span>Normal<em>ein Anbieter antwortet</em></span></button>
+  <button type="button" class="ctx-item" data-art="agent"><span class="haken"></span><span>Agent<em>arbeitet mehrschrittig mit Werkzeugen</em></span></button>
+  <button type="button" class="ctx-item" data-art="vergleich"><span class="haken"></span><span>Vergleich<em>mehrere Anbieter nebeneinander</em></span></button>
+  <button type="button" class="ctx-item" data-art="team"><span class="haken"></span><span>Team<em>Aufgabe aufteilen und zusammenführen</em></span></button>
+</div>
+
 <div class="ctx-menu" id="conv-menu">
   <button type="button" class="ctx-item" data-act="pin">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 17v5M9 3h6l-1 7 4 3H6l4-3-1-7Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -3303,7 +3357,6 @@
   let pendingImage = null;
   let pendingFileText = null;
   let pendingFileName = "";
-  const teamToggleBtn = $("#btn-team-toggle");
   let teamMode = localStorage.getItem("relais.teamMode") === "1";
   let compareMode = localStorage.getItem("relais.compareMode") === "1";
   let agentMode = localStorage.getItem("relais.agentMode") === "1";
@@ -4152,13 +4205,6 @@
       row.appendChild(box);
       requestAnimationFrame(() => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); });
       return row;
-    }
-
-    if(m.role === "assistant"){
-      const head = document.createElement("div");
-      head.className = "assistant-head";
-      head.innerHTML = AVATAR_SVG;
-      row.appendChild(head);
     }
 
     if(m.role === "assistant" && m.reasoning){
@@ -5191,19 +5237,6 @@
     showToast("Chat gesichert.");
   }
 
-  // Antworttiefe umschalten
-  function renderModeChips(){
-    [...document.querySelectorAll("#mode-chips .mode-chip")]
-      .forEach(c => c.classList.toggle("active", c.dataset.mode === answerMode));
-  }
-  $("#mode-chips").addEventListener("click", (e) => {
-    const chip = e.target.closest(".mode-chip");
-    if(!chip) return;
-    answerMode = chip.dataset.mode;
-    try{ localStorage.setItem(STORAGE_MODE, answerMode); }catch{}
-    renderModeChips();
-  });
-  renderModeChips();
 
   const teamAustauschToggle = $("#team-austausch-toggle");
   function renderTeamAustauschUI(){
@@ -6388,7 +6421,16 @@
     const agent = conv?.agentId ? agents[conv.agentId] : null;
     $("#chip-project-label").textContent = project ? project.name : "Kein Projekt";
     $("#chip-project").classList.toggle("set", !!project);
-    $("#chip-agent-icon").textContent = agent ? (agent.icon || "🤖") : "🤖";
+    // Ein eigenes Symbol des Agenten wird gezeigt; ohne eines bleibt das
+    // gezeichnete Standardsymbol stehen, statt ein Emoji dazwischenzusetzen.
+    const iconEl = $("#chip-agent-icon");
+    if(agent && agent.icon){
+      iconEl.textContent = agent.icon;
+      iconEl.classList.remove("chip-symbol");
+    }else if(!iconEl.querySelector("svg")){
+      iconEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0M16 11a3 3 0 1 0 0-6M17 20a5.5 5.5 0 0 0-2-4.3" stroke-linecap="round"/></svg>';
+      iconEl.classList.add("chip-symbol");
+    }
     $("#chip-agent-label").textContent = agent ? agent.name : "Kein Agent";
     $("#chip-agent").classList.toggle("set", !!agent);
   }
@@ -8517,11 +8559,42 @@
     });
   }
 
-  const compareToggleBtn = $("#btn-compare-toggle");
-  const agentToggleBtn = $("#btn-agent-toggle");
+  // ---------- Modus-Menue ----------
+  // Vorher standen Agent, Vergleich und Team als drei einzelne Knoepfe in der
+  // Composer-Leiste. Zusammen mit Anhang, Mikrofon, Verbessern und Senden
+  // ergab das sieben Elemente in einer Zeile -- auf dem Handy ragte die
+  // Leiste bis zu 170px hinaus, der Senden-Knopf lag ausserhalb des
+  // Bildschirms. Ein Knopf mit Menue loest das und macht zugleich sichtbar,
+  // welcher Modus gerade gilt.
+  const modusBtn = $("#btn-modus");
+  const modusMenu = $("#modus-menu");
+  const modusLabel = $("#modus-label");
 
-  // Die drei Betriebsarten schliessen sich aus -- gleichzeitig waere weder
-  // sinnvoll noch bezahlbar.
+  function aktiveBetriebsart(){
+    if(agentMode) return "agent";
+    if(compareMode) return "vergleich";
+    if(teamMode) return "team";
+    return "";
+  }
+
+  const ART_NAMEN = { "": "Normal", agent: "Agent", vergleich: "Vergleich", team: "Team" };
+  const TIEFE_NAMEN = { schnell: "Schnell", tief: "Tief", experte: "Experte" };
+
+  function updateTeamToggleUI(){
+    const art = aktiveBetriebsart();
+    // Der Knopf zeigt die Betriebsart, sobald sie vom Normalfall abweicht --
+    // sonst die Antworttiefe, die dann die eigentliche Einstellung ist.
+    modusLabel.textContent = art ? ART_NAMEN[art] : TIEFE_NAMEN[answerMode] || "Schnell";
+    modusBtn.setAttribute("aria-pressed", String(!!art));
+    modusBtn.classList.toggle("aktiv", !!art);
+    for(const el of modusMenu.querySelectorAll("[data-art]")){
+      el.classList.toggle("gewaehlt", el.dataset.art === art);
+    }
+    for(const el of modusMenu.querySelectorAll("[data-tiefe]")){
+      el.classList.toggle("gewaehlt", el.dataset.tiefe === answerMode);
+    }
+  }
+
   function setzeBetriebsart(welche){
     teamMode = welche === "team";
     compareMode = welche === "vergleich";
@@ -8534,47 +8607,68 @@
     updateTeamToggleUI();
   }
 
-  function updateTeamToggleUI(){
-    teamToggleBtn.setAttribute("aria-pressed", String(teamMode));
-    teamToggleBtn.querySelector("span").textContent = teamMode ? "Team-Modus an" : "Team-Modus";
-    compareToggleBtn.setAttribute("aria-pressed", String(compareMode));
-    compareToggleBtn.querySelector("span").textContent = compareMode ? "Vergleich an" : "Vergleich";
-    agentToggleBtn.setAttribute("aria-pressed", String(agentMode));
-    agentToggleBtn.querySelector("span").textContent = agentMode ? "Agent an" : "Agent";
+  function schliesseModusMenu(){
+    modusMenu.classList.remove("open");
+    modusBtn.setAttribute("aria-expanded", "false");
   }
-  updateTeamToggleUI();
-  teamToggleBtn.addEventListener("click", () => {
-    const targets = buildTargets();
-    if(!teamMode && targets.length < 2){
-      showToast("Team-Modus braucht mindestens zwei eingerichtete Anbieter.");
-      return;
-    }
-    setzeBetriebsart(teamMode ? "" : "team");
-    showToast(teamMode ? "Team-Modus an — nächste Nachricht wird aufgeteilt." : "Team-Modus aus.");
+
+  modusBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const offen = modusMenu.classList.contains("open");
+    if(offen){ schliesseModusMenu(); return; }
+    updateTeamToggleUI();
+    modusMenu.classList.add("open");
+    modusBtn.setAttribute("aria-expanded", "true");
+    // Ueber dem Knopf aufklappen, weil er unten am Bildschirmrand sitzt
+    const r = modusBtn.getBoundingClientRect();
+    const mh = modusMenu.offsetHeight || 320;
+    const mw = modusMenu.offsetWidth || 260;
+    let top = r.top - mh - 8;
+    if(top < 8) top = Math.min(r.bottom + 8, window.innerHeight - mh - 8);
+    modusMenu.style.top = Math.max(8, top) + "px";
+    modusMenu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - mw - 8)) + "px";
   });
 
-  agentToggleBtn.addEventListener("click", () => {
-    if(!agentMode && !buildTargets().length){
+  document.addEventListener("click", (e) => {
+    if(modusMenu.classList.contains("open") && !modusMenu.contains(e.target)) schliesseModusMenu();
+  });
+
+  modusMenu.addEventListener("click", (e) => {
+    const el = e.target.closest(".ctx-item");
+    if(!el) return;
+
+    if(el.dataset.tiefe !== undefined && el.dataset.tiefe){
+      answerMode = el.dataset.tiefe;
+      try{ localStorage.setItem(STORAGE_MODE, answerMode); }catch{}
+      updateTeamToggleUI();
+      schliesseModusMenu();
+      return;
+    }
+
+    const art = el.dataset.art;
+    if(art === undefined) return;
+    // Team und Vergleich brauchen mindestens zwei Anbieter -- das hier
+    // abzufangen ist freundlicher, als es erst beim Senden scheitern zu lassen.
+    if((art === "team" || art === "vergleich") && buildTargets().length < 2){
+      showToast(ART_NAMEN[art] + " braucht mindestens zwei eingerichtete Anbieter.");
+      return;
+    }
+    if(art === "agent" && !buildTargets().length){
       showToast("Erst einen Anbieter einrichten.");
       return;
     }
-    setzeBetriebsart(agentMode ? "" : "agent");
-    showToast(agentMode
-      ? "Agent an — arbeitet mehrschrittig mit Werkzeugen."
-      : "Agent aus.");
+    setzeBetriebsart(art);
+    schliesseModusMenu();
+    const texte = {
+      "": "Normaler Modus.",
+      agent: "Agent an — arbeitet mehrschrittig mit Werkzeugen.",
+      vergleich: "Vergleich an — nächste Frage geht an mehrere Anbieter.",
+      team: "Team an — nächste Aufgabe wird aufgeteilt."
+    };
+    showToast(texte[art]);
   });
 
-  compareToggleBtn.addEventListener("click", () => {
-    const targets = buildTargets();
-    if(!compareMode && targets.length < 2){
-      showToast("Vergleich braucht mindestens zwei eingerichtete Anbieter.");
-      return;
-    }
-    setzeBetriebsart(compareMode ? "" : "vergleich");
-    showToast(compareMode
-      ? "Vergleich an — nächste Frage geht an mehrere Anbieter."
-      : "Vergleich aus.");
-  });
+  updateTeamToggleUI();
 
   starterChips.addEventListener("click", (e) => {
     const chip = e.target.closest(".chip");
