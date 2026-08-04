@@ -2558,7 +2558,16 @@
         <input type="text" id="vercel-model" list="vercel-model-list" placeholder="anthropic/claude-sonnet-4.6" autocomplete="off" autocapitalize="off" spellcheck="false">
         <datalist id="vercel-model-list"></datalist>
         <div class="hint" id="vercel-model-hint">Beim Öffnen wird die aktuelle Modellliste geladen. Tippen filtert.</div>
+      <div class="field">
+        <div class="toggle-row">
+          <span>Eingaben nicht zum Training freigeben</span>
+          <button type="button" class="toggle-switch" id="vercel-notrain-toggle" aria-label="Eingaben nicht zum Training freigeben" role="switch" aria-checked="true"></button>
+        </div>
+        <div class="hint">Leitet Anfragen nur an Anbieter weiter, die die Inhalte nicht zum Training verwenden. Kann bei einzelnen Modellen dazu führen, dass sie nicht verfügbar sind.</div>
+      </div>
+      <div class="field">
         <div class="hint mt-klein">Der Gateway-Schlüssel schaltet zugleich die <strong>Web-Recherche</strong> frei: Im Agent-Modus und im Team-Modus können damit aktuelle Fakten mit Quellenangabe geholt werden.</div>
+      </div>
       </div>
       <button type="button" class="btn btn-primary" id="btn-save-vercel">Speichern</button>
       <button type="button" class="btn btn-ghost" id="btn-forget-vercel">Schlüssel entfernen</button>
@@ -3319,6 +3328,7 @@
   const STORAGE_MISTRAL_ENABLED = "relais.mistralEnabled";
   const STORAGE_VERCEL_KEY     = "relais.vercelKey";
   const STORAGE_VERCEL_MODEL   = "relais.vercelModel";
+  const STORAGE_VERCEL_NOTRAIN = "relais.vercelKeinTraining";
   const STORAGE_VERCEL_ENABLED = "relais.vercelEnabled";
   const STORAGE_GHMODELS_ENABLED = "relais.ghmodelsEnabled";
   const STORAGE_COHERE_ENABLED = "relais.cohereEnabled";
@@ -3610,6 +3620,9 @@
   // ansprechen -- anders als die serverseitigen Agent-Frameworks von Vercel.
   let vercelKey = leseSchluessel(STORAGE_VERCEL_KEY);
   let vercelModel = localStorage.getItem(STORAGE_VERCEL_MODEL) || "anthropic/claude-sonnet-4.6";
+  // Voreingestellt an: wer eine private Chat-App nutzt, will seine Eingaben
+  // in der Regel nicht als Trainingsmaterial wiederfinden.
+  let gatewayKeinTraining = (localStorage.getItem(STORAGE_VERCEL_NOTRAIN) ?? "1") === "1";
   let vercelEnabled = localStorage.getItem(STORAGE_VERCEL_ENABLED) !== "0";
   let ghmodelsEnabled = localStorage.getItem(STORAGE_GHMODELS_ENABLED) !== "0";
   let cohereEnabled = localStorage.getItem(STORAGE_COHERE_ENABLED) !== "0";
@@ -3747,7 +3760,10 @@
       ],
       stream: false,
       max_tokens: tief ? 1200 : 700,
-      ...(filter ? { search_recency_filter: filter } : {})
+      ...(filter ? { search_recency_filter: filter } : {}),
+      // Auch die Recherche laeuft ueber das Gateway und respektiert die
+      // Datenschutz-Einstellung.
+      ...(gatewayKeinTraining ? { providerOptions: { gateway: { disallowPromptTraining: true } } } : {})
     };
 
     try{
@@ -3793,7 +3809,7 @@
         if(quellen.length >= 6) break;
       }
 
-      recordUsage("Vercel AI Gateway", koerper.model, json.usage);
+      recordUsage("Vercel AI Gateway", koerper.model, json.usage, json.gateway?.cost ?? json.cost);
 
       return {
         ok: true,
@@ -5492,6 +5508,28 @@
     return pick;
   }
 
+  // Zusatzoptionen, die nur das Gateway kennt. Andere Anbieter wuerden ein
+  // unbekanntes Feld je nach Umsetzung ignorieren oder die Anfrage ablehnen --
+  // deshalb wird es gezielt nur dort gesetzt.
+  function gatewayOptionen(target){
+    if(!target?.istGateway) return {};
+    const opts = {};
+    if(gatewayKeinTraining) opts.disallowPromptTraining = true;
+    // Ausweichmodelle: faellt das gewaehlte Modell aus, versucht das Gateway
+    // der Reihe nach die naechsten, statt die Anfrage scheitern zu lassen.
+    const ausweich = GATEWAY_AUSWEICH.filter(m => m !== (target.model || ""));
+    if(ausweich.length) opts.models = ausweich.slice(0, 2);
+    return Object.keys(opts).length ? { providerOptions: { gateway: opts } } : {};
+  }
+
+  // Bewusst breit gestreut: faellt ein Anbieter komplett aus, hilft ein
+  // Ausweichmodell desselben Hauses wenig.
+  const GATEWAY_AUSWEICH = [
+    "anthropic/claude-sonnet-4.6",
+    "openai/gpt-5.5",
+    "google/gemini-3.6-flash"
+  ];
+
   // ---------- Sende-Ziele in Reihenfolge (mit Fallback) ----------
   // Reihenfolge nach Grosszuegigkeit des jeweiligen Gratis-Kontingents.
   function buildTargets(){
@@ -5530,7 +5568,8 @@
         url: "https://ai-gateway.vercel.sh/v1/chat/completions",
         key: vercelKey,
         model: vercelModel || "anthropic/claude-sonnet-4.6",
-        extraHeaders: {}
+        extraHeaders: {},
+        istGateway: true
       });
     }
     if(ghmodelsEnabled && ghmodelsKey){
@@ -5684,7 +5723,7 @@
       method: "POST",
       signal,
       headers: { "Content-Type": "application/json", "Authorization": "Bearer " + target.key, ...target.extraHeaders },
-      body: JSON.stringify({ model: target.model, messages: [{ role: "user", content: prompt }], stream: false })
+      body: JSON.stringify({ model: target.model, messages: [{ role: "user", content: prompt }], stream: false, ...gatewayOptionen(target) })
     });
     if(!res.ok){
       let detail = "";
@@ -5863,7 +5902,7 @@
           onModel: (m) => {
             assistantMsg.usedModel = target.provider + " · " + shortModelName(m || target.model);
           },
-          onUsage: (u) => recordUsage(target.provider, target.model, u),
+          onUsage: (u, kosten) => recordUsage(target.provider, target.model, u, kosten),
           onReasoning: () => {},
           // Der entscheidende Unterschied: die Werkzeuge bleiben in jeder
           // Runde verfügbar, nicht nur in der ersten.
@@ -6018,6 +6057,7 @@
     await Promise.all(karten.map(async (k, i) => {
       const eintrag = assistantMsg.compare[i];
       let usageInfo = null;
+      let usageKosten = null;
       let modelId = k.target.model;
       try{
         await streamCompletion(k.target, buildCompareMsgs(text), signal, {
@@ -6027,7 +6067,7 @@
             k.body.scrollTop = k.body.scrollHeight;
           },
           onModel: (m) => { modelId = m || modelId; },
-          onUsage: (u) => { usageInfo = u; },
+          onUsage: (u, kosten) => { usageInfo = u; usageKosten = kosten; },
           onReasoning: () => {},
           tools: null // im Vergleich zaehlt die Textantwort, keine Werkzeuge
         });
@@ -6037,7 +6077,7 @@
         k.status.className = "";
         k.status.textContent = shortModelName(modelId);
         k.pick.disabled = false;
-        recordUsage(k.target.provider, modelId, usageInfo);
+        recordUsage(k.target.provider, modelId, usageInfo, usageKosten);
       }catch(err){
         eintrag.status = err?.name === "AbortError" ? "abgebrochen" : "fehlgeschlagen";
         eintrag.content = eintrag.content || (err?.name === "AbortError" ? "Abgebrochen." : "Nicht erreichbar: " + err.message);
@@ -6369,7 +6409,7 @@
           onModel: (usedModel) => {
             assistantMsg.usedModel = "Team (" + targets.length + ") · " + shortModelName(usedModel || targets[0].model);
           },
-          onUsage: (u) => { if(u) recordUsage(targets[0].provider, targets[0].model, u); },
+          onUsage: (u, kosten) => { if(u) recordUsage(targets[0].provider, targets[0].model, u, kosten); },
           onReasoning: () => {}
         });
       }catch{
@@ -6488,6 +6528,7 @@
       thinkingTextEl.textContent = "";
       let resolvedModelId = target.model;
       let usageInfo = null;
+      let usageKosten = null;
       let firstToken = true;
       try{
         const result = await streamCompletion(target, finalMsgs, currentController.signal, {
@@ -6505,7 +6546,7 @@
             resolvedModelId = usedModel || target.model;
             assistantMsg.usedModel = target.provider + " · " + shortModelName(resolvedModelId);
           },
-          onUsage: (u) => { usageInfo = u; },
+          onUsage: (u, kosten) => { usageInfo = u; usageKosten = kosten; },
           onReasoning: (chunk) => {
             assistantMsg.reasoning = (assistantMsg.reasoning || "") + chunk;
             thinkingTextEl.textContent = assistantMsg.reasoning;
@@ -6520,7 +6561,7 @@
         // ToDo anlegen, GitHub lesen ...), passiert das hier -- danach
         // antwortet es mit dem Ergebnis weiter.
         if(result?.toolCalls && result.toolCalls.length){
-          recordUsage(target.provider, resolvedModelId, usageInfo);
+          recordUsage(target.provider, resolvedModelId, usageInfo, usageKosten);
           const outcome = await handleToolCalls(result.toolCalls, target, finalMsgs, assistantMsg, bubbleEl);
           if(outcome === "terminated"){
             sending = false;
@@ -6541,7 +6582,7 @@
           assistantMsg.usedModel = target.provider + " · " + shortModelName(resolvedModelId || target.model);
         }
         succeeded = true;
-        recordUsage(target.provider, resolvedModelId, usageInfo);
+        recordUsage(target.provider, resolvedModelId, usageInfo, usageKosten);
         break; // dieses Ziel hat geklappt -- nicht auch noch das naechste versuchen
       }catch(err){
         if(err?.name === "AbortError"){
@@ -6793,6 +6834,7 @@
         ...(target.kind !== "gemini" ? { reasoning_format: "parsed" } : {}),
         reasoning_effort: "low",
         max_tokens: ANSWER_MODES[answerMode]?.maxTokens || 4000,
+        ...gatewayOptionen(target),
         // Werkzeuge nur mitschicken, wenn welche angefragt sind -- Anbieter
         // ohne Unterstuetzung ignorieren das Feld einfach.
         ...(tools && tools.length ? { tools, tool_choice: "auto" } : {})
@@ -6836,7 +6878,11 @@
             || json.choices?.[0]?.delta?.reasoning_content;
           if(reasoningDelta && onReasoning) onReasoning(reasoningDelta);
           if(json.model) onModel(json.model);
-          if(json.usage && onUsage) onUsage(json.usage);
+          if(json.usage && onUsage){
+            // Das Gateway haengt die tatsaechlichen Kosten an -- andere
+            // Anbieter kennen dieses Feld nicht, dann bleibt es leer.
+            onUsage(json.usage, json.gateway?.cost ?? json.cost);
+          }
 
           const choice = json.choices?.[0];
           if(choice?.finish_reason) finishReason = choice.finish_reason;
@@ -6952,11 +6998,15 @@
   function saveUsage(u){
     try{ localStorage.setItem(STORAGE_USAGE, JSON.stringify(u)); }catch{}
   }
-  function recordUsage(provider, modelId, usageInfo){
+  // Tokenzahlen sagen wenig darueber aus, was etwas kostet -- die Preise
+  // unterscheiden sich je Modell um Groessenordnungen. Das Gateway liefert
+  // den tatsaechlichen Betrag je Anfrage mit; wo er vorliegt, wird er
+  // erfasst und angezeigt.
+  function recordUsage(provider, modelId, usageInfo, kosten){
     const usage = loadUsage();
     const key = provider + "::" + (modelId || "unbekannt");
     if(!usage.byKey[key]){
-      usage.byKey[key] = { provider, model: modelId, requests: 0, promptTokens: 0, completionTokens: 0, hasTokenData: false };
+      usage.byKey[key] = { provider, model: modelId, requests: 0, promptTokens: 0, completionTokens: 0, hasTokenData: false, kosten: 0, hasKosten: false };
     }
     const entry = usage.byKey[key];
     entry.requests += 1;
@@ -6965,7 +7015,21 @@
       entry.completionTokens += usageInfo.completion_tokens || 0;
       entry.hasTokenData = true;
     }
+    const betrag = parseFloat(kosten);
+    if(Number.isFinite(betrag) && betrag > 0){
+      entry.kosten = (entry.kosten || 0) + betrag;
+      entry.hasKosten = true;
+    }
     saveUsage(usage);
+  }
+
+  // Betraege sind oft sehr klein -- unter einem Cent waere jede Rundung auf
+  // zwei Stellen entweder "0,00" oder irrefuehrend genau.
+  function formatKosten(betrag){
+    if(!Number.isFinite(betrag) || betrag <= 0) return "";
+    if(betrag < 0.01) return "unter 1 Cent";
+    if(betrag < 1) return (betrag * 100).toFixed(1).replace(".", ",") + " Cent";
+    return betrag.toFixed(2).replace(".", ",") + " $";
   }
   function renderUsage(){
     const usage = loadUsage();
@@ -6979,14 +7043,22 @@
       return;
     }
 
-    let html = `<div class="usage-row"><span class="usage-name"><strong>Insgesamt</strong></span><span class="usage-count"><strong>${totalRequests} Anfragen</strong></span></div>`;
+    const gesamtKosten = keys.reduce((s, k) => s + (usage.byKey[k].kosten || 0), 0);
+    const kostenText = formatKosten(gesamtKosten);
+
+    let html = `<div class="usage-row"><span class="usage-name"><strong>Insgesamt</strong></span><span class="usage-count"><strong>${totalRequests} Anfragen${kostenText ? " · " + escapeHtml(kostenText) : ""}</strong></span></div>`;
     html += `<div class="usage-row"><span class="usage-name hint">seit ${escapeHtml(sinceStr)}</span><span></span></div>`;
     for(const k of keys){
       const e = usage.byKey[k];
-      const tokenPart = e.hasTokenData
-        ? `${e.requests} Anfragen · ${(e.promptTokens + e.completionTokens).toLocaleString("de-DE")} Tokens`
-        : `${e.requests} Anfragen`;
-      html += `<div class="usage-row"><span class="usage-name">${escapeHtml(e.provider)} · ${escapeHtml(shortModelName(e.model || ""))}</span><span class="usage-count">${tokenPart}</span></div>`;
+      const teile = [`${e.requests} Anfragen`];
+      if(e.hasTokenData) teile.push(`${(e.promptTokens + e.completionTokens).toLocaleString("de-DE")} Tokens`);
+      if(e.hasKosten) teile.push(formatKosten(e.kosten));
+      html += `<div class="usage-row"><span class="usage-name">${escapeHtml(e.provider)} · ${escapeHtml(shortModelName(e.model || ""))}</span><span class="usage-count">${escapeHtml(teile.join(" · "))}</span></div>`;
+    }
+    // Nur wo Kosten vorliegen, wird darauf hingewiesen -- sonst waere der
+    // Hinweis fuer Nutzer ohne Gateway sinnlos.
+    if(gesamtKosten > 0){
+      html += `<div class="usage-row"><span class="usage-name hint">Beträge stammen vom Vercel AI Gateway. Anbieter ohne Kostenangabe erscheinen nur mit Anfragen und Tokens.</span><span></span></div>`;
     }
     usageBody.innerHTML = html;
   }
@@ -7970,11 +8042,25 @@
     }
   }
 
+  const vercelNoTrainToggle = $("#vercel-notrain-toggle");
+
   function renderVercelUI(){
     vercelKeyField.value = vercelKey || "";
     vercelModelField.value = vercelModel || "";
     vercelEnableToggle.setAttribute("aria-checked", String(vercelEnabled));
+    vercelNoTrainToggle.setAttribute("aria-checked", String(gatewayKeinTraining));
   }
+
+  // Der Schalter wirkt sofort, nicht erst beim Speichern: er betrifft keine
+  // Zugangsdaten, sondern nur, wie kuenftige Anfragen geleitet werden.
+  vercelNoTrainToggle.addEventListener("click", () => {
+    gatewayKeinTraining = vercelNoTrainToggle.getAttribute("aria-checked") !== "true";
+    vercelNoTrainToggle.setAttribute("aria-checked", String(gatewayKeinTraining));
+    try{ localStorage.setItem(STORAGE_VERCEL_NOTRAIN, gatewayKeinTraining ? "1" : "0"); }catch{}
+    showToast(gatewayKeinTraining
+      ? "Eingaben werden nicht zum Training freigegeben."
+      : "Training wieder erlaubt — es stehen dann mehr Anbieter zur Verfügung.");
+  });
 
   vercelEnableToggle.addEventListener("click", () => {
     const an = vercelEnableToggle.getAttribute("aria-checked") === "true";
@@ -8261,7 +8347,7 @@
     STORAGE_PROFILE_NAME, STORAGE_PROFILE_ABOUT, STORAGE_PROFILE_STYLE, STORAGE_THEME,
     STORAGE_CONVERSATIONS, STORAGE_ACTIVE_ID, STORAGE_USAGE,
     STORAGE_AGENTS, STORAGE_PROJECTS, STORAGE_MEMORY, STORAGE_FOLDERS,
-    STORAGE_VERCEL_KEY, STORAGE_VERCEL_MODEL, STORAGE_VERCEL_ENABLED
+    STORAGE_VERCEL_KEY, STORAGE_VERCEL_MODEL, STORAGE_VERCEL_ENABLED, STORAGE_VERCEL_NOTRAIN
   ];
 
   function exportBackup(){
