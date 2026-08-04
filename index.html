@@ -1394,6 +1394,39 @@
     animation: haken-rein var(--dauer-mittel) var(--kurve-feder) both;
   }
 
+  /* Nachtraegliche Pruefung: gehoert sichtbar zur Antwort, ist aber eine
+     Aussage ueber sie -- deshalb abgesetzt statt eingebettet. */
+  .pruefung-box{
+    max-width: 720px;
+    margin: var(--raum-3) 0 0;
+    padding: var(--raum-5);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 2px solid var(--accent);
+    border-radius: var(--rund-3);
+  }
+  .pruefung-kopf{
+    display: flex;
+    align-items: center;
+    gap: var(--raum-3);
+    font-size: var(--schrift-mini);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: var(--raum-4);
+  }
+  .pruefung-kopf svg{ width: 12px; height: 12px; }
+  .pruefung-text{
+    font-size: var(--schrift-klein);
+    line-height: 1.55;
+    color: var(--text-dim);
+  }
+  .pruefung-text p:first-child{ margin-top: 0; }
+  .pruefung-text p:last-child{ margin-bottom: 0; }
+  .pruefung-text strong{ color: var(--text); }
+
+
   /* Belege unter der Antwort */
   .quellen-box{
     max-width: 720px;
@@ -2246,6 +2279,54 @@
     border-radius: var(--rund-2) var(--rund-2) 0 0;
     padding: var(--raum-3) var(--raum-3) var(--raum-3) var(--raum-5);
   }
+  /* Auf schmalen Bildschirmen passen Sprachname und zwei beschriftete
+     Knoepfe nicht nebeneinander -- dort tragen die Knoepfe nur ihr Symbol.
+     Die Beschriftung bleibt als aria-label fuer Screenreader erhalten. */
+  @media (max-width: 560px){
+    .code-copy-btn span{ display: none; }
+    .code-copy-btn{ padding: var(--raum-3); }
+    .code-run-btn{ padding: var(--raum-3) var(--raum-4); }
+    .code-block-head{ gap: var(--raum-3); }
+    .code-lang{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  }
+
+
+  .code-block-aktionen{ display: flex; gap: var(--raum-3); align-items: center; }
+  .code-copy-btn{
+    display: inline-flex;
+    align-items: center;
+    gap: var(--raum-3);
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: var(--schrift-klein);
+    font-family: inherit;
+    padding: var(--raum-2) var(--raum-5);
+    border-radius: var(--rund-1);
+    cursor: pointer;
+    transition: color var(--dauer-kurz) var(--kurve),
+                border-color var(--dauer-kurz) var(--kurve),
+                transform var(--dauer-tipp) var(--kurve);
+  }
+  .code-copy-btn:hover{ color: var(--text); border-color: var(--text-dim); }
+  .code-copy-btn:active{ transform: scale(.96); }
+  .code-copy-btn svg{ width: 13px; height: 13px; }
+  .code-copy-btn.bestaetigt{ color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
+  .code-copy-btn.bestaetigt svg{ display: none; }
+
+  /* Syntaxfarben: gedeckt gehalten, damit der Code lesbar bleibt und nicht
+     wie ein Farbkasten wirkt. Vier Rollen genuegen zum Erfassen der Struktur. */
+  .sx-text{ color: #9ecb8a; }
+  .sx-kommentar{ color: var(--text-mute); font-style: italic; }
+  .sx-wort{ color: #c99bd8; }
+  .sx-zahl{ color: #e0a878; }
+  .sx-funktion{ color: #7fb6e8; }
+  html[data-theme="hell"] .sx-text{ color: #3f7a2e; }
+  html[data-theme="hell"] .sx-wort{ color: #8038a0; }
+  html[data-theme="hell"] .sx-zahl{ color: #a85c14; }
+  html[data-theme="hell"] .sx-funktion{ color: #1d5f96; }
+
+
   .code-lang{ font-size: var(--schrift-mini); color: var(--text-dim); text-transform: uppercase; letter-spacing: .03em; }
   .code-run-btn{
     background: none;
@@ -2257,6 +2338,7 @@
     cursor: pointer;
     font-family: inherit;
   }
+  .code-run-btn::before{ content: "▶"; margin-right: var(--raum-3); font-size: 9px; }
   .code-run-btn:hover{ border-color: var(--accent); color: var(--accent); }
   .code-run-btn:disabled{ opacity: .5; pointer-events: none; }
   .code-output{
@@ -3722,6 +3804,51 @@
 
   const GITHUB_FILE_CHAR_LIMIT = 6000;
 
+  // Prueft eine bereits gegebene Antwort gegen aktuelle Quellen. Bewusst
+  // nicht als neue Nachricht, sondern als Ergaenzung derselben: es geht um
+  // dieselbe Aussage, nur belegt.
+  async function belegeAntwort(msg, knopf){
+    if(!rechercheVerfuegbar()){
+      showToast("Dafür fehlt der Gateway-Zugang — in den Einstellungen einrichten.");
+      return;
+    }
+    const beschriftung = knopf.querySelector("span");
+    const urText = beschriftung ? beschriftung.textContent : "";
+    knopf.disabled = true;
+    if(beschriftung) beschriftung.textContent = "Suche …";
+
+    // Die vorausgegangene Frage gibt der Suche den noetigen Zusammenhang --
+    // eine Antwort allein ist oft nicht eigenstaendig verstaendlich.
+    const idx = messages.indexOf(msg);
+    const frage = idx > 0
+      ? (messages.slice(0, idx).reverse().find(x => x.role === "user")?.content || "")
+      : "";
+    const auftrag = (frage ? "Frage: " + frage.slice(0, 300) + "\n\n" : "")
+      + "Diese Antwort wurde gegeben:\n" + (msg.content || "").slice(0, 1500)
+      + "\n\nPrüfe die darin genannten Fakten gegen aktuelle Quellen. Nenne ausdrücklich, "
+      + "was zutrifft, was überholt ist und was sich nicht belegen lässt. Fasse dich kurz.";
+
+    try{
+      const res = await recherchiereWeb(auftrag, "monat", { tief: true });
+      if(!res.ok){
+        showToast(res.message);
+        return;
+      }
+      msg.pruefung = res.message;
+      if(res.quellen?.length) msg.quellen = res.quellen.slice(0, 8);
+      saveMessages();
+      render();
+      showToast(res.quellen?.length
+        ? "Geprüft — " + res.quellen.length + " Quellen ausgewertet."
+        : "Geprüft.");
+    }catch(err){
+      showToast("Prüfung fehlgeschlagen: " + (err.message || "unbekannt"));
+    }finally{
+      knopf.disabled = false;
+      if(beschriftung) beschriftung.textContent = urText;
+    }
+  }
+
   // ---------- Web-Recherche ----------
   // Eine eigene Such-API scheiterte an zwei Punkten: die frei erreichbaren
   // Dienste liefern entweder nichts Brauchbares (DuckDuckGo antwortet auf
@@ -4237,6 +4364,22 @@
       row.appendChild(box);
     }
 
+    // Das Ergebnis einer nachtraeglichen Pruefung steht ueber den Quellen und
+    // hebt sich ab -- es ist eine Aussage ueber die Antwort, nicht Teil von ihr.
+    if(m.role === "assistant" && m.pruefung){
+      const pbox = document.createElement("div");
+      pbox.className = "pruefung-box";
+      const kopf = document.createElement("div");
+      kopf.className = "pruefung-kopf";
+      kopf.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3" stroke-linecap="round"/></svg><span>Gegen aktuelle Quellen geprüft</span>';
+      const text = document.createElement("div");
+      text.className = "pruefung-text";
+      text.innerHTML = renderMarkdown(m.pruefung);
+      pbox.append(kopf, text);
+      row.appendChild(pbox);
+    }
+
+
     // Belege unter der Antwort: recherchierte Aussagen ohne sichtbare Quelle
     // sind wertlos, weil sie sich nicht nachpruefen lassen.
     if(m.role === "assistant" && m.quellen && m.quellen.length){
@@ -4327,6 +4470,17 @@
         copyBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V5a1 1 0 0 1 1-1h11" stroke-linecap="round"/></svg><span>Kopieren</span>';
         copyBtn.addEventListener("click", () => copyToClipboard(m.content, copyBtn));
         actions.appendChild(copyBtn);
+
+        // Nachtraeglich belegen: Wer eine Antwort bekommt und wissen will,
+        // ob sie noch stimmt, musste bisher selbst eine neue Frage stellen.
+        // Der Knopf erscheint nur, wenn die Recherche eingerichtet ist und
+        // die Antwort nicht ohnehin schon Quellen traegt.
+        if(rechercheVerfuegbar() && !(m.quellen && m.quellen.length)){
+          const belegBtn = document.createElement("button");
+          belegBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3" stroke-linecap="round"/></svg><span>Belegen</span>';
+          belegBtn.addEventListener("click", () => belegeAntwort(m, belegBtn));
+          actions.appendChild(belegBtn);
+        }
 
         if("speechSynthesis" in window){
           const speakBtn = document.createElement("button");
@@ -4606,6 +4760,127 @@
   // es kann also kein Markdown-Text beliebiges HTML einschleusen.
   let codeRunCounter = 0;
 
+  // Ein zentraler Handler statt einer Bindung je Block: die Bloecke entstehen
+  // beim Rendern immer neu, einzelne Bindungen wuerden sich ansammeln.
+  document.addEventListener("click", (e) => {
+    const knopf = e.target.closest?.(".code-copy-btn");
+    if(!knopf) return;
+    const block = knopf.closest(".code-block");
+    const code = block?.querySelector("pre code");
+    if(!code) return;
+    copyToClipboard(code.innerText, knopf);
+  });
+
+  // ---------- Syntaxhervorhebung ----------
+  // Bewusst selbst geschrieben statt eine Bibliothek nachzuladen: die
+  // gaengigen Pakete wiegen mehrere hundert Kilobyte, und fuer das Lesen
+  // einer Antwort im Chat genuegt es, Zeichenketten, Kommentare,
+  // Schluesselwoerter und Zahlen zu unterscheiden.
+  //
+  // Wichtig: der Text ist an dieser Stelle bereits HTML-escaped. Es werden
+  // ausschliesslich span-Elemente ergaenzt, nie Inhalt uebernommen -- damit
+  // bleibt die Absicherung gegen eingeschleusten Code erhalten.
+  const SYNTAX_WOERTER = {
+    javascript: "await async break case catch class const continue default delete do else export extends finally for from function if import in instanceof let new of return static super switch this throw try typeof var void while yield true false null undefined",
+    python: "and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield True False None self",
+    html: "DOCTYPE html head body div span script style link meta title a p ul li table tr td",
+    css: "important media supports keyframes import charset",
+    json: "true false null",
+    bash: "cd echo export if then else fi for do done while case esac function return source alias sudo apt npm pip git"
+  };
+
+  function spracheErkennen(lang){
+    const l = (lang || "").toLowerCase().trim();
+    if(/^(js|javascript|jsx|ts|typescript|tsx|mjs)$/.test(l)) return "javascript";
+    if(/^(py|python|python3)$/.test(l)) return "python";
+    if(/^(html|xml|svg)$/.test(l)) return "html";
+    if(/^(css|scss|less)$/.test(l)) return "css";
+    if(/^(json|jsonc)$/.test(l)) return "json";
+    if(/^(sh|bash|zsh|shell|console)$/.test(l)) return "bash";
+    return "";
+  }
+
+  function spracheAnzeige(lang){
+    const namen = {
+      javascript: "JavaScript", python: "Python", html: "HTML",
+      css: "CSS", json: "JSON", bash: "Shell"
+    };
+    const erkannt = spracheErkennen(lang);
+    if(erkannt) return namen[erkannt];
+    return (lang || "").trim() ? lang.trim() : "Code";
+  }
+
+  function faerbeCode(escapedCode, lang){
+    const sprache = spracheErkennen(lang);
+    if(!sprache) return escapedCode;
+
+    // In einem Durchgang arbeiten, damit sich die Muster nicht gegenseitig
+    // in bereits eingefuegte Auszeichnungen hineinfressen. Zeichenketten und
+    // Kommentare haben Vorrang -- ein Schluesselwort darin ist keines.
+    const teile = [];
+    // Der Index wird in Buchstaben kodiert, nicht in Ziffern: die spaetere
+    // Zahlen-Erkennung wuerde sonst die Platzhalter-Nummern selbst faerben
+    // und die Marken zerreissen.
+    const alsBuchstaben = (n) => {
+      let out = "";
+      do { out = String.fromCharCode(97 + (n % 26)) + out; n = Math.floor(n / 26); } while(n > 0);
+      return out;
+    };
+    const merken = (html) => {
+      teile.push(html);
+      return "\u0002" + alsBuchstaben(teile.length - 1) + "\u0002";
+    };
+
+    let s = escapedCode;
+
+    // Zeichenketten (einfach, doppelt, Backtick) und Kommentare
+    const strMuster = sprache === "python"
+      ? /("""[\s\S]*?"""|'''[\s\S]*?'''|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*')/g
+      : /("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`)/g;
+    s = s.replace(strMuster, (m) => merken('<span class="sx-text">' + m + '</span>'));
+
+    const kommentarMuster = (sprache === "python" || sprache === "bash")
+      ? /(#[^\n]*)/g
+      : sprache === "css"
+        ? /(\/\*[\s\S]*?\*\/)/g
+        : /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)/g;
+    if(sprache !== "json"){
+      s = s.replace(kommentarMuster, (m) => merken('<span class="sx-kommentar">' + m + '</span>'));
+    }
+
+    // HTML-Tags: der Name nach dem escapten spitzen Klammerzeichen
+    if(sprache === "html"){
+      s = s.replace(/(&lt;\/?)([a-zA-Z][\w-]*)/g,
+        (m, klammer, name) => klammer + merken('<span class="sx-wort">' + name + '</span>'));
+    }
+
+    // Zahlen
+    s = s.replace(/\b(\d+(?:\.\d+)?)\b/g, (m) => merken('<span class="sx-zahl">' + m + '</span>'));
+
+    // Schluesselwoerter -- Platzhalter sind durch \u0002 eingefasst und
+    // enthalten keine Wortgrenze davor, werden also nicht erfasst.
+    const woerter = (SYNTAX_WOERTER[sprache] || "").split(" ").filter(Boolean);
+    if(woerter.length){
+      const re = new RegExp("\\b(" + woerter.join("|") + ")\\b", "g");
+      s = s.replace(re, (m) => merken('<span class="sx-wort">' + m + '</span>'));
+    }
+
+    // Funktionsnamen vor einer oeffnenden Klammer
+    if(sprache === "javascript" || sprache === "python"){
+      s = s.replace(/\b([a-zA-Z_$][\w$]*)(?=\s*\()/g,
+        (m) => merken('<span class="sx-funktion">' + m + '</span>'));
+    }
+
+    const zurueck = (text) => text.replace(/\u0002([a-z]+)\u0002/g, (m, code) => {
+      let n = 0;
+      for(const ch of code) n = n * 26 + (ch.charCodeAt(0) - 97);
+      return teile[n] ?? m;
+    });
+    // Zweimal aufloesen: eine Marke kann in einer anderen stecken, etwa ein
+    // gefaerbtes Wort innerhalb einer bereits gemerkten Zeichenkette.
+    return zurueck(zurueck(s));
+  }
+
   function renderMarkdown(raw){
     let s = escapeHtml(raw);
 
@@ -4613,6 +4888,10 @@
     s = s.replace(/```([a-zA-Z0-9]*)\n?([\s\S]*?)```/g, (m, lang, code) => {
       const normLang = lang.toLowerCase().trim();
       const runnable = /^(js|javascript|py|python|python3)$/.test(normLang);
+      const gefaerbt = faerbeCode(code, normLang);
+      const kopierKnopf = '<button type="button" class="code-copy-btn" aria-label="Code kopieren">'
+        + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V5a1 1 0 0 1 1-1h11" stroke-linecap="round"/></svg>'
+        + '<span>Kopieren</span></button>';
       if(runnable){
         const id = "coderun_" + (codeRunCounter++);
         const kind = /^py/.test(normLang) ? "python" : "javascript";
@@ -4620,14 +4899,27 @@
           '<div class="code-block">' +
             '<div class="code-block-head">' +
               '<span class="code-lang">' + (kind === "python" ? "Python" : "JavaScript") + '</span>' +
-              '<button type="button" class="code-run-btn" data-kind="' + kind + '" data-target="' + id + '">▶ Ausführen</button>' +
+              '<div class="code-block-aktionen">' +
+                kopierKnopf +
+                '<button type="button" class="code-run-btn" aria-label="Code ausführen" data-kind="' + kind + '" data-target="' + id + '">Ausführen</button>' +
+              '</div>' +
             '</div>' +
-            '<pre><code>' + code + '</code></pre>' +
+            '<pre><code>' + gefaerbt + '</code></pre>' +
             '<div class="code-output" id="' + id + '" style="display:none"></div>' +
           '</div>'
         );
       }else{
-        codeBlocks.push("<pre><code>" + code + "</code></pre>");
+        // Auch nicht ausfuehrbare Bloecke bekommen Kopf und Kopier-Knopf --
+        // Code aus einer Antwort will man fast immer uebernehmen.
+        codeBlocks.push(
+          '<div class="code-block">' +
+            '<div class="code-block-head">' +
+              '<span class="code-lang">' + escapeHtml(spracheAnzeige(normLang)) + '</span>' +
+              '<div class="code-block-aktionen">' + kopierKnopf + '</div>' +
+            '</div>' +
+            '<pre><code>' + gefaerbt + '</code></pre>' +
+          '</div>'
+        );
       }
       return "\u0000" + (codeBlocks.length - 1) + "\u0000";
     });
