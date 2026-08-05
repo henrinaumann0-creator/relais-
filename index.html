@@ -1881,6 +1881,27 @@
   }
   .lock-box .btn{ width: 100%; }
 
+  .abzweig-herkunft{
+    display: flex;
+    align-items: center;
+    gap: var(--raum-3);
+    margin: 0 auto var(--raum-5);
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-mute);
+    border-radius: var(--rund-voll);
+    padding: var(--raum-3) var(--raum-5);
+    font-size: var(--schrift-klein);
+    font-family: inherit;
+    cursor: pointer;
+    max-width: 100%;
+    transition: color var(--dauer-kurz) var(--kurve), border-color var(--dauer-kurz) var(--kurve);
+  }
+  .abzweig-herkunft:hover{ color: var(--text); border-color: var(--text-dim); }
+  .abzweig-herkunft svg{ width: 13px; height: 13px; flex-shrink: 0; }
+  .abzweig-herkunft span{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+
   .mehr-laden{
     display: block;
     margin: 0 auto var(--raum-6);
@@ -4228,6 +4249,48 @@
     render();
   }
 
+  // ---------- Abzweigen ----------
+  // Bisher gab es nur einen Weg durch ein Gespraech: wer eine Antwort
+  // anders wollte, musste neu generieren und verlor die alte, oder einen
+  // leeren Chat beginnen und den Zusammenhang neu aufbauen. Ein Abzweig
+  // uebernimmt den Verlauf bis zu dieser Stelle in einen eigenen Chat --
+  // das Original bleibt unberuehrt.
+  function abzweigen(bisIndex){
+    const quelle = conversations[activeId];
+    if(!quelle) return;
+
+    // Bis einschliesslich der gewaehlten Nachricht, tiefe Kopie, damit
+    // spaetere Aenderungen nicht auf das Original durchschlagen.
+    const uebernommen = messages.slice(0, bisIndex + 1).map(m => JSON.parse(JSON.stringify(m)));
+    if(!uebernommen.length) return;
+
+    const id = newConversationId();
+    const basisTitel = (quelle.title || "Chat").replace(/\s*\(Abzweig( \d+)?\)$/, "");
+    // Mehrere Abzweige desselben Chats durchnummerieren, sonst stehen in der
+    // Liste mehrere gleichnamige Eintraege.
+    const bestehende = Object.values(conversations)
+      .filter(c => (c.title || "").startsWith(basisTitel + " (Abzweig")).length;
+    conversations[id] = {
+      id,
+      title: basisTitel + " (Abzweig" + (bestehende ? " " + (bestehende + 1) : "") + ")",
+      titleIsCustom: true,
+      messages: uebernommen,
+      updatedAt: Date.now(),
+      // Herkunft festhalten, damit der Zusammenhang nachvollziehbar bleibt
+      abzweigVon: activeId,
+      abzweigBei: bisIndex
+    };
+    // Projekt, Agent und Ordner mituebernehmen -- der Abzweig gehoert in
+    // denselben Zusammenhang wie das Original.
+    for(const feld of ["projectId", "agentId", "folderId"]){
+      if(quelle[feld]) conversations[id][feld] = quelle[feld];
+    }
+
+    saveConversationsRaw(conversations);
+    switchConversation(id);
+    showToast("Abgezweigt — das Original bleibt erhalten.");
+  }
+
   function deleteConversation(id){
     delete conversations[id];
     if(id === activeId){
@@ -4285,6 +4348,20 @@
     }else{
       sheetBackdrop.before(composerWrapEl);
     }
+
+    // Herkunft eines Abzweigs sichtbar machen -- sonst weiss man beim
+    // spaeteren Wiederfinden nicht mehr, woraus er entstanden ist.
+    const dieserChat = conversations[activeId];
+    if(dieserChat?.abzweigVon && conversations[dieserChat.abzweigVon]){
+      const herkunft = document.createElement("button");
+      herkunft.type = "button";
+      herkunft.className = "abzweig-herkunft";
+      herkunft.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="9" r="2.5"/><path d="M6 8.5v7M8.5 6h4a3 3 0 0 1 3 3" stroke-linecap="round"/></svg>'
+        + '<span>Abzweig von „' + escapeHtml(conversations[dieserChat.abzweigVon].title || "Chat") + '"</span>';
+      herkunft.addEventListener("click", () => switchConversation(dieserChat.abzweigVon));
+      thread.appendChild(herkunft);
+    }
+
 
     const start = Math.max(0, messages.length - renderGrenze);
     if(start > 0){
@@ -4496,6 +4573,15 @@
         regenBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v5h5M20 20v-5h-5" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 9a7 7 0 0 1 12.3-3.2M19 15a7 7 0 0 1-12.3 3.2" stroke-linecap="round"/></svg><span>Neu generieren</span>';
         regenBtn.addEventListener("click", regenerateLast);
         actions.appendChild(regenBtn);
+      }
+      // Abzweigen lohnt erst, wenn danach noch etwas kommt -- an der letzten
+      // Antwort waere es dasselbe wie einfach weiterzuschreiben.
+      if(!isLastAssistant && !sending){
+        const zweigBtn = document.createElement("button");
+        zweigBtn.title = "Ab hier in einem eigenen Chat weitermachen";
+        zweigBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="9" r="2.5"/><path d="M6 8.5v7M8.5 6h4a3 3 0 0 1 3 3" stroke-linecap="round"/></svg><span>Abzweigen</span>';
+        zweigBtn.addEventListener("click", () => abzweigen(index));
+        actions.appendChild(zweigBtn);
       }
       if(actions.children.length) row.appendChild(actions);
     }
