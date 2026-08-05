@@ -310,6 +310,25 @@
     background: none;
   }
 
+  .aufgaben-block{ margin-top: var(--raum-8); }
+  .aufgaben-kopf{
+    font-size: var(--schrift-mini);
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--text-mute);
+    margin-bottom: var(--raum-4);
+  }
+  /* Aufgaben-Vorschlaege heben sich ab: sie starten etwas anderes als die
+     einfachen Vorschlaege darunter -- naemlich mehrschrittige Arbeit. */
+  .chip.aufgaben-chip{
+    border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+    color: var(--text);
+  }
+  .chip.aufgaben-chip svg{ color: var(--accent); }
+  .chip.aufgaben-chip:hover{ border-color: var(--accent); }
+
+
   .starter-chips{
     display: flex;
     flex-wrap: wrap;
@@ -2505,28 +2524,11 @@
       <span class="wordmark">Relais</span>
       <p id="empty-text">Schreib einfach los. Läuft komplett auf diesem Gerät, ohne eigenen Server.</p>
       <div id="empty-composer-slot"></div>
-      <div class="starter-chips" id="starter-chips">
-        <button type="button" class="chip" data-prompt="Erklär mir ein Thema einfach und verständlich: ">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 6.5C10.5 5 8.5 4.5 4 4.5v13c4.5 0 6.5.5 8 2 1.5-1.5 3.5-2 8-2v-13c-4.5 0-6.5.5-8 2Z" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 6.5v13" stroke-linecap="round"/></svg>
-          Erklären
-        </button>
-        <button type="button" class="chip" data-prompt="Hilf mir, diese Nachricht freundlich und klar zu formulieren: ">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v11H8l-4 4V5Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Nachricht
-        </button>
-        <button type="button" class="chip" data-prompt="Fass mir diesen Text knapp zusammen: ">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 6h14M5 11h14M5 16h8" stroke-linecap="round"/></svg>
-          Zusammenfassen
-        </button>
-        <button type="button" class="chip" data-prompt="Schreib mir Code für folgende Aufgabe: ">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m9 8-4 4 4 4M15 8l4 4-4 4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Code
-        </button>
-        <button type="button" class="chip" data-prompt="Lass uns gemeinsam Ideen sammeln zu: ">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.3.3.5.7.5 1.1h6c0-.4.2-.8.5-1.1A6 6 0 0 0 12 3Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Ideen
-        </button>
+      <div class="aufgaben-block" id="aufgaben-block" style="display:none">
+        <div class="aufgaben-kopf">Aufgaben, die der Agent selbst erledigt</div>
+        <div class="starter-chips" id="aufgaben-chips"></div>
       </div>
+      <div class="starter-chips" id="starter-chips"></div>
     </div>
   </div>
   <button class="scroll-bottom-btn" id="btn-scroll-bottom" aria-label="Zum Ende scrollen">
@@ -2881,7 +2883,7 @@
       </div>
       <div id="custom-provider-list"></div>
 
-      <div class="field" id="custom-provider-form" class="mt-mittel" style="display:none">
+      <div id="custom-provider-form" style="display:none" class="field mt-mittel">
         <label for="custom-name">Name</label>
         <input type="text" id="custom-name" placeholder="z. B. Cerebras" autocomplete="off">
         <label for="custom-url" class="mt-klein">Endpunkt-URL</label>
@@ -2976,7 +2978,7 @@
         <div class="hint warn-text mt-klein">Wichtig: Ohne diese PIN sind die Schlüssel nicht mehr lesbar. Es gibt keinen Ersatzweg.</div>
       </div>
       <button type="button" class="btn btn-primary" id="btn-set-lock">PIN setzen</button>
-      <button type="button" class="btn btn-ghost" id="btn-remove-lock" class="mt-klein" style="display:none">Sperre entfernen</button>
+      <button type="button" id="btn-remove-lock" style="display:none" class="btn btn-ghost mt-klein">Sperre entfernen</button>
     </details>
     <details class="provider-section" id="section-backup">
       <summary><span class="status-dot ok" style="visibility:hidden"></span>Sicherung</summary>
@@ -3116,7 +3118,7 @@
     </div>
     <div id="agents-list"></div>
 
-    <div class="field" id="agent-form" class="mt-mittel" style="display:none">
+    <div id="agent-form" style="display:none" class="field mt-mittel">
       <label for="agent-name">Name</label>
       <input type="text" id="agent-name" placeholder="z. B. Übersetzer" autocomplete="off">
       <label for="agent-icon" class="mt-klein">Symbol (ein Emoji)</label>
@@ -3203,7 +3205,13 @@
       <button type="button" class="btn btn-ghost" id="btn-clean-old">Chats älter als 30 Tage löschen</button>
     </div>
 
-    <button type="button" class="btn btn-ghost" id="btn-reset-usage" class="mt-gross">Nutzungszähler zurücksetzen</button>
+    <div class="field mt-gross">
+      <label for="kostengrenze">Monatsgrenze (US-Dollar, 0 = keine)</label>
+      <input type="number" id="kostengrenze" min="0" step="0.5" inputmode="decimal" placeholder="0">
+      <div class="hint">Meldet sich bei 80 Prozent und beim Erreichen. Nur ein Hinweis, keine Sperre — eine laufende Antwort soll nicht mittendrin abbrechen.</div>
+    </div>
+
+    <button type="button" id="btn-reset-usage" class="btn btn-ghost mt-gross">Nutzungszähler zurücksetzen</button>
   </div>
 </div>
 
@@ -3432,6 +3440,7 @@
   const STORAGE_VERCEL_KEY     = "relais.vercelKey";
   const STORAGE_VERCEL_MODEL   = "relais.vercelModel";
   const STORAGE_VERCEL_NOTRAIN = "relais.vercelKeinTraining";
+  const STORAGE_KOSTENGRENZE = "relais.kostengrenze";
   const STORAGE_VERCEL_ENABLED = "relais.vercelEnabled";
   const STORAGE_GHMODELS_ENABLED = "relais.ghmodelsEnabled";
   const STORAGE_COHERE_ENABLED = "relais.cohereEnabled";
@@ -3726,6 +3735,8 @@
   // Voreingestellt an: wer eine private Chat-App nutzt, will seine Eingaben
   // in der Regel nicht als Trainingsmaterial wiederfinden.
   let gatewayKeinTraining = (localStorage.getItem(STORAGE_VERCEL_NOTRAIN) ?? "1") === "1";
+  // 0 bedeutet: keine Grenze gesetzt.
+  let kostengrenze = parseFloat(localStorage.getItem(STORAGE_KOSTENGRENZE) || "0") || 0;
   let vercelEnabled = localStorage.getItem(STORAGE_VERCEL_ENABLED) !== "0";
   let ghmodelsEnabled = localStorage.getItem(STORAGE_GHMODELS_ENABLED) !== "0";
   let cohereEnabled = localStorage.getItem(STORAGE_COHERE_ENABLED) !== "0";
@@ -4778,7 +4789,7 @@
 
     btn.disabled = true;
     const originalHTML = btn.innerHTML;
-    btn.innerHTML = '<svg class="icon-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="dreht"><path d="M12 3a9 9 0 1 0 9 9" stroke-linecap="round"/></svg><span>Analysiere …</span>';
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-spinner dreht"><path d="M12 3a9 9 0 1 0 9 9" stroke-linecap="round"/></svg><span>Analysiere …</span>';
 
     const langLabel = lang === "python" ? "Python" : "JavaScript";
     const prompt =
@@ -7397,8 +7408,51 @@
     if(Number.isFinite(betrag) && betrag > 0){
       entry.kosten = (entry.kosten || 0) + betrag;
       entry.hasKosten = true;
+      // Monatszaehler fuer die Grenze; beim Monatswechsel faengt er von vorn
+      // an und die Warnstufe wird zurueckgesetzt.
+      const monat = aktuellerMonat();
+      if(usage.kostenMonat?.monat !== monat){
+        usage.kostenMonat = { monat, betrag: 0 };
+        kostenWarnungStufe = 0;
+      }
+      usage.kostenMonat.betrag += betrag;
     }
     saveUsage(usage);
+    if(betrag > 0) pruefeKostengrenze(usage);
+  }
+
+  // Warnt, wenn die selbstgesetzte Grenze erreicht wird. Bewusst nur ein
+  // Hinweis und keine Sperre: was gerade laeuft, soll nicht mitten in einer
+  // Antwort abbrechen, und wie viel zu viel ist, weiss nur der Nutzer.
+  let kostenWarnungStufe = 0;
+
+  function aktuellerMonat(){
+    const d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+  }
+
+  // Die Grenze gilt je Monat, nicht ueber die gesamte Nutzungsdauer: eine
+  // Gesamtgrenze waere nach einiger Zeit dauerhaft ueberschritten und die
+  // Warnung damit wertlos. Der Monatszaehler laeuft getrennt vom
+  // Gesamtzaehler, weil dieser sich auch von Hand zuruecksetzen laesst.
+  function ausgabenDiesenMonat(usage){
+    const u = usage || loadUsage();
+    return u.kostenMonat?.monat === aktuellerMonat() ? (u.kostenMonat.betrag || 0) : 0;
+  }
+
+  function pruefeKostengrenze(usage){
+    if(!kostengrenze) return;
+    const gesamt = ausgabenDiesenMonat(usage);
+    const anteil = gesamt / kostengrenze;
+    // Zwei Stufen, jede nur einmal -- eine Meldung bei jeder Anfrage waere
+    // schnell Hintergrundrauschen und wuerde ueberlesen.
+    if(anteil >= 1 && kostenWarnungStufe < 2){
+      kostenWarnungStufe = 2;
+      showToast("Monatsgrenze erreicht: " + formatKosten(gesamt) + " von " + formatKosten(kostengrenze) + ".", 6000);
+    }else if(anteil >= 0.8 && kostenWarnungStufe < 1){
+      kostenWarnungStufe = 1;
+      showToast("80 % der Monatsgrenze erreicht (" + formatKosten(gesamt) + ").", 5000);
+    }
   }
 
   // Betraege sind oft sehr klein -- unter einem Cent waere jede Rundung auf
@@ -7417,7 +7471,15 @@
     const sinceStr = sinceDate.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
 
     if(!keys.length){
-      usageBody.innerHTML = '<p class="hinweis-ui">Noch keine Anfragen aufgezeichnet.</p>';
+      // Eine gesetzte Grenze auch dann zeigen, wenn noch nichts angefallen
+      // ist -- sonst wirkt sie nach dem Eintragen wie verschwunden.
+      let leerHtml = '<p class="hinweis-ui">Noch keine Anfragen aufgezeichnet.</p>';
+      if(kostengrenze > 0){
+        leerHtml += `<div class="usage-row"><span class="usage-name">Diesen Monat</span>`
+          + `<span class="usage-count">0 von ${escapeHtml(formatKosten(kostengrenze))}</span></div>`
+          + `<div class="storage-bar"><span style="width:2%"></span></div>`;
+      }
+      usageBody.innerHTML = leerHtml;
       return;
     }
 
@@ -7437,6 +7499,15 @@
     // Hinweis fuer Nutzer ohne Gateway sinnlos.
     if(gesamtKosten > 0){
       html += `<div class="usage-row"><span class="usage-name hint">Beträge stammen vom Vercel AI Gateway. Anbieter ohne Kostenangabe erscheinen nur mit Anfragen und Tokens.</span><span></span></div>`;
+    }
+    if(kostengrenze > 0){
+      // Die Anzeige zeigt den laufenden Monat, weil die Grenze monatlich gilt.
+      const monatKosten = ausgabenDiesenMonat(usage);
+      const anteil = Math.min(100, Math.round(monatKosten / kostengrenze * 100));
+      const knapp = anteil >= 80;
+      html += `<div class="usage-row"><span class="usage-name">Diesen Monat</span>`
+        + `<span class="usage-count">${escapeHtml(formatKosten(monatKosten) || "0")} von ${escapeHtml(formatKosten(kostengrenze))}</span></div>`
+        + `<div class="storage-bar${knapp ? " warn" : ""}"><span style="width:${Math.max(2, anteil)}%"></span></div>`;
     }
     usageBody.innerHTML = html;
   }
@@ -7627,7 +7698,23 @@
     showToast(treffer.length + (treffer.length === 1 ? " Chat gelöscht." : " Chats gelöscht."));
   }
 
-  function openUsage(){ renderUsage(); renderStorage(); usageBackdrop.classList.add("open"); }
+  const kostengrenzeFeld = $("#kostengrenze");
+  kostengrenzeFeld.addEventListener("change", () => {
+    const wert = parseFloat(kostengrenzeFeld.value);
+    kostengrenze = Number.isFinite(wert) && wert > 0 ? wert : 0;
+    try{ localStorage.setItem(STORAGE_KOSTENGRENZE, String(kostengrenze)); }catch{}
+    // Nach einer Aenderung darf erneut gewarnt werden -- sonst bliebe die
+    // Meldung nach dem Anheben der Grenze fuer immer aus.
+    kostenWarnungStufe = 0;
+    renderUsage();
+    showToast(kostengrenze ? "Grenze auf " + formatKosten(kostengrenze) + " gesetzt." : "Keine Kostengrenze mehr.");
+  });
+
+  function openUsage(){
+    kostengrenzeFeld.value = kostengrenze || "";
+    renderUsage(); renderStorage();
+    usageBackdrop.classList.add("open");
+  }
   function closeUsage(){ usageBackdrop.classList.remove("open"); }
 
   // ---------- Einstellungen ----------
@@ -8725,7 +8812,7 @@
     STORAGE_PROFILE_NAME, STORAGE_PROFILE_ABOUT, STORAGE_PROFILE_STYLE, STORAGE_THEME,
     STORAGE_CONVERSATIONS, STORAGE_ACTIVE_ID, STORAGE_USAGE,
     STORAGE_AGENTS, STORAGE_PROJECTS, STORAGE_MEMORY, STORAGE_FOLDERS,
-    STORAGE_VERCEL_KEY, STORAGE_VERCEL_MODEL, STORAGE_VERCEL_ENABLED, STORAGE_VERCEL_NOTRAIN
+    STORAGE_VERCEL_KEY, STORAGE_VERCEL_MODEL, STORAGE_VERCEL_ENABLED, STORAGE_VERCEL_NOTRAIN, STORAGE_KOSTENGRENZE
   ];
 
   function exportBackup(){
@@ -9023,6 +9110,146 @@
     });
   }
 
+  // ---------- Agent-Vorlagen ----------
+  // Der Agent-Modus kann viel, aber man muss wissen, was man verlangen soll.
+  // Diese Vorlagen zeigen an konkreten Faellen, was moeglich ist -- und
+  // ersparen es, dieselbe Formulierung jedes Mal neu zu schreiben.
+  // "braucht" nennt die Voraussetzung, damit nichts angeboten wird, was
+  // dann an einer fehlenden Einrichtung scheitert.
+  const AGENT_VORLAGEN = [
+    {
+      name: "Recherchieren",
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3" stroke-linecap="round"/></svg>',
+      braucht: "recherche",
+      prompt: "Recherchiere im Web und fasse mit Quellen zusammen: ",
+      offen: true
+    },
+    {
+      name: "Aufgaben anlegen",
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h10M4 12h10M4 18h7M17 8l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+      braucht: "projekt",
+      prompt: "Zerlege dieses Vorhaben in einzelne Schritte und lege sie als Aufgaben im Projekt an: ",
+      offen: true
+    },
+    {
+      name: "Repo ansehen",
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 19c-4 1.5-4-2.5-6-3m12 5v-3.9a3.4 3.4 0 0 0-.9-2.6c3-.3 6.2-1.5 6.2-6.7A5.2 5.2 0 0 0 19 4.8a4.9 4.9 0 0 0-.1-3.6s-1.1-.3-3.6 1.4a12.3 12.3 0 0 0-6.6 0C6.2.9 5.1 1.2 5.1 1.2A4.9 4.9 0 0 0 5 4.8a5.2 5.2 0 0 0-1.4 3.6c0 5.2 3.2 6.4 6.2 6.7a3.4 3.4 0 0 0-.9 2.6V21" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+      prompt: "Sieh dir dieses öffentliche GitHub-Repo an und erkläre mir, wie es aufgebaut ist: ",
+      offen: true
+    },
+    {
+      name: "Antwort prüfen",
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l2 2 5-5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9"/></svg>',
+      braucht: "recherche",
+      prompt: "Prüfe die folgende Aussage gegen aktuelle Quellen und sag mir, was zutrifft und was überholt ist: ",
+      offen: true
+    }
+  ];
+
+  function renderAgentVorlagen(){
+    const block = $("#aufgaben-block");
+    const reihe = $("#aufgaben-chips");
+    if(!block || !reihe) return;
+
+    // Ohne eingerichteten Anbieter waere jeder Vorschlag eine Sackgasse.
+    if(!buildTargets().length){ block.style.display = "none"; return; }
+
+    const passend = AGENT_VORLAGEN.filter(v => {
+      if(v.braucht === "recherche") return rechercheVerfuegbar();
+      if(v.braucht === "projekt") return Object.keys(projects).length > 0;
+      return true;
+    });
+    if(!passend.length){ block.style.display = "none"; return; }
+
+    block.style.display = "";
+    reihe.innerHTML = "";
+    for(const v of passend){
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "chip aufgaben-chip";
+      btn.innerHTML = v.icon + escapeHtml(v.name);
+      btn.addEventListener("click", () => {
+        setzeBetriebsart("agent");
+        input.value = v.prompt;
+        autoGrow();
+        updateSendState();
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+        showToast("Agent-Modus an — ergänze noch, worum es geht.");
+      });
+      reihe.appendChild(btn);
+    }
+  }
+
+  // ---------- Vorschlaege ----------
+  // Die Vorschlaege richten sich nach der Betriebsart: im Agent-Modus sind
+  // Fragen wie "Erklaer mir ein Thema" verschenkt -- dort geht es um
+  // Aufgaben, die mehrere Schritte und Werkzeuge brauchen.
+  const VORSCHLAEGE_NORMAL = [
+    { text: "Erklären", prompt: "Erklär mir ein Thema einfach und verständlich: ",
+      icon: '<path d="M12 6.5C10.5 5 8.5 4.5 4 4.5v13c4.5 0 6.5.5 8 2 1.5-1.5 3.5-2 8-2v-13c-4.5 0-6.5.5-8 2Z" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 6.5v13" stroke-linecap="round"/>' },
+    { text: "Nachricht", prompt: "Hilf mir, diese Nachricht freundlich und klar zu formulieren: ",
+      icon: '<path d="M4 5h16v11H8l-4 4V5Z" stroke-linecap="round" stroke-linejoin="round"/>' },
+    { text: "Zusammenfassen", prompt: "Fass mir diesen Text knapp zusammen: ",
+      icon: '<path d="M5 6h14M5 11h14M5 16h8" stroke-linecap="round"/>' },
+    { text: "Code", prompt: "Schreib mir Code für folgende Aufgabe: ",
+      icon: '<path d="m9 8-4 4 4 4M15 8l4 4-4 4" stroke-linecap="round" stroke-linejoin="round"/>' },
+    { text: "Ideen", prompt: "Lass uns gemeinsam Ideen sammeln zu: ",
+      icon: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.3.3.5.7.5 1.1h6c0-.4.2-.8.5-1.1A6 6 0 0 0 12 3Z" stroke-linecap="round" stroke-linejoin="round"/>' }
+  ];
+
+  // Jede Vorlage nutzt Werkzeuge, die tatsaechlich vorhanden sind, und sagt
+  // dem Modell ausdruecklich, was am Ende festgehalten werden soll --
+  // sonst recherchiert es und das Ergebnis verfaellt mit dem Chat.
+  const VORSCHLAEGE_AGENT = [
+    {
+      text: "Recherchieren & festhalten",
+      braucht: "recherche",
+      prompt: "Recherchiere gründlich zu folgendem Thema und halte die wichtigsten "
+        + "Erkenntnisse anschließend als Aufgaben fest, damit ich sie später wiederfinde. "
+        + "Nenne deine Quellen.\n\nThema: ",
+      icon: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3" stroke-linecap="round"/>'
+    },
+    {
+      text: "Faktencheck",
+      braucht: "recherche",
+      prompt: "Prüfe die folgende Behauptung gegen aktuelle Quellen. Sag klar, was zutrifft, "
+        + "was überholt ist und was sich nicht belegen lässt.\n\nBehauptung: ",
+      icon: '<path d="M12 3l8 4v5c0 4.5-3.2 8.3-8 9.5C7.2 20.3 4 16.5 4 12V7l8-4Z" stroke-linecap="round" stroke-linejoin="round"/><path d="m9 12 2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/>'
+    },
+    {
+      text: "Repo erkunden",
+      prompt: "Sieh dir dieses öffentliche GitHub-Repository an: verschaffe dir erst einen "
+        + "Überblick über die Dateien, lies dann die wichtigsten und erklär mir, was das "
+        + "Projekt macht und wie es aufgebaut ist.\n\nRepository: ",
+      icon: '<path d="M9 19c-4 1.5-4-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.3 4.3 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12 12 0 0 0-6.2 0C6.5 2.8 5.4 3.1 5.4 3.1a4.3 4.3 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9.5c0 4.6 2.7 5.7 5.5 6-.4.4-.5.9-.5 1.5V21" stroke-linecap="round" stroke-linejoin="round"/>'
+    },
+    {
+      text: "Vorhaben planen",
+      prompt: "Zerlege folgendes Vorhaben in konkrete, überschaubare Schritte und lege jeden "
+        + "davon als Aufgabe an. Beginne mit dem, was zuerst erledigt sein muss.\n\nVorhaben: ",
+      icon: '<path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" stroke-linecap="round"/>'
+    }
+  ];
+
+  function renderStarterChips(){
+    const agent = agentMode;
+    const liste = agent ? VORSCHLAEGE_AGENT : VORSCHLAEGE_NORMAL;
+    starterChips.innerHTML = "";
+    for(const v of liste){
+      // Vorlagen, die auf die Web-Recherche angewiesen sind, erscheinen nur,
+      // wenn sie auch eingerichtet ist -- sonst schlagen sie beim Ausfuehren fehl.
+      if(v.braucht === "recherche" && !rechercheVerfuegbar()) continue;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "chip";
+      btn.dataset.prompt = v.prompt;
+      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">'
+        + v.icon + '</svg>' + escapeHtml(v.text);
+      starterChips.appendChild(btn);
+    }
+  }
+
   // ---------- Modus-Menue ----------
   // Vorher standen Agent, Vergleich und Team als drei einzelne Knoepfe in der
   // Composer-Leiste. Zusammen mit Anhang, Mikrofon, Verbessern und Senden
@@ -9057,6 +9284,8 @@
     for(const el of modusMenu.querySelectorAll("[data-tiefe]")){
       el.classList.toggle("gewaehlt", el.dataset.tiefe === answerMode);
     }
+    // Die Vorschlaege haengen an der Betriebsart und muessen mitwandern.
+    renderStarterChips();
   }
 
   function setzeBetriebsart(welche){
@@ -9155,6 +9384,7 @@
   // Der Hero bleibt aufgeraeumt: der Hinweistext erscheint nur, solange
   // wirklich noch kein Schluessel hinterlegt ist.
   function updateEmptyHint(){
+    renderAgentVorlagen();
     const targets = [...customProviders].length;
     if(!apiKey && !targets){
       emptyText.textContent = "Erst einen kostenlosen OpenRouter-Schlüssel eintragen — oben rechts, im Zahnrad.";
