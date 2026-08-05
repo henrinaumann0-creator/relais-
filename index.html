@@ -1232,6 +1232,49 @@
     white-space: nowrap;
   }
 
+  /* Uebersicht: Name und Erklaerung nebeneinander, damit man beim
+     Ueberfliegen die Namen erfasst und nur bei Bedarf weiterliest. */
+  .hilfe-gruppe{
+    font-size: var(--schrift-mini);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--text-mute);
+    padding: var(--raum-7) 0 var(--raum-4);
+  }
+  .hilfe-gruppe:first-child{ padding-top: var(--raum-2); }
+  .hilfe-punkt{
+    display: flex;
+    gap: var(--raum-5);
+    padding: var(--raum-3) 0;
+    align-items: baseline;
+  }
+  .hilfe-name{
+    flex-shrink: 0;
+    width: 34%;
+    max-width: 190px;
+    color: var(--text);
+    font-size: var(--schrift-ui);
+  }
+  .hilfe-taste{
+    flex-shrink: 0;
+    width: 34%;
+    max-width: 190px;
+    color: var(--text);
+    font-size: var(--schrift-klein);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  .hilfe-text{
+    color: var(--text-dim);
+    font-size: var(--schrift-klein);
+    line-height: 1.5;
+  }
+  @media (max-width: 520px){
+    .hilfe-punkt{ flex-direction: column; gap: var(--raum-1); }
+    .hilfe-name, .hilfe-taste{ width: auto; max-width: none; }
+  }
+
+
   .sidebar-foot{
     flex-shrink: 0;
     border-top: 1px solid var(--border);
@@ -3047,6 +3090,10 @@
           <span>Projekte</span>
           <span class="quick-zahl" id="quick-projects-count"></span>
         </button>
+        <button type="button" class="quick-btn" id="quick-hilfe" title="Was Relais kann">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.4v.6" stroke-linecap="round"/><circle cx="12" cy="17" r=".6" fill="currentColor"/></svg>
+          <span>Was Relais kann</span>
+        </button>
         <button type="button" class="quick-btn" id="quick-settings" title="Einstellungen">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 8.9 19a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 8.4a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span>Einstellungen</span>
@@ -3190,6 +3237,13 @@
       </button>
     </div>
     <div class="hint mt-klein">Ordner sind einfache Sammlungen. Sie verschwinden von selbst, sobald der letzte Chat sie verlässt.</div>
+  </div>
+</div>
+
+<div class="sheet-backdrop" id="hilfe-backdrop">
+  <div class="sheet">
+    <h2>Was Relais kann</h2>
+    <div id="hilfe-body"></div>
   </div>
 </div>
 
@@ -3775,6 +3829,7 @@
   const conversationList = $("#conversation-list");
   const chatSearchInput = $("#chat-search");
   const usageBackdrop = $("#usage-backdrop");
+  const hilfeBackdrop = $("#hilfe-backdrop");
   const usageBody = $("#usage-body");
   const agentsBackdrop = $("#agents-backdrop");
   const projectBackdrop = $("#project-backdrop");
@@ -5602,6 +5657,7 @@
       // dann die Seitenleiste -- so wie man es von Dialogen erwartet.
       if(convMenu.classList.contains("open")){ closeConvMenu(); return; }
       if(findBar.classList.contains("open")){ findSchliessen(); return; }
+      if(hilfeBackdrop.classList.contains("open")){ closeHilfe(); return; }
       if(folderBackdrop.classList.contains("open")){ closeFolderSheet(); return; }
       if(agentsBackdrop.classList.contains("open")){ closeAgentsSheet(); return; }
       if(projectBackdrop.classList.contains("open")){ closeProjectSheet(); return; }
@@ -5677,6 +5733,14 @@
     if(!isWide()) closeSidebar();
     openProjectSheet();
   });
+  $("#quick-hilfe").addEventListener("click", () => {
+    if(!isWide()) closeSidebar();
+    openHilfe();
+  });
+  hilfeBackdrop.addEventListener("click", (e) => {
+    if(e.target === hilfeBackdrop) closeHilfe();
+  });
+
   $("#quick-settings").addEventListener("click", () => {
     if(!isWide()) closeSidebar();
     openSettings();
@@ -7619,6 +7683,94 @@
   $("#find-next").addEventListener("click", () => findSpringe(1));
   $("#find-prev").addEventListener("click", () => findSpringe(-1));
   $("#find-close").addEventListener("click", findSchliessen);
+
+  // ---------- Was kann Relais? ----------
+  // Eine Bestandsaufnahme ergab: fuenfunddreissig Funktionen sind eingebaut,
+  // beim ersten Start sichtbar sind achtzehn Bedienelemente -- und gerade die
+  // maechtigsten (Agent, Team, Vergleich, Abzweigen, Ordner) liegen zwei
+  // Ebenen tief. Wer nicht danach sucht, findet sie nie. Diese Uebersicht
+  // macht sie auffindbar, statt noch etwas hinzuzufuegen.
+  const HILFE_BEREICHE = [
+    {
+      titel: "Antworten steuern",
+      punkte: [
+        ["Antworttiefe", "Schnell, Tief oder Experte — im Modus-Knopf unter dem Eingabefeld."],
+        ["Agent-Modus", "Arbeitet mehrschrittig: nutzt Werkzeuge, prüft das Ergebnis und macht weiter."],
+        ["Vergleich", "Dieselbe Frage an mehrere Anbieter, Antworten nebeneinander, eine übernehmen."],
+        ["Team-Modus", "Teilt die Aufgabe auf, die Beteiligten lesen sich gegenseitig, das Ergebnis wird zusammengeführt."]
+      ]
+    },
+    {
+      titel: "Mit Antworten arbeiten",
+      punkte: [
+        ["Abzweigen", "An einer früheren Antwort in einen eigenen Chat abbiegen — das Original bleibt."],
+        ["Belegen", "Prüft eine Antwort gegen aktuelle Quellen. Braucht das Vercel-Gateway."],
+        ["Neu generieren", "Letzte Antwort verwerfen und neu erzeugen lassen."],
+        ["Vorlesen", "Antwort vorlesen lassen."],
+        ["Code", "Code-Blöcke lassen sich kopieren; JavaScript und Python auch direkt ausführen."]
+      ]
+    },
+    {
+      titel: "Ordnung halten",
+      punkte: [
+        ["Ordner", "Chats einsortieren — über das Menü rechts am Chat in der Seitenleiste."],
+        ["Projekte", "Geben einem Chat festen Kontext und Aufgaben."],
+        ["Agenten", "Eigene Rollen mit eigenem Auftrag und bevorzugtem Anbieter."],
+        ["Anheften und Archivieren", "Ebenfalls im Chat-Menü."],
+        ["Gedächtnis", "Was hier steht, weiß die KI in jedem Chat — in den Einstellungen."]
+      ]
+    },
+    {
+      titel: "Eingeben",
+      punkte: [
+        ["Dateien", "PDF, Word, Text und Bilder über das Plus im Eingabefeld."],
+        ["Diktieren", "Über das Mikrofon."],
+        ["Prompt verbessern", "Der Stern formuliert deine Frage präziser."]
+      ]
+    },
+    {
+      titel: "Sicherheit und Kosten",
+      punkte: [
+        ["PIN-Sperre", "Verschlüsselt alle Zugangsschlüssel auf diesem Gerät."],
+        ["Monatsgrenze", "Warnt, bevor es teuer wird — in der Nutzungsübersicht."],
+        ["Sicherung", "Alles exportieren und auf einem anderen Gerät einlesen."]
+      ]
+    }
+  ];
+
+  const HILFE_KUERZEL = [
+    ["Strg/Cmd + B", "Seitenleiste"],
+    ["Strg/Cmd + K", "Chats durchsuchen"],
+    ["Strg/Cmd + F", "im offenen Chat suchen"],
+    ["Strg/Cmd + Shift + O", "neuer Chat"],
+    ["Strg/Cmd + /", "ins Eingabefeld"],
+    ["Esc", "schließt, was offen ist"]
+  ];
+
+  function renderHilfe(){
+    const el = $("#hilfe-body");
+    if(!el) return;
+    let html = "";
+    for(const b of HILFE_BEREICHE){
+      html += '<div class="hilfe-gruppe">' + escapeHtml(b.titel) + '</div>';
+      for(const [name, text] of b.punkte){
+        html += '<div class="hilfe-punkt"><span class="hilfe-name">' + escapeHtml(name)
+          + '</span><span class="hilfe-text">' + escapeHtml(text) + '</span></div>';
+      }
+    }
+    html += '<div class="hilfe-gruppe">Tastenkürzel</div>';
+    for(const [taste, was] of HILFE_KUERZEL){
+      html += '<div class="hilfe-punkt"><span class="hilfe-taste">' + escapeHtml(taste)
+        + '</span><span class="hilfe-text">' + escapeHtml(was) + '</span></div>';
+    }
+    el.innerHTML = html;
+  }
+
+  function openHilfe(){
+    renderHilfe();
+    hilfeBackdrop.classList.add("open");
+  }
+  function closeHilfe(){ hilfeBackdrop.classList.remove("open"); }
 
   // ---------- Speicher-Uebersicht ----------
   // Der Browser-Speicher ist knapp; hier sieht man, was ihn belegt, und
