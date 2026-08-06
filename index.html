@@ -1234,6 +1234,97 @@
 
   /* Uebersicht: Name und Erklaerung nebeneinander, damit man beim
      Ueberfliegen die Namen erfasst und nur bei Bedarf weiterliest. */
+  /* Palette: sitzt oben statt mittig, weil der Blick beim Tippen dort ist
+     und die Trefferliste nach unten wachsen soll. */
+  .palette-backdrop .palette{
+    position: fixed;
+    left: 50%;
+    top: 12vh;
+    transform: translateX(-50%) scale(.97);
+    opacity: 0;
+    width: min(560px, calc(100vw - var(--raum-8) * 2));
+    max-height: min(62vh, 520px);
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border: 1px solid var(--border-stark);
+    border-radius: var(--rund-4);
+    box-shadow: var(--schatten-3);
+    z-index: 21;
+    overflow: hidden;
+    transition: transform var(--dauer-mittel) var(--kurve), opacity var(--dauer-kurz) var(--kurve);
+  }
+  .palette-backdrop.open .palette{ transform: translateX(-50%) scale(1); opacity: 1; }
+  .palette-kopf{
+    display: flex;
+    align-items: center;
+    gap: var(--raum-5);
+    padding: var(--raum-6);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .palette-kopf svg{ width: 17px; height: 17px; color: var(--text-mute); flex-shrink: 0; }
+  .palette-kopf input{
+    flex: 1;
+    background: none; border: none; outline: none;
+    color: var(--text);
+    font-family: inherit;
+    font-size: var(--schrift-feld);
+    min-width: 0;
+  }
+  .palette-kopf input::placeholder{ color: var(--text-mute); }
+  #palette-liste{ overflow-y: auto; padding: var(--raum-3); flex: 1; }
+  .palette-gruppe{
+    font-size: var(--schrift-mini);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--text-mute);
+    padding: var(--raum-5) var(--raum-5) var(--raum-2);
+  }
+  .palette-eintrag{
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--raum-5);
+    width: 100%;
+    background: none; border: none;
+    color: var(--text);
+    font-family: inherit;
+    font-size: var(--schrift-ui);
+    text-align: left;
+    padding: var(--raum-4) var(--raum-5);
+    border-radius: var(--rund-2);
+    cursor: pointer;
+  }
+  /* Nur die Tastaturauswahl hebt sich ab -- ein zusaetzlicher Hover-Zustand
+     wuerde bei der Pfeilnavigation zwei Markierungen gleichzeitig zeigen. */
+  .palette-eintrag.gewaehlt{ background: var(--surface-2); }
+  .palette-name{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .palette-zusatz{
+    flex-shrink: 0;
+    font-size: var(--schrift-klein);
+    color: var(--text-mute);
+  }
+  .palette-leer{
+    padding: var(--raum-7) var(--raum-5);
+    color: var(--text-mute);
+    font-size: var(--schrift-klein);
+    text-align: center;
+  }
+  .palette-fuss{
+    flex-shrink: 0;
+    padding: var(--raum-4) var(--raum-6);
+    border-top: 1px solid var(--border);
+    font-size: var(--schrift-mini);
+    color: var(--text-mute);
+  }
+  @media (max-width: 560px){
+    .palette-backdrop .palette{ top: var(--raum-6); max-height: 78vh; }
+    .palette-fuss{ display: none; }
+  }
+
+
   .hilfe-gruppe{
     font-size: var(--schrift-mini);
     letter-spacing: .08em;
@@ -3240,6 +3331,17 @@
   </div>
 </div>
 
+<div class="sheet-backdrop palette-backdrop" id="palette-backdrop">
+  <div class="palette">
+    <div class="palette-kopf">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3" stroke-linecap="round"/></svg>
+      <input type="text" id="palette-input" placeholder="Suchen oder Befehl eingeben…" autocomplete="off" aria-label="Suchen oder Befehl eingeben">
+    </div>
+    <div id="palette-liste"></div>
+    <div class="palette-fuss">↑↓ wählen · Enter ausführen · Esc schließen</div>
+  </div>
+</div>
+
 <div class="sheet-backdrop" id="hilfe-backdrop">
   <div class="sheet">
     <h2>Was Relais kann</h2>
@@ -3830,6 +3932,7 @@
   const chatSearchInput = $("#chat-search");
   const usageBackdrop = $("#usage-backdrop");
   const hilfeBackdrop = $("#hilfe-backdrop");
+  const paletteBackdrop = $("#palette-backdrop");
   const usageBody = $("#usage-body");
   const agentsBackdrop = $("#agents-backdrop");
   const projectBackdrop = $("#project-backdrop");
@@ -5633,8 +5736,9 @@
     }
     if(meta && e.key.toLowerCase() === "k"){
       e.preventDefault();
-      if(!sidebarBackdrop.classList.contains("open")) openSidebar();
-      chatSearchInput.focus(); chatSearchInput.select();
+      // Die Chat-Suche ist als Eintrag in der Palette erreichbar und damit
+      // nicht verloren -- sie ist nur nicht mehr das Einzige hinter Strg+K.
+      paletteBackdrop.classList.contains("open") ? closePalette() : openPalette();
       return;
     }
     if(meta && e.shiftKey && e.key.toLowerCase() === "o"){
@@ -5657,6 +5761,7 @@
       // dann die Seitenleiste -- so wie man es von Dialogen erwartet.
       if(convMenu.classList.contains("open")){ closeConvMenu(); return; }
       if(findBar.classList.contains("open")){ findSchliessen(); return; }
+      if(paletteBackdrop.classList.contains("open")){ closePalette(); return; }
       if(hilfeBackdrop.classList.contains("open")){ closeHilfe(); return; }
       if(folderBackdrop.classList.contains("open")){ closeFolderSheet(); return; }
       if(agentsBackdrop.classList.contains("open")){ closeAgentsSheet(); return; }
@@ -5733,6 +5838,21 @@
     if(!isWide()) closeSidebar();
     openProjectSheet();
   });
+  $("#palette-input").addEventListener("input", () => {
+    paletteTreffer = paletteSuchen($("#palette-input").value);
+    palettePosition = 0;
+    renderPalette();
+  });
+  $("#palette-input").addEventListener("keydown", (e) => {
+    if(e.key === "ArrowDown"){ e.preventDefault(); paletteBewegen(1); }
+    else if(e.key === "ArrowUp"){ e.preventDefault(); paletteBewegen(-1); }
+    else if(e.key === "Enter"){ e.preventDefault(); paletteAusfuehren(palettePosition); }
+    else if(e.key === "Escape"){ e.preventDefault(); closePalette(); }
+  });
+  paletteBackdrop.addEventListener("click", (e) => {
+    if(e.target === paletteBackdrop) closePalette();
+  });
+
   $("#quick-hilfe").addEventListener("click", () => {
     if(!isWide()) closeSidebar();
     openHilfe();
@@ -7684,6 +7804,191 @@
   $("#find-prev").addEventListener("click", () => findSpringe(-1));
   $("#find-close").addEventListener("click", findSchliessen);
 
+  // ---------- Befehlspalette ----------
+  // Die Bestandsaufnahme zeigte fuenfunddreissig Funktionen, von denen die
+  // meisten zwei Ebenen tief liegen. Eine Uebersicht macht sie auffindbar,
+  // aber man muss sie immer noch von Hand ansteuern. Die Palette geht den
+  // Schritt weiter: eintippen, was man will, und es passiert -- unabhaengig
+  // davon, in welchem Menue es sonst steckt.
+  let paletteTreffer = [];
+  let palettePosition = 0;
+
+  // Aktionen mit Suchbegriffen, damit auch gefunden wird, wer den genauen
+  // Namen nicht kennt: "dunkel" findet das Erscheinungsbild, "teilen" den Export.
+  function paletteAktionen(){
+    const a = [
+      { name: "Neuer Chat", zusatz: "Strg+Shift+O", suche: "neu anlegen starten",
+        tun: () => createConversation() },
+      { name: "Chats durchsuchen", zusatz: "Strg+K", suche: "finden suche verlauf",
+        tun: () => { openSidebar(); setTimeout(() => chatSearchInput.focus(), 60); } },
+      { name: "Im offenen Chat suchen", zusatz: "Strg+F", suche: "finden text stelle",
+        tun: () => findOeffnen() },
+      { name: "Was Relais kann", suche: "hilfe uebersicht funktionen anleitung",
+        tun: () => openHilfe() },
+      { name: "Einstellungen", suche: "schluessel anbieter konfiguration optionen",
+        tun: () => openSettings() },
+      { name: "Nutzung und Kosten", suche: "verbrauch tokens preis budget grenze speicher",
+        tun: () => openUsage() },
+      { name: "Agenten verwalten", suche: "rolle persona auftrag",
+        tun: () => openAgentsSheet() },
+      { name: "Projekte verwalten", suche: "kontext aufgaben todo",
+        tun: () => openProjectSheet() },
+      { name: "Erscheinungsbild ändern", suche: "theme dunkel hell farbe design",
+        tun: () => { openSettings(); setTimeout(() => {
+          const el = $("#section-profile"); if(el){ el.open = true; el.scrollIntoView({ block: "center" }); }
+        }, 120); } },
+      { name: "Sicherung exportieren", suche: "backup speichern teilen datei kopie",
+        tun: () => exportBackup() }
+    ];
+
+    // Nur anbieten, was gerade auch geht -- ein Eintrag, der beim Anklicken
+    // nichts tut, ist schlimmer als keiner.
+    if(messages.length){
+      a.push({ name: "Diesen Chat als Datei sichern", suche: "export markdown teilen",
+        tun: () => exportCurrentChat() });
+    }
+    for(const [art, bez] of [["", "Normal"], ["agent", "Agent"], ["vergleich", "Vergleich"], ["team", "Team"]]){
+      a.push({
+        name: "Betriebsart: " + bez,
+        zusatz: aktiveBetriebsart() === art ? "aktiv" : "",
+        suche: "modus umschalten " + bez.toLowerCase(),
+        tun: () => {
+          if((art === "team" || art === "vergleich") && buildTargets().length < 2){
+            showToast(bez + " braucht mindestens zwei eingerichtete Anbieter."); return;
+          }
+          setzeBetriebsart(art);
+        }
+      });
+    }
+    for(const [stufe, bez] of [["schnell", "Schnell"], ["tief", "Tief"], ["experte", "Experte"]]){
+      a.push({
+        name: "Antworttiefe: " + bez,
+        zusatz: answerMode === stufe ? "aktiv" : "",
+        suche: "tiefe laenge " + bez.toLowerCase(),
+        tun: () => {
+          answerMode = stufe;
+          try{ localStorage.setItem(STORAGE_MODE, answerMode); }catch{}
+          updateTeamToggleUI();
+        }
+      });
+    }
+    return a;
+  }
+
+  function paletteSuchen(begriff){
+    const q = begriff.trim().toLowerCase();
+    // Wortweise pruefen statt die Eingabe als Ganzes: sonst findet
+    // "betriebsart agent" den Eintrag "Betriebsart: Agent" nicht, weil der
+    // Doppelpunkt dazwischensteht.
+    const worte = q.split(/\s+/).filter(Boolean);
+    const treffer = [];
+
+    const passt = (...texte) => {
+      if(!worte.length) return true;
+      const alles = texte.join(" ").toLowerCase();
+      return worte.every(w => alles.includes(w));
+    };
+
+    // Aktionen zuerst: wer die Palette oeffnet, will meist etwas tun.
+    for(const akt of paletteAktionen()){
+      if(passt(akt.name, akt.suche || "")){
+        treffer.push({ art: "Aktion", ...akt });
+      }
+    }
+
+    // Chats, Agenten und Projekte nur bei einer Eingabe -- ohne Suchbegriff
+    // waere die Liste sofort unuebersichtlich.
+    if(worte.length){
+      for(const c of Object.values(conversations)){
+        if(c.archived) continue;
+        if(passt(c.title || "")){
+          treffer.push({ art: "Chat", name: c.title || "Neuer Chat",
+            zusatz: relativeTime(c.updatedAt), tun: () => switchConversation(c.id) });
+        }
+        if(treffer.length > 40) break;
+      }
+      for(const ag of Object.values(agents)){
+        if(passt(ag.name || "")){
+          treffer.push({ art: "Agent", name: ag.name,
+            zusatz: "Chat starten", tun: () => {
+              createConversation();
+              const conv = conversations[activeId];
+              if(conv){ conv.agentId = ag.id; saveConversationsRaw(conversations); renderContextChips(); }
+              input.focus();
+            }});
+        }
+      }
+      for(const pr of Object.values(projects)){
+        if(passt(pr.name || "")){
+          treffer.push({ art: "Projekt", name: pr.name,
+            zusatz: "zuweisen", tun: () => {
+              const conv = conversations[activeId];
+              if(conv){ conv.projectId = pr.id; saveConversationsRaw(conversations); renderContextChips(); renderSidebar(); }
+              showToast("Projekt zugewiesen.");
+            }});
+        }
+      }
+    }
+    return treffer.slice(0, 30);
+  }
+
+  function renderPalette(){
+    const liste = $("#palette-liste");
+    liste.innerHTML = "";
+    if(!paletteTreffer.length){
+      liste.innerHTML = '<div class="palette-leer">Nichts gefunden.</div>';
+      return;
+    }
+    let letzteArt = null;
+    paletteTreffer.forEach((t, i) => {
+      if(t.art !== letzteArt){
+        const kopf = document.createElement("div");
+        kopf.className = "palette-gruppe";
+        // Eigene Mehrzahl je Art -- ein angehaengtes "e" ergab "Chate".
+        const MEHRZAHL = { Aktion: "Aktionen", Chat: "Chats", Agent: "Agenten", Projekt: "Projekte" };
+        kopf.textContent = MEHRZAHL[t.art] || t.art;
+        liste.appendChild(kopf);
+        letzteArt = t.art;
+      }
+      const el = document.createElement("button");
+      el.type = "button";
+      el.className = "palette-eintrag" + (i === palettePosition ? " gewaehlt" : "");
+      el.dataset.pos = i;
+      el.innerHTML = '<span class="palette-name">' + escapeHtml(t.name) + '</span>'
+        + (t.zusatz ? '<span class="palette-zusatz">' + escapeHtml(t.zusatz) + '</span>' : '');
+      el.addEventListener("click", () => paletteAusfuehren(i));
+      liste.appendChild(el);
+    });
+  }
+
+  function paletteAusfuehren(pos){
+    const t = paletteTreffer[pos];
+    if(!t) return;
+    closePalette();
+    // Erst schliessen, dann ausfuehren: sonst oeffnet sich ein Dialog hinter
+    // der noch offenen Palette.
+    setTimeout(() => { try{ t.tun(); }catch(err){ showToast("Ging nicht: " + (err.message || "unbekannt")); } }, 40);
+  }
+
+  function openPalette(){
+    paletteBackdrop.classList.add("open");
+    const feld = $("#palette-input");
+    feld.value = "";
+    paletteTreffer = paletteSuchen("");
+    palettePosition = 0;
+    renderPalette();
+    setTimeout(() => feld.focus(), 40);
+  }
+  function closePalette(){ paletteBackdrop.classList.remove("open"); }
+
+  function paletteBewegen(richtung){
+    if(!paletteTreffer.length) return;
+    palettePosition = (palettePosition + richtung + paletteTreffer.length) % paletteTreffer.length;
+    renderPalette();
+    const el = $("#palette-liste").querySelector(".palette-eintrag.gewaehlt");
+    el?.scrollIntoView({ block: "nearest" });
+  }
+
   // ---------- Was kann Relais? ----------
   // Eine Bestandsaufnahme ergab: fuenfunddreissig Funktionen sind eingebaut,
   // beim ersten Start sichtbar sind achtzehn Bedienelemente -- und gerade die
@@ -7740,7 +8045,7 @@
 
   const HILFE_KUERZEL = [
     ["Strg/Cmd + B", "Seitenleiste"],
-    ["Strg/Cmd + K", "Chats durchsuchen"],
+    ["Strg/Cmd + K", "Befehlspalette — alles suchen und ausführen"],
     ["Strg/Cmd + F", "im offenen Chat suchen"],
     ["Strg/Cmd + Shift + O", "neuer Chat"],
     ["Strg/Cmd + /", "ins Eingabefeld"],
